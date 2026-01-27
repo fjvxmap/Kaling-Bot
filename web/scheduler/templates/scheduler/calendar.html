@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kaling Schedule Dashboard</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f4ef;
+        --card: #ffffff;
+        --ink: #1a1a1a;
+        --muted: #6b6b6b;
+        --accent: #0f766e;
+        --outline: #e4e1d9;
+      }
+      body {
+        margin: 0;
+        font-family: "Georgia", "Times New Roman", serif;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      header {
+        padding: 24px 32px;
+        border-bottom: 1px solid var(--outline);
+      }
+      header h1 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: 0.5px;
+      }
+      header p {
+        margin: 8px 0 0;
+        color: var(--muted);
+      }
+      main {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr;
+        gap: 24px;
+        padding: 24px 32px 40px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--outline);
+        border-radius: 12px;
+        padding: 20px;
+      }
+      .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 8px;
+      }
+      .day {
+        border: 1px solid var(--outline);
+        border-radius: 10px;
+        padding: 10px;
+        min-height: 70px;
+        background: #fffdf7;
+      }
+      .day.muted {
+        color: #b3b3b3;
+        background: #f0ede7;
+      }
+      .day .date {
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .schedule-list {
+        display: grid;
+        gap: 12px;
+      }
+      .schedule-item {
+        border: 1px solid var(--outline);
+        border-left: 4px solid var(--accent);
+        border-radius: 10px;
+        padding: 12px 14px;
+        background: #ffffff;
+      }
+      .schedule-item h3 {
+        margin: 0 0 6px;
+        font-size: 16px;
+      }
+      .meta {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .counts {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+        display: flex;
+        gap: 12px;
+      }
+      @media (max-width: 960px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Schedule Dashboard</h1>
+      <p>{{ month_label }} · Availability overview</p>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>{{ month_label }}</h2>
+        <div class="calendar-grid">
+          {% for week in weeks %}
+            {% for day in week %}
+              <div class="day {% if not day.in_month %}muted{% endif %}">
+                {% if day.day %}
+                  <div class="date">{{ day.day.day }}</div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Upcoming schedules</h2>
+        <div class="schedule-list">
+          {% for schedule in schedules %}
+            <div class="schedule-item">
+              <h3>{{ schedule.title }}</h3>
+              <div class="meta">
+                {{ schedule.start_time }} - {{ schedule.end_time }}
+              </div>
+              <div class="counts">
+                <span>Available: {{ schedule.available_count }}</span>
+                <span>Maybe: {{ schedule.maybe_count }}</span>
+                <span>Unavailable: {{ schedule.unavailable_count }}</span>
+              </div>
+            </div>
+          {% empty %}
+            <p class="meta">No schedules yet. Add data via Django admin.</p>
+          {% endfor %}
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
