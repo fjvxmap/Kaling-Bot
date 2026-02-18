@@ -28,4 +28,8 @@ class ScheduleAdmin(admin.ModelAdmin):
 class AvailabilityAdmin(admin.ModelAdmin):
     list_display = ("member", "schedule", "status", "start_time", "end_time")
     list_filter = ("status", "schedule")
+    actions = ("clear_all_availability",)
 
+    @admin.action(description="Delete all availability entries")
+    def clear_all_availability(self, request, queryset) -> None:
+        Availability.objects.all().delete()

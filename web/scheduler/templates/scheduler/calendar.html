@@ -3,16 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Kaling Schedule Dashboard</title>
+    <title>Kaling Weekly Availability</title>
     <style>
       :root {
         color-scheme: light;
-        --bg: #f6f4ef;
-        --card: #ffffff;
-        --ink: #1a1a1a;
+        --bg: #f5f2ea;
+        --panel: #ffffff;
+        --ink: #1c1c1c;
         --muted: #6b6b6b;
         --accent: #0f766e;
-        --outline: #e4e1d9;
+        --accent-soft: #c7ece8;
+        --outline: #e3ded2;
       }
       body {
         margin: 0;
@@ -21,125 +22,340 @@
         color: var(--ink);
       }
       header {
-        padding: 24px 32px;
+        padding: 24px 32px 16px;
         border-bottom: 1px solid var(--outline);
       }
       header h1 {
         margin: 0;
         font-size: 28px;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.6px;
       }
       header p {
-        margin: 8px 0 0;
+        margin: 6px 0 0;
         color: var(--muted);
       }
       main {
-        display: grid;
-        grid-template-columns: 1.3fr 1fr;
-        gap: 24px;
         padding: 24px 32px 40px;
-      }
-      .card {
-        background: var(--card);
-        border: 1px solid var(--outline);
-        border-radius: 12px;
-        padding: 20px;
-      }
-      .calendar-grid {
         display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 8px;
+        gap: 20px;
       }
-      .day {
+      .panel {
+        background: var(--panel);
         border: 1px solid var(--outline);
-        border-radius: 10px;
-        padding: 10px;
-        min-height: 70px;
-        background: #fffdf7;
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
       }
-      .day.muted {
-        color: #b3b3b3;
-        background: #f0ede7;
-      }
-      .day .date {
-        font-weight: 600;
-        font-size: 14px;
-      }
-      .schedule-list {
+      .form-row {
         display: grid;
         gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        margin-bottom: 12px;
       }
-      .schedule-item {
-        border: 1px solid var(--outline);
-        border-left: 4px solid var(--accent);
-        border-radius: 10px;
-        padding: 12px 14px;
-        background: #ffffff;
-      }
-      .schedule-item h3 {
-        margin: 0 0 6px;
-        font-size: 16px;
-      }
-      .meta {
+      label {
         font-size: 13px;
         color: var(--muted);
+        display: block;
+        margin-bottom: 4px;
       }
-      .counts {
-        margin-top: 8px;
-        font-size: 12px;
-        color: var(--muted);
+      input[type="text"] {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--outline);
+        font-size: 14px;
+      }
+      .actions {
         display: flex;
         gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
       }
-      @media (max-width: 960px) {
-        main {
-          grid-template-columns: 1fr;
+      button {
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: none;
+        background: var(--accent);
+        color: #fff;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .ghost {
+        background: transparent;
+        border: 1px solid var(--outline);
+        color: var(--ink);
+        padding: 6px 12px;
+        border-radius: 999px;
+        text-decoration: none;
+        font-size: 13px;
+      }
+      .notice {
+        color: var(--accent);
+        font-size: 14px;
+        margin: 0 0 8px;
+      }
+      .timetable {
+        overflow: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 720px;
+      }
+      th, td {
+        border: 1px solid var(--outline);
+        text-align: center;
+        font-size: 12px;
+        padding: 6px;
+      }
+      th {
+        background: #faf7f0;
+        font-weight: 600;
+      }
+      td.time {
+        background: #faf7f0;
+        font-weight: 600;
+        width: 64px;
+      }
+      td.slot {
+        cursor: pointer;
+        background: #fff;
+        min-width: 90px;
+        transition: background 0.1s ease;
+        position: relative;
+      }
+      td.slot.selected {
+        background: #b4e5e0;
+        border-color: #1f766d;
+      }
+      td.slot.has-availability {
+        background: #e7f3f1;
+      }
+      td.slot.has-availability.selected {
+        background: #9fd8d1;
+        border-color: #1f766d;
+      }
+      td.slot.all-available {
+        background: #b8f1b0;
+        border-color: #3d8f45;
+      }
+      td.slot.selected.all-available {
+        background: #8fe889;
+        border-color: #2f7a36;
+      }
+      td.slot.filtered-out {
+        opacity: 0.2;
+      }
+      .filter-all td.slot:not(.all-available) {
+        opacity: 0.2;
+        background: #fff;
+        border-color: #efe7d8;
+      }
+      .filter-all td.slot.all-available {
+        opacity: 1;
+      }
+      .tooltip {
+        position: absolute;
+        top: 6px;
+        left: calc(100% + 6px);
+        background: #fff;
+        border: 1px solid var(--outline);
+        border-radius: 8px;
+        padding: 6px 8px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+        font-size: 11px;
+        color: var(--ink);
+        white-space: nowrap;
+        display: none;
+        z-index: 10;
+      }
+      td.slot:hover .tooltip {
+        display: block;
+      }
+      .filter-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 12px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      @media (max-width: 900px) {
+        header, main {
+          padding: 20px;
         }
       }
     </style>
   </head>
   <body>
     <header>
-      <h1>Schedule Dashboard</h1>
-      <p>{{ month_label }} · Availability overview</p>
+      <h1>Weekly Availability</h1>
+      <p>{{ week_label }} · Drag to select your available time</p>
     </header>
 
     <main>
-      <section class="card">
-        <h2>{{ month_label }}</h2>
-        <div class="calendar-grid">
-          {% for week in weeks %}
-            {% for day in week %}
-              <div class="day {% if not day.in_month %}muted{% endif %}">
-                {% if day.day %}
-                  <div class="date">{{ day.day.day }}</div>
-                {% endif %}
-              </div>
-            {% endfor %}
-          {% endfor %}
+      <section class="panel">
+        {% if success_message %}
+          <p class="notice">{{ success_message }}</p>
+        {% endif %}
+        <div class="actions" style="margin-bottom: 12px;">
+          {% if oauth_user.id %}
+            <div class="meta">Signed in as {{ oauth_user.global_name }}</div>
+            <a class="ghost" href="{% url 'discord_logout' %}">Sign out</a>
+          {% else %}
+            <a class="ghost" href="{% url 'discord_login' %}">Sign in with Discord</a>
+          {% endif %}
         </div>
+        {% if oauth_user.id %}
+          <form method="post" id="availability-form">
+            {% csrf_token %}
+            <input type="hidden" id="selected_slots" name="selected_slots" />
+            <div class="actions">
+              <button type="submit">Save availability</button>
+              <button type="button" class="ghost" id="clear-btn">Clear selection</button>
+            </div>
+          </form>
+        {% else %}
+          <p class="meta">Sign in with Discord to edit the timetable.</p>
+        {% endif %}
       </section>
 
-      <section class="card">
-        <h2>Upcoming schedules</h2>
-        <div class="schedule-list">
-          {% for schedule in schedules %}
-            <div class="schedule-item">
-              <h3>{{ schedule.title }}</h3>
-              <div class="meta">
-                {{ schedule.start_time }} - {{ schedule.end_time }}
-              </div>
-              <div class="counts">
-                <span>Available: {{ schedule.available_count }}</span>
-                <span>Maybe: {{ schedule.maybe_count }}</span>
-                <span>Unavailable: {{ schedule.unavailable_count }}</span>
-              </div>
-            </div>
-          {% empty %}
-            <p class="meta">No schedules yet. Add data via Django admin.</p>
-          {% endfor %}
+      <section class="panel timetable">
+        <div class="filter-row">
+          <input type="checkbox" id="filter-all" />
+          <label for="filter-all">Show only slots where everyone is available</label>
         </div>
+        <p class="meta" id="all-available-empty" style="display: none;">
+          No slots where everyone is available yet.
+        </p>
+        <table id="timetable">
+          <thead>
+            <tr>
+              <th>Time</th>
+              {% for day in days %}
+                <th>{{ day|date:"D m/d" }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for slot in slots %}
+              <tr>
+                <td class="time">{{ slot|time:"H:i" }}</td>
+                {% for day in days %}
+                  <td
+                    class="slot"
+                    data-date="{{ day|date:'Y-m-d' }}"
+                    data-hour="{{ slot|time:'H:i' }}"
+                  ></td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </section>
     </main>
+    <script>
+      const selected = new Set();
+      const selectedFromServer = {{ selected_slots_json|safe }};
+      const availabilityMap = {{ availability_map_json|safe }};
+      const allAvailableMap = {{ all_available_map_json|safe }};
+      for (const entry of selectedFromServer) {
+        selected.add(entry[0] + "::" + entry[1]);
+      }
+
+      const table = document.getElementById("timetable");
+      const filterAll = document.getElementById("filter-all");
+      const emptyNotice = document.getElementById("all-available-empty");
+      const hiddenInput = document.getElementById("selected_slots");
+      const clearBtn = document.getElementById("clear-btn");
+      let isDragging = false;
+      let dragMode = "add";
+      const editingEnabled = Boolean(hiddenInput);
+
+      function syncHidden() {
+        const slots = Array.from(selected).map((value) => {
+          const [date, hour] = value.split("::");
+          return { date, hour };
+        });
+        hiddenInput.value = JSON.stringify(slots);
+      }
+
+      function applySelection(cell, shouldSelect) {
+        const key = cell.dataset.date + "::" + cell.dataset.hour;
+        if (shouldSelect) {
+          selected.add(key);
+          cell.classList.add("selected");
+        } else {
+          selected.delete(key);
+          cell.classList.remove("selected");
+        }
+        syncHidden();
+      }
+
+      table.querySelectorAll("td.slot").forEach((cell) => {
+        const key = cell.dataset.date + "::" + cell.dataset.hour;
+        const names = availabilityMap[key] || [];
+        if (names.length > 0) {
+          cell.classList.add("has-availability");
+          const tooltip = document.createElement("div");
+          tooltip.className = "tooltip";
+          tooltip.textContent = names.join(", ");
+          cell.appendChild(tooltip);
+        }
+        if (allAvailableMap[key]) {
+          cell.classList.add("all-available");
+        }
+        if (selected.has(key)) {
+          cell.classList.add("selected");
+        }
+        if (!editingEnabled) return;
+        cell.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+          isDragging = true;
+          dragMode = cell.classList.contains("selected") ? "remove" : "add";
+          applySelection(cell, dragMode === "add");
+        });
+        cell.addEventListener("mouseover", () => {
+          if (!isDragging) return;
+          applySelection(cell, dragMode === "add");
+        });
+      });
+
+      document.addEventListener("mouseup", () => {
+        isDragging = false;
+      });
+
+      if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+          selected.clear();
+          table.querySelectorAll("td.slot.selected").forEach((cell) => {
+            cell.classList.remove("selected");
+          });
+          syncHidden();
+        });
+      }
+
+      if (filterAll) {
+        const hasAllAvailable = Object.values(allAvailableMap).some((value) => value);
+        filterAll.addEventListener("change", () => {
+          const enabled = filterAll.checked;
+          if (enabled) {
+            table.classList.add("filter-all");
+            if (emptyNotice) {
+              emptyNotice.style.display = hasAllAvailable ? "none" : "block";
+            }
+          } else {
+            table.classList.remove("filter-all");
+            if (emptyNotice) {
+              emptyNotice.style.display = "none";
+            }
+          }
+        });
+      }
+
+      if (editingEnabled) {
+        syncHidden();
+      }
+    </script>
   </body>
 </html>

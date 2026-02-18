@@ -29,6 +29,22 @@ the bot checks whether Django is running. If not, it replies with a playful teas
 using a style reference file:
 - `Kaling/bot/prompts/schedule_tease_ko.txt`
 
+## Prompt files
+You can maintain long prompts in files instead of inline code:
+- Intent classification: `Kaling/bot/prompts/intent_parser_ko.txt`
+- Casual chat style: `Kaling/bot/prompts/small_talk_ko.txt`
+- Schedule tease style: `Kaling/bot/prompts/schedule_tease_ko.txt`
+- Character speech reference lines: `Kaling/bot/prompts/reference.txt`
+
+## Character images
+Put reaction images under `Kaling/img` with subfolders:
+- `joy/`, `love/`, `scary/`, `tease/`
+
+OpenAI intent parsing now also selects the image reaction mood (`joy/love/scary/tease/none`).
+The bot randomly picks one file from the selected folder and sometimes sends it with text.
+Supported extensions include `.gif`, `.png`, `.jpg`, `.jpeg`, `.webp`.
+Control send frequency with `KALING_IMAGE_SEND_PROB` in `.env` (default `0.35`).
+
 Set `DJANGO_BASE_URL` in `.env` if your dashboard runs elsewhere.
 
 ### Required env keys
@@ -71,6 +87,16 @@ Open http://127.0.0.1:8000/ to view the calendar.
 python manage.py createsuperuser
 ```
 Then open http://127.0.0.1:8000/admin to manage schedules and availability.
+
+## Discord OAuth (optional)
+Enable Discord OAuth to auto-fill user identity on the schedule page.
+
+Add these to `.env`:
+- `DISCORD_CLIENT_ID`
+- `DISCORD_CLIENT_SECRET`
+- `DISCORD_OAUTH_REDIRECT_URI` (example: `http://127.0.0.1:8000/auth/discord/callback/`)
+
+Then use the "Sign in with Discord" button on the schedule page.
 
 ## Folder structure
 ```
