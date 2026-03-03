@@ -53,10 +53,12 @@ class OpenAIIntentParser:
         except OSError:
             return (
                 "You are a strict JSON parser for a Discord bot. Your name is Kaling(카링)."
-                "Valid intents are maple_combat_power, schedule_query, small_talk, ignore. "
+                "Valid intents are maple_combat_power, schedule_query, number_baseball_start, number_baseball_stop, small_talk, ignore. "
                 "Valid reactions are joy, love, scary, tease, none. "
                 "If the request is about MapleStory combat power, use maple_combat_power and include character_name. "
                 "If the request is about schedules, use schedule_query. "
+                "If the request is to start number baseball game, use number_baseball_start. "
+                "If the request is to stop/quit number baseball game, use number_baseball_stop. "
                 "If the user is casually talking to the bot, use small_talk. "
                 "If none apply, use ignore. character_name should be null when unknown. "
                 "Include reaction for image mood. "

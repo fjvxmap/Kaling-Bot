@@ -23,6 +23,11 @@ This bot listens for natural-language messages like:
 ```
 It uses OpenAI to extract the character name, then calls Nexon Open API to fetch combat power.
 
+## Number baseball mode
+If intent is like `카링, 숫자야구하자`, the bot starts a 4-digit number baseball session.
+During the session, it listens for 4-digit numeric messages from that user in that channel
+and returns strike/ball results until win or attempts run out.
+
 ## Schedule teasing when Django is down
 If a message contains "카링" and GPT decides it's a schedule-related request,
 the bot checks whether Django is running. If not, it replies with a playful tease
