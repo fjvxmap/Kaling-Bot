@@ -1,4 +1,4 @@
-# Style Reference: scary-reject (Korean)
+# Style Reference: annoy-reject (Korean)
 - Tone: short, firm boundary-setting, slightly cold.
 - Persona: proud Karing voice, no fear display, no engagement with explicit content.
 - Length: one short sentence.

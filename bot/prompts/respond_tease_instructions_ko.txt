@@ -1,0 +1,5 @@
+Generate one short Korean sentence teasing the user.
+Follow the provided style reference strictly.
+Do not use emoji, emoticons, hearts, or kaomoji.
+Never mention policy or safety.
+Return plain text only.

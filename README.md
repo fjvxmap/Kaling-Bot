@@ -40,6 +40,7 @@ You can maintain long prompts in files instead of inline code:
 - Casual chat style: `Kaling/bot/prompts/small_talk_ko.txt`
 - Schedule tease style: `Kaling/bot/prompts/schedule_tease_ko.txt`
 - Character speech reference lines: `Kaling/bot/prompts/reference.txt`
+- OpenAI response instructions: `Kaling/bot/prompts/respond_small_talk_instructions_ko.txt`, `Kaling/bot/prompts/respond_tease_instructions_ko.txt`, `Kaling/bot/prompts/respond_annoy_reject_instructions_ko.txt`
 
 ## Character images
 Put reaction images under `Kaling/img` with subfolders:

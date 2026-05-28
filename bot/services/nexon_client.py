@@ -66,6 +66,19 @@ class NexonAPIClient:
         stat_payload = self.get(self._config.character_stat_path, {"ocid": ocid})
         self._logger.debug("Stat payload keys=%s", list(stat_payload.keys()))
         return self._extract_path(stat_payload, self._config.combat_power_path)
+    
+    def get_equipment(self, character_name: str) -> dict[str, Any] | None:
+        self._logger.info("Fetching equipment for '%s'", character_name)
+        ocid_payload = self.get(self._config.ocid_path, {"character_name": character_name})
+        self._logger.debug("OCID payload=%s", ocid_payload)
+        ocid = ocid_payload.get("ocid")
+        if not ocid:
+            self._logger.warning("OCID not found in response for '%s'", character_name)
+            return None
+
+        equip_payload = self.get(os.getenv("NEXON_MAPLE_CHARACTER_EQUIP_PATH", "").strip(), {"ocid": ocid})
+        self._logger.debug("Equip payload keys=%s", list(equip_payload.keys()))
+        return equip_payload
 
     @staticmethod
     def _extract_path(payload: dict[str, Any], path: str) -> Any:
