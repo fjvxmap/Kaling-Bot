@@ -28,6 +28,23 @@ If intent is like `카링, 숫자야구하자`, the bot starts a 4-digit number 
 During the session, it listens for 4-digit numeric messages from that user in that channel
 and returns strike/ball results until win or attempts run out.
 
+## RPG mode
+The bot includes a compact slash-command RPG based on the old Python console game's combat loop.
+
+Commands:
+- `/rpg 시작`: create or view your RPG profile
+- `/rpg 프로필`: level, EXP, stats, daily explores, equipped weapons
+- `/rpg 던전목록`: available daily dungeons
+- `/rpg 탐색`: spend one daily explore and auto-battle a dungeon
+- `/rpg 보스목록`: boss list and weekly reward status
+- `/rpg 보스`: attempt a boss with no try limit; rewards are boss-by-boss weekly
+- `/rpg 인벤토리`: owned weapons; the strongest 4 non-destroyed weapons auto-equip
+- `/rpg 강화`: enhance one weapon by UID
+- `/rpg 복구`: restore a destroyed weapon trace to +0
+- `/rpg 스탯`: spend stat points on attack, HP, or defense
+
+Runtime RPG state is stored at `bot/data/rpg_state.json` and ignored by Git.
+
 ## Schedule teasing when Django is down
 If a message contains "카링" and GPT decides it's a schedule-related request,
 the bot checks whether Django is running. If not, it replies with a playful tease

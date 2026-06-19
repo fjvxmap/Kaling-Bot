@@ -15,6 +15,7 @@ class KalingBot(commands.Bot):
     async def setup_hook(self) -> None:
         await self.load_extension("bot.cogs.core")
         await self.load_extension("bot.cogs.maple")
+        await self.load_extension("bot.cogs.rpg")
         await self.tree.sync()
         LOGGER.info("App commands synced.")
 
