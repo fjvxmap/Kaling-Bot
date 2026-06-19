@@ -35,15 +35,21 @@ Commands:
 - `/rpg 시작`: create or view your RPG profile
 - `/rpg 프로필`: level, job, EXP, stats, daily explores, equipped weapons
 - `/rpg 던전목록`: available daily dungeons
-- `/rpg 탐색`: spend one of 7 daily explores and auto-battle a random dungeon enemy
-- `/rpg 보스목록`: boss list and weekly reward status
-- `/rpg 보스`: attempt a boss with no try limit; rewards are boss-by-boss weekly
+- `/rpg 탐색`: open a dungeon select UI; button clicks explore without a daily limit and update the same message
+- `/rpg 보스목록`: boss list and reward info
+- `/rpg 보스`: open a joinable button-based turn battle; clear rewards are unlimited during testing
 - `/rpg 전직목록`: job tree and available advancements
 - `/rpg 전직`: advance to an eligible job
-- `/rpg 인벤토리`: owned weapons; the strongest 4 non-destroyed weapons auto-equip
+- `/rpg 인벤토리`: owned weapons and equipment UI; equip up to 4 weapons manually
+- `/rpg 장착`: open the equipment UI directly
 - `/rpg 강화`: select a weapon, preview stat gain/cost/odds, then enhance
 - `/rpg 복구`: restore a destroyed weapon trace to +0
 - `/rpg 스탯`: spend stat points on attack, HP, or defense
+
+Testing flags currently disable daily explore limits and boss reward locks.
+Boss battles are message-based sessions: players can join before start, share boss HP,
+keep separate HP/CT/warnings, use gimmick buttons without spending a turn, and spend
+turns only with the attack button.
 
 Runtime RPG state is stored at `bot/data/rpg_state.json` and ignored by Git.
 

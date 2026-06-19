@@ -6,10 +6,12 @@ from random import Random
 
 from .data import (
     BOSS_BY_ID,
+    BOSS_WEEKLY_REWARD_LIMIT_ENABLED,
     BOSSES,
     DAILY_EXPLORES,
     DUNGEON_BY_ID,
     DUNGEONS,
+    EXPLORE_LIMIT_ENABLED,
     INTEGER_STATS,
     ITEM_BY_ID,
     ITEMS_BY_RARITY,
@@ -130,6 +132,14 @@ class StatAllocationResult:
 
 
 @dataclass
+class EquipmentResult:
+    ok: bool
+    message: str
+    profile: PlayerProfile
+    item: ItemInstance | None = None
+
+
+@dataclass
 class JobResult:
     ok: bool
     message: str
@@ -165,7 +175,15 @@ class RPGService:
     def profile_stats(self, profile: PlayerProfile) -> CombatStats:
         return self._player_stats(profile)
 
+    def explore_limit_enabled(self) -> bool:
+        return EXPLORE_LIMIT_ENABLED
+
+    def boss_reward_limit_enabled(self) -> bool:
+        return BOSS_WEEKLY_REWARD_LIMIT_ENABLED
+
     def daily_remaining(self, profile: PlayerProfile) -> int:
+        if not EXPLORE_LIMIT_ENABLED:
+            return -1
         self._reset_daily_if_needed(profile)
         return max(0, DAILY_EXPLORES - profile.daily_explores_used)
 
@@ -236,15 +254,18 @@ class RPGService:
         dungeon = DUNGEON_BY_ID.get(dungeon_id)
         if dungeon is None:
             return ExploreResult(False, "알 수 없는 던전입니다.", profile, daily_remaining=self.daily_remaining(profile))
-        self._reset_daily_if_needed(profile)
         remaining = self.daily_remaining(profile)
-        if remaining <= 0:
-            return ExploreResult(False, f"오늘 탐색 횟수를 모두 사용했습니다. 하루 {DAILY_EXPLORES}회까지 가능합니다.", profile, dungeon, daily_remaining=0)
+        if EXPLORE_LIMIT_ENABLED:
+            self._reset_daily_if_needed(profile)
+            remaining = self.daily_remaining(profile)
+            if remaining <= 0:
+                return ExploreResult(False, f"오늘 탐색 횟수를 모두 사용했습니다. 하루 {DAILY_EXPLORES}회까지 가능합니다.", profile, dungeon, daily_remaining=0)
         if profile.level < dungeon.level_req:
             return ExploreResult(False, f"{dungeon.name}은 Lv.{dungeon.level_req}부터 입장할 수 있습니다.", profile, dungeon, daily_remaining=remaining)
 
         enemy = self._choose_enemy(dungeon)
-        profile.daily_explores_used += 1
+        if EXPLORE_LIMIT_ENABLED:
+            profile.daily_explores_used += 1
         battle = self._simulate_battle(profile, enemy.name, self._enemy_stats(enemy.stats))
         reward = RewardReport()
         if battle.won:
@@ -281,7 +302,10 @@ class RPGService:
             return BossResult(False, f"{boss.name}은 Lv.{boss.level_req}부터 도전할 수 있습니다.", profile, boss)
 
         weekly_key = self._week_key()
-        reward_locked = profile.weekly_boss_clears.get(boss.id) == weekly_key
+        reward_locked = (
+            BOSS_WEEKLY_REWARD_LIMIT_ENABLED
+            and profile.weekly_boss_clears.get(boss.id) == weekly_key
+        )
         battle = self._simulate_battle(
             profile,
             boss.name,
@@ -299,9 +323,26 @@ class RPGService:
             profile.gold += reward.gold
             profile.stat_points += reward.stat_points
             profile.boss_clear_count += 1
-            profile.weekly_boss_clears[boss.id] = weekly_key
+            if BOSS_WEEKLY_REWARD_LIMIT_ENABLED:
+                profile.weekly_boss_clears[boss.id] = weekly_key
         self._save()
         return BossResult(True, "보스 도전 완료", profile, boss, battle, reward, weekly_key)
+
+    def grant_boss_reward(self, user_id: int, display_name: str, boss_id: str) -> RewardReport:
+        profile = self.get_profile(user_id, display_name)
+        boss = BOSS_BY_ID[boss_id]
+        reward = RewardReport()
+        reward.gold = boss.gold + self.rng.randint(0, 120 * boss.rank)
+        reward.exp = boss.exp
+        reward.stat_points = boss.stat_points
+        reward.dropped_item = self._roll_item_drop(profile, boss.rank + 1, boss.drop_chance)
+        reward.levels_gained = self._grant_exp(profile, reward.exp)
+        reward.weekly_reward_claimed = True
+        profile.gold += reward.gold
+        profile.stat_points += reward.stat_points
+        profile.boss_clear_count += 1
+        self._save()
+        return reward
 
     def allocate_stat(self, user_id: int, display_name: str, stat: str, amount: int) -> StatAllocationResult:
         profile = self.get_profile(user_id, display_name)
@@ -377,6 +418,10 @@ class RPGService:
         elif roll < success + destroy:
             item.stars = 0
             item.destroyed = True
+            profile.equipped_item_uids = [
+                uid for uid in profile.equipped_item_uids
+                if uid != item.uid
+            ]
             outcome = "destroyed"
         else:
             outcome = "failed"
@@ -400,12 +445,52 @@ class RPGService:
         self._save()
         return EnhancementResult(True, "복구 완료", profile, item, cost, 0, 0, "restored")
 
+    def equip_item(self, user_id: int, display_name: str, item_uid: int) -> EquipmentResult:
+        profile = self.get_profile(user_id, display_name)
+        item = self._find_item(profile, item_uid)
+        if item is None:
+            return EquipmentResult(False, "해당 UID의 장비를 찾지 못했습니다.", profile)
+        if item.destroyed:
+            return EquipmentResult(False, "파괴된 장비는 장착할 수 없습니다.", profile, item)
+        self._cleanup_equipped_items(profile)
+        if item.uid in profile.equipped_item_uids:
+            return EquipmentResult(True, "이미 장착 중인 장비입니다.", profile, item)
+        if len(profile.equipped_item_uids) >= MAX_EQUIPPED_ITEMS:
+            return EquipmentResult(False, f"장비는 최대 {MAX_EQUIPPED_ITEMS}개까지 장착할 수 있습니다.", profile, item)
+        profile.equipped_item_uids.append(item.uid)
+        self._save()
+        return EquipmentResult(True, "장비를 장착했습니다.", profile, item)
+
+    def unequip_item(self, user_id: int, display_name: str, item_uid: int) -> EquipmentResult:
+        profile = self.get_profile(user_id, display_name)
+        item = self._find_item(profile, item_uid)
+        if item_uid not in profile.equipped_item_uids:
+            return EquipmentResult(False, "장착 중인 장비가 아닙니다.", profile, item)
+        profile.equipped_item_uids = [
+            uid for uid in profile.equipped_item_uids
+            if uid != item_uid
+        ]
+        self._save()
+        return EquipmentResult(True, "장비를 해제했습니다.", profile, item)
+
+    def toggle_equip_item(self, user_id: int, display_name: str, item_uid: int) -> EquipmentResult:
+        profile = self.get_profile(user_id, display_name)
+        if item_uid in profile.equipped_item_uids:
+            return self.unequip_item(user_id, display_name, item_uid)
+        return self.equip_item(user_id, display_name, item_uid)
+
     def equipped_items(self, profile: PlayerProfile) -> list[ItemInstance]:
-        items = [
+        valid_items = [
             item for item in profile.inventory
             if not item.destroyed and item.template_id in ITEM_BY_ID
         ]
-        return sorted(items, key=self.item_score, reverse=True)[:MAX_EQUIPPED_ITEMS]
+        by_uid = {item.uid: item for item in valid_items}
+        equipped = [
+            by_uid[uid]
+            for uid in profile.equipped_item_uids
+            if uid in by_uid
+        ][:MAX_EQUIPPED_ITEMS]
+        return equipped
 
     def item_score(self, item: ItemInstance) -> float:
         if item.template_id not in ITEM_BY_ID:
@@ -922,10 +1007,33 @@ class RPGService:
             item for item in profile.inventory
             if item.uid > 0 and item.template_id in ITEM_BY_ID
         ]
+        if not profile.equipment_initialized:
+            profile.equipped_item_uids = [
+                item.uid for item in sorted(
+                    [
+                        item for item in profile.inventory
+                        if not item.destroyed and item.template_id in ITEM_BY_ID
+                    ],
+                    key=self.item_score,
+                    reverse=True,
+                )[:MAX_EQUIPPED_ITEMS]
+            ]
+            profile.equipment_initialized = True
+        self._cleanup_equipped_items(profile)
         profile.next_item_uid = max(
             profile.next_item_uid,
             max((item.uid for item in profile.inventory), default=0) + 1,
         )
+
+    def _cleanup_equipped_items(self, profile: PlayerProfile) -> None:
+        valid_uids = {
+            item.uid for item in profile.inventory
+            if item.uid > 0 and item.template_id in ITEM_BY_ID and not item.destroyed
+        }
+        profile.equipped_item_uids = list(dict.fromkeys(
+            uid for uid in profile.equipped_item_uids
+            if uid in valid_uids
+        ))[:MAX_EQUIPPED_ITEMS]
 
     def _save(self) -> None:
         self.store.save_profiles(self._profiles)
@@ -942,4 +1050,3 @@ class RPGService:
         if key in INTEGER_STATS:
             return f"{round(value):{sign}d}"
         return f"{value:{sign}.1f}"
-

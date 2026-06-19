@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 
 
 DAILY_EXPLORES = 7
+EXPLORE_LIMIT_ENABLED = False
+BOSS_WEEKLY_REWARD_LIMIT_ENABLED = False
 MAX_EQUIPPED_ITEMS = 4
 MAX_ENHANCEMENT_STARS = 10
 
@@ -339,7 +341,7 @@ BOSSES = [
             BossPattern(0.45, "Imperial Bulk", boss_mods={"damage_cut": 0.16, "dmg_mitigation": 2.0}, duration=2),
             BossPattern(0.20, "Crown Drop", 0.65, 3),
         ],
-        "첫 주간 보스. 1차 전직과 약간의 스탯 투자 후 안정적으로 잡히는 기준입니다.",
+        "첫 보스. 1차 전직과 약간의 스탯 투자 후 안정적으로 잡히는 기준입니다.",
     ),
     BossTemplate(
         "crimson_wyvern",
@@ -408,7 +410,7 @@ BOSSES = [
             BossPattern(0.38, "Singularity", boss_mods={"atk": 0.34, "dmg_amplification": 0.24}, duration=3),
             BossPattern(0.16, "Last Light", 1.35, 4, player_mods={"damage_cut": -0.18}, duration=2),
         ],
-        "현재 최종 주간 보스입니다. 3차 전직, 장비 강화, 스탯 투자가 모두 필요합니다.",
+        "현재 최종 보스입니다. 3차 전직, 장비 강화, 스탯 투자가 모두 필요합니다.",
     ),
 ]
 BOSS_BY_ID = {boss.id: boss for boss in BOSSES}

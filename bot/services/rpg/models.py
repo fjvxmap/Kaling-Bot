@@ -53,6 +53,8 @@ class PlayerProfile:
     weekly_boss_clears: dict[str, str] = field(default_factory=dict)
     boss_clear_count: int = 0
     dungeon_clear_count: int = 0
+    equipment_initialized: bool = True
+    equipped_item_uids: list[int] = field(default_factory=list)
     inventory: list[ItemInstance] = field(default_factory=list)
     next_item_uid: int = 1
 
@@ -64,6 +66,7 @@ class PlayerProfile:
     def from_dict(cls, data: dict[str, Any]) -> "PlayerProfile":
         known = {field.name for field in fields(cls)}
         profile = cls()
+        has_equipment_field = "equipped_item_uids" in data
         for key, value in data.items():
             if key not in known:
                 continue
@@ -78,6 +81,12 @@ class PlayerProfile:
                     str(boss_id): str(week_key)
                     for boss_id, week_key in value.items()
                 }
+            elif key == "equipped_item_uids" and isinstance(value, list):
+                profile.equipped_item_uids = [
+                    int(uid)
+                    for uid in value
+                    if str(uid).isdigit()
+                ]
             else:
                 setattr(profile, key, value)
         profile.version = 1
@@ -88,6 +97,11 @@ class PlayerProfile:
         profile.gold = max(0, int(profile.gold))
         profile.stat_points = max(0, int(profile.stat_points))
         profile.daily_explores_used = max(0, int(profile.daily_explores_used))
+        profile.equipment_initialized = bool(data.get("equipment_initialized", has_equipment_field))
+        profile.equipped_item_uids = list(dict.fromkeys(
+            uid for uid in profile.equipped_item_uids
+            if isinstance(uid, int) and uid > 0
+        ))
         profile.next_item_uid = max(1, int(profile.next_item_uid))
         return profile
 
