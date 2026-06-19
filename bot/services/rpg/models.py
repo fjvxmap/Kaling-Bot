@@ -29,6 +29,7 @@ class PlayerProfile:
     version: int = 1
     user_id: int = 0
     display_name: str = "Player"
+    job_id: str = "novice"
     level: int = 1
     exp: int = 0
     gold: int = 130
@@ -82,6 +83,7 @@ class PlayerProfile:
         profile.version = 1
         profile.user_id = int(profile.user_id)
         profile.level = max(1, int(profile.level))
+        profile.job_id = str(profile.job_id or "novice")
         profile.exp = max(0, int(profile.exp))
         profile.gold = max(0, int(profile.gold))
         profile.stat_points = max(0, int(profile.stat_points))
@@ -115,4 +117,3 @@ class CombatStats:
 
     def copy(self) -> "CombatStats":
         return CombatStats(**asdict(self))
-

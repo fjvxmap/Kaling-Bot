@@ -9,10 +9,13 @@ from bot.services.rpg.data import (
     DAILY_EXPLORES,
     DUNGEONS,
     ITEM_BY_ID,
+    JOBS,
     RARITY_COLORS,
 )
 from bot.services.rpg.manager import (
     BossResult,
+    EnhancementPreview,
+    EnhancementResult,
     ExploreResult,
     RPGService,
 )
@@ -26,6 +29,11 @@ DUNGEON_CHOICES = [
 BOSS_CHOICES = [
     app_commands.Choice(name=f"{boss.name} · Lv.{boss.level_req}+", value=boss.id)
     for boss in BOSSES
+]
+JOB_CHOICES = [
+    app_commands.Choice(name=f"{job.name} · Lv.{job.level_req}+", value=job.id)
+    for job in JOBS
+    if job.id != "novice"
 ]
 STAT_CHOICES = [
     app_commands.Choice(name="공격력 +1", value="attack"),
@@ -55,7 +63,7 @@ class RPGCog(commands.Cog):
             embed.description = "이미 프로필이 있습니다. 이어서 진행하면 됩니다."
         await interaction.response.send_message(embed=embed)
 
-    @rpg.command(name="프로필", description="레벨, 경험치, 스탯, 장착 장비를 봅니다.")
+    @rpg.command(name="프로필", description="레벨, 전직, 경험치, 스탯, 장착 장비를 봅니다.")
     async def profile(self, interaction: discord.Interaction) -> None:
         profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
         await interaction.response.send_message(embed=self._profile_embed(profile))
@@ -66,9 +74,12 @@ class RPGCog(commands.Cog):
         lines = []
         for dungeon in self.service.dungeons():
             state = "입장 가능" if profile.level >= dungeon.level_req else f"Lv.{dungeon.level_req} 필요"
+            exp_values = [enemy.exp for enemy in dungeon.enemies]
+            gold_values = [enemy.gold for enemy in dungeon.enemies]
+            rare_names = ", ".join(enemy.name for enemy in dungeon.enemies if enemy.rare) or "없음"
             lines.append(
                 f"**{dungeon.name}** · {state}\n"
-                f"보상 {dungeon.gold}G/{dungeon.exp}EXP · 드랍 {dungeon.drop_chance * 100:.0f}%\n"
+                f"EXP {min(exp_values)}~{max(exp_values)} · 골드 {min(gold_values)}~{max(gold_values)}G · 희귀 {rare_names}\n"
                 f"{dungeon.description}"
             )
         embed = discord.Embed(
@@ -131,6 +142,63 @@ class RPGCog(commands.Cog):
         )
         await interaction.response.send_message(embed=self._boss_embed(result))
 
+    @rpg.command(name="전직목록", description="현재 직업에서 가능한 전직과 전체 직업 정보를 봅니다.")
+    async def job_list(self, interaction: discord.Interaction) -> None:
+        profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
+        current = self.service.current_job(profile)
+        available = {job.id for job in self.service.available_jobs(profile)}
+        next_jobs = {job.id for job in self.service.next_jobs(profile)}
+        lines = []
+        for job in self.service.jobs():
+            if job.id == "novice":
+                continue
+            if job.id in available:
+                state = "전직 가능"
+            elif job.id in next_jobs:
+                state = f"Lv.{job.level_req} 필요"
+            elif job.id in {owned.id for owned in self.service.job_chain(profile)}:
+                state = "완료"
+            else:
+                state = "다른 계열"
+            lines.append(
+                f"**{job.name}** · {state}\n"
+                f"{self.service.format_stats(job.stats, signed=True)}\n"
+                f"{job.description}"
+            )
+        embed = discord.Embed(
+            title="전직 목록",
+            description=f"현재 직업: **{current.name}**",
+            color=0xB56BFF,
+        )
+        embed.add_field(name="직업", value=self._trim("\n\n".join(lines), 3900), inline=False)
+        await interaction.response.send_message(embed=embed)
+
+    @rpg.command(name="전직", description="조건을 만족한 다음 전직을 선택합니다.")
+    @app_commands.rename(job="직업")
+    @app_commands.describe(job="전직할 직업")
+    @app_commands.choices(job=JOB_CHOICES)
+    async def advance_job(
+        self,
+        interaction: discord.Interaction,
+        job: app_commands.Choice[str],
+    ) -> None:
+        result = self.service.advance_job(
+            interaction.user.id,
+            interaction.user.display_name,
+            job.value,
+        )
+        color = 0x57F287 if result.ok else 0xED4245
+        embed = discord.Embed(title="전직", description=result.message, color=color)
+        embed.add_field(name="현재 직업", value=self.service.current_job(result.profile).name, inline=True)
+        embed.add_field(name="전투 스탯", value=self.service.format_stats(self.service.profile_stats(result.profile)), inline=False)
+        skills = self.service.unlocked_skills(result.profile)
+        embed.add_field(
+            name="사용 가능한 스킬",
+            value=self._trim("\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in skills), 1000),
+            inline=False,
+        )
+        await interaction.response.send_message(embed=embed)
+
     @rpg.command(name="인벤토리", description="보유 장비와 자동 장착 상태를 봅니다.")
     async def inventory(self, interaction: discord.Interaction) -> None:
         profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
@@ -150,19 +218,34 @@ class RPGCog(commands.Cog):
             embed.add_field(name="장비", value=self._trim("\n\n".join(lines), 3900), inline=False)
         await interaction.response.send_message(embed=embed)
 
-    @rpg.command(name="강화", description="장비 UID를 지정해 1회 강화합니다.")
+    @rpg.command(name="강화", description="장비를 선택해서 강화 정보와 확률을 확인합니다.")
     @app_commands.rename(uid="장비_uid")
-    @app_commands.describe(uid="인벤토리에 보이는 장비 UID")
-    async def enhance(self, interaction: discord.Interaction, uid: int) -> None:
-        result = self.service.enhance(interaction.user.id, interaction.user.display_name, uid)
-        await interaction.response.send_message(embed=self._enhance_embed(result))
+    @app_commands.describe(uid="바로 확인할 장비 UID. 비워두면 선택 UI를 표시합니다.")
+    async def enhance(self, interaction: discord.Interaction, uid: int | None = None) -> None:
+        profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
+        if not profile.inventory:
+            embed = discord.Embed(
+                title="장비 강화",
+                description="강화할 장비가 없습니다. 던전이나 보스에서 장비를 획득하세요.",
+                color=0xED4245,
+            )
+            await interaction.response.send_message(embed=embed)
+            return
+        view = EnhancementView(self, interaction.user.id, interaction.user.display_name, uid)
+        if uid is None:
+            embed = self._enhancement_picker_embed(profile)
+        else:
+            embed = self._enhancement_preview_embed(
+                self.service.enhancement_preview(interaction.user.id, interaction.user.display_name, uid)
+            )
+        await interaction.response.send_message(embed=embed, view=view)
 
     @rpg.command(name="복구", description="파괴된 장비 흔적을 +0 상태로 복구합니다.")
     @app_commands.rename(uid="장비_uid")
     @app_commands.describe(uid="복구할 장비 UID")
     async def restore(self, interaction: discord.Interaction, uid: int) -> None:
         result = self.service.restore(interaction.user.id, interaction.user.display_name, uid)
-        await interaction.response.send_message(embed=self._enhance_embed(result))
+        await interaction.response.send_message(embed=self._enhance_result_embed(result))
 
     @rpg.command(name="스탯", description="레벨업/보스 보상으로 얻은 스탯 포인트를 투자합니다.")
     @app_commands.rename(stat="스탯", amount="수량")
@@ -189,6 +272,9 @@ class RPGCog(commands.Cog):
     def _profile_embed(self, profile: PlayerProfile) -> discord.Embed:
         progress, required = self.service.level_progress(profile)
         stats = self.service.profile_stats(profile)
+        current_job = self.service.current_job(profile)
+        chain = " > ".join(job.name for job in self.service.job_chain(profile))
+        next_jobs = self.service.next_jobs(profile)
         embed = discord.Embed(
             title=f"{profile.display_name}의 RPG 프로필",
             color=0x5865F2,
@@ -201,6 +287,13 @@ class RPGCog(commands.Cog):
             ),
             inline=False,
         )
+        embed.add_field(name="전직", value=f"**{current_job.name}**\n{chain}", inline=False)
+        if next_jobs:
+            embed.add_field(
+                name="다음 전직",
+                value=", ".join(f"{job.name}(Lv.{job.level_req})" for job in next_jobs),
+                inline=False,
+            )
         embed.add_field(
             name="탐색",
             value=f"오늘 남은 횟수 **{self.service.daily_remaining(profile)}/{DAILY_EXPLORES}회**",
@@ -214,8 +307,8 @@ class RPGCog(commands.Cog):
         embed.add_field(name="전투 스탯", value=self.service.format_stats(stats), inline=False)
         skills = self.service.unlocked_skills(profile)
         embed.add_field(
-            name="해금 스킬",
-            value=", ".join(skill.name for skill in skills) if skills else "없음",
+            name="스킬",
+            value=self._trim("\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in skills), 1000) if skills else "없음",
             inline=False,
         )
         equipped = self.service.equipped_items(profile)
@@ -230,11 +323,19 @@ class RPGCog(commands.Cog):
         if not result.ok:
             return discord.Embed(title="탐색 실패", description=result.message, color=0xED4245)
         assert result.dungeon is not None
-        return self._battle_result_embed(
+        assert result.enemy is not None
+        rare = " · 희귀 몬스터" if result.enemy.rare else ""
+        embed = self._battle_result_embed(
             title=f"{result.dungeon.name} 탐색",
             result=result,
             color=0x57F287 if result.battle and result.battle.won else 0xED4245,
         )
+        embed.add_field(
+            name="조우",
+            value=f"**{result.enemy.name}**{rare}\n{result.enemy.description}",
+            inline=False,
+        )
+        return embed
 
     def _boss_embed(self, result: BossResult) -> discord.Embed:
         if not result.ok:
@@ -277,7 +378,48 @@ class RPGCog(commands.Cog):
             embed.set_footer(text=f"오늘 남은 탐색 {result.daily_remaining}/{DAILY_EXPLORES}회")
         return embed
 
-    def _enhance_embed(self, result) -> discord.Embed:
+    def _enhancement_picker_embed(self, profile: PlayerProfile) -> discord.Embed:
+        display_items = self._enhancement_display_items(profile)
+        embed = discord.Embed(
+            title="장비 강화",
+            description="아래 선택 메뉴에서 강화할 장비를 고르세요. 선택하면 비용, 확률, 증가 스탯이 표시됩니다.",
+            color=0xFFB84D,
+        )
+        equipped_ids = {item.uid for item in self.service.equipped_items(profile)}
+        lines = []
+        for item in display_items:
+            marker = "장착" if item.uid in equipped_ids else "보유"
+            lines.append(f"`{marker}` {self.service.item_title(item)}")
+        embed.add_field(name="장비", value="\n".join(lines), inline=False)
+        footer = f"보유 골드 {profile.gold}G"
+        if len(profile.inventory) > len(display_items):
+            footer += " · 선택 UI는 전투력 높은 25개만 표시"
+        embed.set_footer(text=footer)
+        return embed
+
+    def _enhancement_preview_embed(self, preview: EnhancementPreview) -> discord.Embed:
+        color = 0xFFB84D
+        if preview.item is not None and preview.item.template_id in ITEM_BY_ID:
+            color = RARITY_COLORS[ITEM_BY_ID[preview.item.template_id].rarity]
+        embed = discord.Embed(title="강화 미리보기", description=preview.message, color=color)
+        if preview.item is None:
+            return embed
+        embed.add_field(name="장비", value=self.service.item_title(preview.item), inline=False)
+        embed.add_field(name="현재 스탯", value=self.service.format_stats(preview.before_stats, signed=True), inline=False)
+        if preview.ok:
+            success, fail, destroy = preview.odds
+            embed.add_field(name="증가 스탯", value=self.service.format_stats(preview.delta_stats, signed=True), inline=False)
+            embed.add_field(name="비용", value=f"{preview.cost}G", inline=True)
+            embed.add_field(
+                name="확률",
+                value=f"성공 {success * 100:.1f}% · 실패 {fail * 100:.1f}% · 파괴 {destroy * 100:.1f}%",
+                inline=False,
+            )
+            embed.add_field(name="강화 후", value=self.service.format_stats(preview.after_stats, signed=True), inline=False)
+        embed.set_footer(text=f"보유 골드 {preview.profile.gold}G")
+        return embed
+
+    def _enhance_result_embed(self, result: EnhancementResult) -> discord.Embed:
         color = 0x57F287 if result.ok else 0xED4245
         if result.item is not None and result.item.template_id in ITEM_BY_ID:
             color = RARITY_COLORS[ITEM_BY_ID[result.item.template_id].rarity]
@@ -330,6 +472,107 @@ class RPGCog(commands.Cog):
         if len(text) <= limit:
             return text
         return text[: limit - 3] + "..."
+
+    def _enhancement_display_items(self, profile: PlayerProfile):
+        return sorted(
+            profile.inventory,
+            key=lambda item: (
+                item.destroyed,
+                -self.service.item_score(item),
+                item.uid,
+            ),
+        )[:25]
+
+
+class EnhancementView(discord.ui.View):
+    def __init__(
+        self,
+        cog: RPGCog,
+        user_id: int,
+        display_name: str,
+        selected_uid: int | None = None,
+    ) -> None:
+        super().__init__(timeout=180)
+        self.cog = cog
+        self.user_id = user_id
+        self.display_name = display_name
+        self.selected_uid = selected_uid
+        profile = self.cog.service.get_profile(user_id, display_name)
+        options = []
+        equipped_ids = {item.uid for item in self.cog.service.equipped_items(profile)}
+        for item in self.cog._enhancement_display_items(profile):
+            template = ITEM_BY_ID.get(item.template_id)
+            if template is None:
+                continue
+            marker = "장착" if item.uid in equipped_ids else "보유"
+            status = "파괴됨" if item.destroyed else self.cog.service.item_stats_text(item)
+            options.append(
+                discord.SelectOption(
+                    label=f"#{item.uid} {template.name} +{item.stars}",
+                    value=str(item.uid),
+                    description=f"{marker} · {status}"[:100],
+                    default=item.uid == selected_uid,
+                )
+            )
+        if options:
+            self.add_item(EnhancementSelect(options))
+        self.add_item(EnhancementConfirmButton(disabled=selected_uid is None))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.user_id:
+            return True
+        await interaction.response.send_message("이 강화 UI는 명령을 실행한 사람만 사용할 수 있습니다.", ephemeral=True)
+        return False
+
+
+class EnhancementSelect(discord.ui.Select):
+    def __init__(self, options: list[discord.SelectOption]) -> None:
+        super().__init__(
+            placeholder="강화할 장비 선택",
+            min_values=1,
+            max_values=1,
+            options=options,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, EnhancementView)
+        uid = int(self.values[0])
+        view = EnhancementView(self.view.cog, self.view.user_id, self.view.display_name, uid)
+        preview = self.view.cog.service.enhancement_preview(
+            self.view.user_id,
+            self.view.display_name,
+            uid,
+        )
+        await interaction.response.edit_message(
+            embed=self.view.cog._enhancement_preview_embed(preview),
+            view=view,
+        )
+
+
+class EnhancementConfirmButton(discord.ui.Button):
+    def __init__(self, *, disabled: bool = False) -> None:
+        super().__init__(
+            label="강화",
+            style=discord.ButtonStyle.primary,
+            disabled=disabled,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, EnhancementView)
+        if self.view.selected_uid is None:
+            await interaction.response.send_message("먼저 장비를 선택하세요.", ephemeral=True)
+            return
+        result = self.view.cog.service.enhance(
+            self.view.user_id,
+            self.view.display_name,
+            self.view.selected_uid,
+        )
+        selected_uid = result.item.uid if result.item is not None and not result.item.destroyed else None
+        view = EnhancementView(self.view.cog, self.view.user_id, self.view.display_name, selected_uid)
+        await interaction.response.edit_message(
+            embed=self.view.cog._enhance_result_embed(result),
+            view=view,
+        )
 
 
 async def setup(bot: commands.Bot) -> None:

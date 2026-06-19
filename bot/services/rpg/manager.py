@@ -13,6 +13,8 @@ from .data import (
     INTEGER_STATS,
     ITEM_BY_ID,
     ITEMS_BY_RARITY,
+    JOB_BY_ID,
+    JOBS,
     MAX_ENHANCEMENT_STARS,
     MAX_EQUIPPED_ITEMS,
     PERCENT_STATS,
@@ -23,7 +25,9 @@ from .data import (
     STAT_ORDER,
     BossPattern,
     BossTemplate,
-    EncounterTemplate,
+    DungeonTemplate,
+    EnemyTemplate,
+    JobTemplate,
     SkillTemplate,
     enhancement_cost,
     enhancement_odds,
@@ -31,9 +35,17 @@ from .data import (
     previous_level_exp,
     restore_cost,
     scaled_item_stats,
+    stat_delta,
 )
 from .models import CombatStats, ItemInstance, PlayerProfile
 from .store import RPGStore
+
+
+@dataclass
+class ActiveEffect:
+    turns: int
+    mods: dict[str, float]
+    source_id: str
 
 
 @dataclass
@@ -65,7 +77,8 @@ class ExploreResult:
     ok: bool
     message: str
     profile: PlayerProfile
-    dungeon: EncounterTemplate | None = None
+    dungeon: DungeonTemplate | None = None
+    enemy: EnemyTemplate | None = None
     battle: BattleReport | None = None
     reward: RewardReport | None = None
     daily_remaining: int = 0
@@ -80,6 +93,19 @@ class BossResult:
     battle: BattleReport | None = None
     reward: RewardReport | None = None
     weekly_key: str = ""
+
+
+@dataclass
+class EnhancementPreview:
+    ok: bool
+    message: str
+    profile: PlayerProfile
+    item: ItemInstance | None = None
+    cost: int = 0
+    odds: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    before_stats: dict[str, float] = field(default_factory=dict)
+    after_stats: dict[str, float] = field(default_factory=dict)
+    delta_stats: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -103,6 +129,14 @@ class StatAllocationResult:
     spent: int = 0
 
 
+@dataclass
+class JobResult:
+    ok: bool
+    message: str
+    profile: PlayerProfile
+    job: JobTemplate | None = None
+
+
 class RPGService:
     def __init__(self, store: RPGStore | None = None, rng: Random | None = None) -> None:
         self.store = store or RPGStore()
@@ -116,6 +150,7 @@ class RPGService:
             profile = self._profiles[user_id]
             profile.display_name = display_name or profile.display_name
             self._reset_daily_if_needed(profile)
+            self._cleanup_profile(profile)
             self._save()
             return profile, False
         profile = PlayerProfile.create(user_id, display_name)
@@ -137,14 +172,64 @@ class RPGService:
     def current_week_key(self) -> str:
         return self._week_key()
 
-    def dungeons(self) -> list[EncounterTemplate]:
+    def dungeons(self) -> list[DungeonTemplate]:
         return list(DUNGEONS)
 
     def bosses(self) -> list[BossTemplate]:
         return list(BOSSES)
 
+    def jobs(self) -> list[JobTemplate]:
+        return list(JOBS)
+
+    def current_job(self, profile: PlayerProfile) -> JobTemplate:
+        return JOB_BY_ID.get(profile.job_id, JOB_BY_ID["novice"])
+
+    def job_chain(self, profile: PlayerProfile) -> list[JobTemplate]:
+        chain: list[JobTemplate] = []
+        job = self.current_job(profile)
+        seen: set[str] = set()
+        while job.id and job.id not in seen:
+            chain.append(job)
+            seen.add(job.id)
+            if not job.parent_id:
+                break
+            job = JOB_BY_ID.get(job.parent_id, JOB_BY_ID["novice"])
+        return list(reversed(chain))
+
+    def available_jobs(self, profile: PlayerProfile) -> list[JobTemplate]:
+        current_id = self.current_job(profile).id
+        return [
+            job for job in JOBS
+            if job.parent_id == current_id and profile.level >= job.level_req
+        ]
+
+    def next_jobs(self, profile: PlayerProfile) -> list[JobTemplate]:
+        current_id = self.current_job(profile).id
+        return [job for job in JOBS if job.parent_id == current_id]
+
+    def advance_job(self, user_id: int, display_name: str, job_id: str) -> JobResult:
+        profile = self.get_profile(user_id, display_name)
+        job = JOB_BY_ID.get(job_id)
+        if job is None or job.id == "novice":
+            return JobResult(False, "알 수 없는 전직입니다.", profile)
+        if job.parent_id != self.current_job(profile).id:
+            return JobResult(False, "현재 직업에서 선택할 수 없는 전직입니다.", profile, job)
+        if profile.level < job.level_req:
+            return JobResult(False, f"{job.name}은 Lv.{job.level_req}부터 전직할 수 있습니다.", profile, job)
+        profile.job_id = job.id
+        self._save()
+        return JobResult(True, f"{job.name}으로 전직했습니다.", profile, job)
+
     def unlocked_skills(self, profile: PlayerProfile) -> list[SkillTemplate]:
-        return [skill for skill in SKILLS if profile.level >= skill.unlock_level]
+        chain_ids = {job.id for job in self.job_chain(profile)}
+        skills: list[SkillTemplate] = []
+        for skill in SKILLS:
+            if profile.level < skill.unlock_level:
+                continue
+            if skill.job_ids and not chain_ids.intersection(skill.job_ids):
+                continue
+            skills.append(skill)
+        return skills
 
     def explore(self, user_id: int, display_name: str, dungeon_id: str) -> ExploreResult:
         profile = self.get_profile(user_id, display_name)
@@ -158,20 +243,21 @@ class RPGService:
         if profile.level < dungeon.level_req:
             return ExploreResult(False, f"{dungeon.name}은 Lv.{dungeon.level_req}부터 입장할 수 있습니다.", profile, dungeon, daily_remaining=remaining)
 
+        enemy = self._choose_enemy(dungeon)
         profile.daily_explores_used += 1
-        battle = self._simulate_battle(profile, dungeon.name, self._enemy_stats(dungeon.stats))
+        battle = self._simulate_battle(profile, enemy.name, self._enemy_stats(enemy.stats))
         reward = RewardReport()
         if battle.won:
             profile.dungeon_clear_count += 1
-            reward.gold = dungeon.gold + self.rng.randint(0, 30 * dungeon.rank)
-            reward.exp = dungeon.exp
-            reward.dropped_item = self._roll_item_drop(profile, dungeon.rank, dungeon.drop_chance)
+            reward.gold = enemy.gold + self.rng.randint(0, 20 * enemy.rank)
+            reward.exp = enemy.exp
+            reward.dropped_item = self._roll_item_drop(profile, enemy.rank, enemy.drop_chance)
             reward.levels_gained = self._grant_exp(profile, reward.exp)
             profile.gold += reward.gold
         else:
             reward.consolation = True
-            reward.gold = max(1, dungeon.gold // 5)
-            reward.exp = max(1, dungeon.exp // 5)
+            reward.gold = max(1, enemy.gold // 5)
+            reward.exp = max(1, enemy.exp // 5)
             reward.levels_gained = self._grant_exp(profile, reward.exp)
             profile.gold += reward.gold
         self._save()
@@ -180,6 +266,7 @@ class RPGService:
             "탐색 완료",
             profile,
             dungeon,
+            enemy,
             battle,
             reward,
             daily_remaining=self.daily_remaining(profile),
@@ -239,6 +326,30 @@ class RPGService:
             label = "방어"
         self._save()
         return StatAllocationResult(True, f"{label}에 {amount}포인트를 투자했습니다.", profile, amount)
+
+    def enhancement_preview(self, user_id: int, display_name: str, item_uid: int) -> EnhancementPreview:
+        profile = self.get_profile(user_id, display_name)
+        item = self._find_item(profile, item_uid)
+        if item is None:
+            return EnhancementPreview(False, "해당 UID의 장비를 찾지 못했습니다.", profile)
+        if item.destroyed:
+            return EnhancementPreview(False, "파괴된 흔적은 먼저 복구해야 합니다.", profile, item)
+        template = ITEM_BY_ID[item.template_id]
+        if item.stars >= MAX_ENHANCEMENT_STARS:
+            return EnhancementPreview(False, "이미 최대 강화 단계입니다.", profile, item)
+        before_stats = scaled_item_stats(item.template_id, item.stars)
+        after_stats = scaled_item_stats(item.template_id, item.stars + 1)
+        return EnhancementPreview(
+            True,
+            "강화할 장비를 확인하세요.",
+            profile,
+            item,
+            enhancement_cost(template.rarity, item.stars),
+            enhancement_odds(template.rarity, item.stars),
+            before_stats,
+            after_stats,
+            stat_delta(before_stats, after_stats),
+        )
 
     def enhance(self, user_id: int, display_name: str, item_uid: int) -> EnhancementResult:
         profile = self.get_profile(user_id, display_name)
@@ -330,6 +441,26 @@ class RPGService:
             parts.append(f"{STAT_LABELS[key]} {self._format_stat_value(key, float(value), signed=signed)}")
         return ", ".join(parts) if parts else "스탯 없음"
 
+    def skill_summary(self, skill: SkillTemplate) -> str:
+        parts: list[str] = []
+        if skill.damage_multiplier > 0 and skill.hits > 0:
+            parts.append(f"{skill.damage_multiplier * 100:.0f}% x {skill.hits}")
+        if skill.heal_power > 0:
+            parts.append(f"회복 {skill.heal_power:.2f}x")
+        if skill.player_mods:
+            parts.append(f"자신 {self.format_stats(skill.player_mods, signed=True)}")
+        if skill.damage_cut > 0:
+            parts.append(f"피해 차단 {skill.damage_cut * 100:.0f}%")
+        if skill.enemy_mods:
+            parts.append(f"적 {self.format_stats(skill.enemy_mods, signed=True)}")
+        if skill.duration > 0 and (skill.player_mods or skill.enemy_mods or skill.damage_cut > 0):
+            parts.append(f"{skill.duration}턴")
+        if skill.cooldown > 0:
+            parts.append(f"쿨 {skill.cooldown}턴")
+        if skill.uses > 0:
+            parts.append(f"전투당 {skill.uses}회")
+        return " · ".join(parts) if parts else "기본 효과"
+
     def level_progress(self, profile: PlayerProfile) -> tuple[int, int]:
         previous = previous_level_exp(profile.level)
         required = max(1, next_level_exp(profile.level) - previous)
@@ -348,23 +479,35 @@ class RPGService:
         enemy_base = enemy_base_stats
         player_hp = player_base.final_hp
         enemy_hp = enemy_base.final_hp
-        player_effects: list[tuple[int, dict[str, float]]] = []
-        enemy_effects: list[tuple[int, dict[str, float]]] = []
+        player_effects: list[ActiveEffect] = []
+        enemy_effects: list[ActiveEffect] = []
         triggered_patterns: set[int] = set()
-        uses_left = {skill.id: skill.uses for skill in self.unlocked_skills(profile)}
+        skills = self.unlocked_skills(profile)
+        uses_left = {skill.id: skill.uses for skill in skills if skill.uses > 0}
+        cooldowns = {skill.id: 0 for skill in skills}
         log: list[str] = []
         skills_used: list[str] = []
 
         for turn in range(1, 25):
             player_stats = self._stats_with_effects(player_base, player_effects)
             enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
-            skill = self._choose_skill(profile, uses_left, turn, player_hp, player_stats.final_hp, enemy_hp, enemy_stats)
+            skill = self._choose_skill(
+                skills,
+                uses_left,
+                cooldowns,
+                player_effects,
+                enemy_effects,
+                player_stats,
+                enemy_stats,
+                player_hp,
+                enemy_hp,
+            )
             if skill is None:
                 damage = self._actual_damage(player_stats, player_hp, enemy_stats, enemy_hp)
                 enemy_hp = max(0, enemy_hp - damage)
                 log.append(f"{turn}T 기본 공격: {enemy_name}에게 {damage} 피해")
             else:
-                uses_left[skill.id] -= 1
+                self._mark_skill_used(skill, uses_left, cooldowns)
                 skills_used.append(skill.name)
                 damage, heal = self._use_player_skill(
                     skill,
@@ -411,34 +554,120 @@ class RPGService:
 
             player_effects = self._tick_effects(player_effects)
             enemy_effects = self._tick_effects(enemy_effects)
+            self._tick_cooldowns(cooldowns)
 
         return BattleReport(False, 24, player_hp, player_base.final_hp, enemy_hp, enemy_base.final_hp, self._trim_log(log), skills_used)
 
     def _choose_skill(
         self,
-        profile: PlayerProfile,
+        skills: list[SkillTemplate],
         uses_left: dict[str, int],
-        turn: int,
-        player_hp: int,
-        player_max_hp: int,
-        enemy_hp: int,
+        cooldowns: dict[str, int],
+        player_effects: list[ActiveEffect],
+        enemy_effects: list[ActiveEffect],
+        player_stats: CombatStats,
         enemy_stats: CombatStats,
+        player_hp: int,
+        enemy_hp: int,
     ) -> SkillTemplate | None:
-        available = [skill for skill in self.unlocked_skills(profile) if uses_left.get(skill.id, 0) > 0]
-        by_id = {skill.id: skill for skill in available}
-        if player_hp / max(1, player_max_hp) <= 0.45 and "heal" in by_id:
-            return by_id["heal"]
-        if turn == 1:
-            for skill_id in ("enrage", "rage", "iron_body"):
-                if skill_id in by_id and enemy_stats.final_hp >= 400:
-                    return by_id[skill_id]
-        offensive = [skill for skill in available if skill.damage_multiplier > 0 and skill.hits > 0]
-        if not offensive:
+        available = [
+            skill for skill in skills
+            if self._skill_ready(skill, uses_left, cooldowns)
+        ]
+        if not available:
             return None
-        offensive.sort(key=lambda skill: skill.damage_multiplier * skill.hits, reverse=True)
-        if enemy_hp > 8:
-            return offensive[0]
+
+        player_ratio = self._hp_ratio(player_hp, player_stats.final_hp)
+        enemy_ratio = self._hp_ratio(enemy_hp, enemy_stats.final_hp)
+        incoming = self._estimated_damage(enemy_stats, enemy_hp, player_stats, player_hp)
+
+        heal_skills = [skill for skill in available if skill.role == "heal" and skill.heal_power > 0]
+        if heal_skills:
+            heal_skills.sort(key=lambda skill: skill.heal_power, reverse=True)
+            best_heal = heal_skills[0]
+            expected_heal = self._outgoing_damage(player_stats, player_hp) * best_heal.heal_power
+            missing_hp = player_stats.final_hp - player_hp
+            if player_ratio <= 0.55 or missing_hp >= expected_heal * 0.65 or incoming >= player_hp * 0.65:
+                return best_heal
+
+        defense_skills = [
+            skill for skill in available
+            if skill.role == "defense" and not self._has_active_effect(player_effects, skill.id)
+        ]
+        if defense_skills and (player_ratio <= 0.72 or incoming >= player_stats.final_hp * 0.16):
+            defense_skills.sort(key=lambda skill: skill.damage_cut + skill.player_mods.get("defense", 0) + skill.player_mods.get("garrison", 0), reverse=True)
+            return defense_skills[0]
+
+        buff_skills = [
+            skill for skill in available
+            if skill.role == "buff" and not self._has_active_effect(player_effects, skill.id)
+        ]
+        if buff_skills and enemy_ratio >= 0.42:
+            buff_skills.sort(key=lambda skill: skill.player_mods.get("atk", 0) + skill.player_mods.get("strength", 0) + skill.player_mods.get("dmg_amplification", 0), reverse=True)
+            return buff_skills[0]
+
+        debuff_skills = [
+            skill for skill in available
+            if skill.role == "debuff" and not self._has_active_effect(enemy_effects, skill.id)
+        ]
+        if debuff_skills and enemy_ratio >= 0.35:
+            debuff_skills.sort(key=lambda skill: abs(sum(skill.enemy_mods.values())) + skill.damage_cut, reverse=True)
+            return debuff_skills[0]
+
+        attack_skills = [
+            skill for skill in available
+            if skill.damage_multiplier > 0 and skill.hits > 0
+        ]
+        if not attack_skills:
+            return None
+        attack_skills.sort(
+            key=lambda skill: self._estimated_skill_damage(skill, player_stats, player_hp, enemy_stats, enemy_hp),
+            reverse=True,
+        )
+        best_attack = attack_skills[0]
+        best_damage = self._estimated_skill_damage(best_attack, player_stats, player_hp, enemy_stats, enemy_hp)
+        base_damage = self._estimated_damage(player_stats, player_hp, enemy_stats, enemy_hp)
+        if best_damage >= enemy_hp or best_damage >= base_damage * 1.15:
+            return best_attack
         return None
+
+    def _skill_ready(
+        self,
+        skill: SkillTemplate,
+        uses_left: dict[str, int],
+        cooldowns: dict[str, int],
+    ) -> bool:
+        if cooldowns.get(skill.id, 0) > 0:
+            return False
+        if skill.uses > 0 and uses_left.get(skill.id, 0) <= 0:
+            return False
+        return True
+
+    def _mark_skill_used(
+        self,
+        skill: SkillTemplate,
+        uses_left: dict[str, int],
+        cooldowns: dict[str, int],
+    ) -> None:
+        if skill.uses > 0:
+            uses_left[skill.id] = max(0, uses_left.get(skill.id, 0) - 1)
+        if skill.cooldown > 0:
+            cooldowns[skill.id] = skill.cooldown
+
+    def _estimated_skill_damage(
+        self,
+        skill: SkillTemplate,
+        player_stats: CombatStats,
+        player_hp: int,
+        enemy_stats: CombatStats,
+        enemy_hp: int,
+    ) -> float:
+        if skill.damage_multiplier <= 0 or skill.hits <= 0:
+            return 0.0
+        return sum(
+            self._estimated_damage(player_stats, player_hp, enemy_stats, enemy_hp, skill.damage_multiplier)
+            for _ in range(skill.hits)
+        )
 
     def _use_player_skill(
         self,
@@ -447,23 +676,23 @@ class RPGService:
         enemy_stats: CombatStats,
         player_hp: int,
         enemy_hp: int,
-        player_effects: list[tuple[int, dict[str, float]]],
-        enemy_effects: list[tuple[int, dict[str, float]]],
+        player_effects: list[ActiveEffect],
+        enemy_effects: list[ActiveEffect],
     ) -> tuple[int, int]:
         if skill.player_mods or skill.damage_cut > 0:
             mods = dict(skill.player_mods)
             if skill.damage_cut > 0:
                 mods["damage_cut"] = mods.get("damage_cut", 0.0) + skill.damage_cut
-            player_effects.append((max(1, skill.duration), mods))
+            player_effects.append(ActiveEffect(max(1, skill.duration), mods, skill.id))
         if skill.enemy_mods:
-            enemy_effects.append((max(1, skill.duration), dict(skill.enemy_mods)))
+            enemy_effects.append(ActiveEffect(max(1, skill.duration), dict(skill.enemy_mods), skill.id))
 
         damage = 0
         if skill.damage_multiplier > 0 and skill.hits > 0:
             for _ in range(skill.hits):
                 damage += self._actual_damage(player_stats, player_hp, enemy_stats, enemy_hp, skill.damage_multiplier)
         elif skill.player_mods or skill.enemy_mods or skill.heal_power > 0:
-            damage = self._actual_damage(player_stats, player_hp, enemy_stats, enemy_hp, 0.75)
+            damage = self._actual_damage(player_stats, player_hp, enemy_stats, enemy_hp, 0.65)
 
         heal = 0
         if skill.heal_power > 0:
@@ -494,13 +723,14 @@ class RPGService:
         player_stats: CombatStats,
         boss_hp: int,
         player_hp: int,
-        player_effects: list[tuple[int, dict[str, float]]],
-        enemy_effects: list[tuple[int, dict[str, float]]],
+        player_effects: list[ActiveEffect],
+        enemy_effects: list[ActiveEffect],
     ) -> int:
+        source_id = f"boss:{pattern.name}"
         if pattern.player_mods:
-            player_effects.append((max(1, pattern.duration), dict(pattern.player_mods)))
+            player_effects.append(ActiveEffect(max(1, pattern.duration), dict(pattern.player_mods), source_id))
         if pattern.boss_mods:
-            enemy_effects.append((max(1, pattern.duration), dict(pattern.boss_mods)))
+            enemy_effects.append(ActiveEffect(max(1, pattern.duration), dict(pattern.boss_mods), source_id))
         if pattern.damage_multiplier <= 0 or pattern.hits <= 0:
             return 0
         damage = 0
@@ -522,6 +752,9 @@ class RPGService:
             dmg_mitigation=float(profile.dmg_mitigation),
             dmg_amplification=float(profile.dmg_amplification),
         )
+        for job in self.job_chain(profile):
+            for key, value in job.stats.items():
+                self._apply_stat(stats, key, value)
         for item in self.equipped_items(profile):
             for key, value in scaled_item_stats(item.template_id, item.stars).items():
                 self._apply_stat(stats, key, value)
@@ -544,19 +777,31 @@ class RPGService:
             dmg_amplification=float(raw_stats.get("dmg_amplification", 0.0)),
         )
 
-    def _stats_with_effects(self, base: CombatStats, effects: list[tuple[int, dict[str, float]]]) -> CombatStats:
+    def _stats_with_effects(self, base: CombatStats, effects: list[ActiveEffect]) -> CombatStats:
         stats = base.copy()
-        for turns, mods in effects:
-            if turns <= 0:
+        for effect in effects:
+            if effect.turns <= 0:
                 continue
-            for key, value in mods.items():
+            for key, value in effect.mods.items():
                 self._apply_stat(stats, key, value)
         stats.base_atk = max(1, int(stats.base_atk))
         stats.max_hp = max(1, int(stats.max_hp))
         return stats
 
-    def _tick_effects(self, effects: list[tuple[int, dict[str, float]]]) -> list[tuple[int, dict[str, float]]]:
-        return [(turns - 1, mods) for turns, mods in effects if turns - 1 > 0]
+    def _tick_effects(self, effects: list[ActiveEffect]) -> list[ActiveEffect]:
+        return [
+            ActiveEffect(effect.turns - 1, effect.mods, effect.source_id)
+            for effect in effects
+            if effect.turns - 1 > 0
+        ]
+
+    def _tick_cooldowns(self, cooldowns: dict[str, int]) -> None:
+        for skill_id, turns in list(cooldowns.items()):
+            if turns > 0:
+                cooldowns[skill_id] = turns - 1
+
+    def _has_active_effect(self, effects: list[ActiveEffect], source_id: str) -> bool:
+        return any(effect.source_id == source_id and effect.turns > 0 for effect in effects)
 
     def _apply_stat(self, stats: CombatStats, key: str, value: float) -> None:
         if not hasattr(stats, key):
@@ -613,6 +858,16 @@ class RPGService:
             levels += 1
         return levels
 
+    def _choose_enemy(self, dungeon: DungeonTemplate) -> EnemyTemplate:
+        total = sum(max(1, enemy.weight) for enemy in dungeon.enemies)
+        roll = self.rng.randint(1, total)
+        running = 0
+        for enemy in dungeon.enemies:
+            running += max(1, enemy.weight)
+            if roll <= running:
+                return enemy
+        return dungeon.enemies[0]
+
     def _roll_item_drop(self, profile: PlayerProfile, rank: int, chance: float) -> ItemInstance | None:
         if self.rng.random() > chance:
             return None
@@ -626,11 +881,11 @@ class RPGService:
     def _roll_rarity(self, rank: int) -> str:
         rank = max(1, rank)
         weights = {
-            "normal": max(500, 6200 - 900 * rank),
-            "rare": 2300 + 280 * rank,
-            "epic": 850 + 220 * rank,
-            "unique": 260 + 110 * rank,
-            "legendary": 45 + 45 * rank,
+            "normal": max(450, 6200 - 880 * rank),
+            "rare": 2350 + 280 * rank,
+            "epic": 850 + 230 * rank,
+            "unique": 260 + 115 * rank,
+            "legendary": 45 + 48 * rank,
         }
         total = sum(weights.values())
         roll = self.rng.randint(1, total)
@@ -661,6 +916,8 @@ class RPGService:
         return None
 
     def _cleanup_profile(self, profile: PlayerProfile) -> None:
+        if profile.job_id not in JOB_BY_ID:
+            profile.job_id = "novice"
         profile.inventory = [
             item for item in profile.inventory
             if item.uid > 0 and item.template_id in ITEM_BY_ID
@@ -685,3 +942,4 @@ class RPGService:
         if key in INTEGER_STATS:
             return f"{round(value):{sign}d}"
         return f"{value:{sign}.1f}"
+
