@@ -42,14 +42,17 @@ Commands:
 - `/rpg 전직`: advance to an eligible job
 - `/rpg 인벤토리`: owned weapons and equipment UI; equip up to 4 weapons manually
 - `/rpg 장착`: open the equipment UI directly
+- `/rpg 판매`: sell selected unequipped weapons
+- `/rpg 자동판매`: configure rarities to sell immediately on drop
+- `/rpg 어빌리티`: equip up to 3 abilities for auto combat and boss battles
 - `/rpg 강화`: select a weapon, preview stat gain/cost/odds, then enhance
 - `/rpg 복구`: restore a destroyed weapon trace to +0
-- `/rpg 스탯`: spend stat points on attack, HP, or defense
+- `/rpg 스탯`: spend a chosen amount of stat points on attack, HP, or defense
 
 Testing flags currently disable daily explore limits and boss reward locks.
 Boss battles are message-based sessions: players can join before start, share boss HP,
-keep separate HP/CT/warnings, use gimmick buttons without spending a turn, and spend
-turns only with the attack button.
+keep separate HP/CT/warning objectives, use personal ephemeral ability buttons without
+spending a turn, and spend turns only with the attack button.
 
 Runtime RPG state is stored at `bot/data/rpg_state.json` and ignored by Git.
 

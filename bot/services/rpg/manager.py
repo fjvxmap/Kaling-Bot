@@ -37,6 +37,7 @@ from .data import (
     previous_level_exp,
     restore_cost,
     scaled_item_stats,
+    sell_price,
     stat_delta,
 )
 from .models import CombatStats, ItemInstance, PlayerProfile
@@ -69,6 +70,8 @@ class RewardReport:
     stat_points: int = 0
     levels_gained: int = 0
     dropped_item: ItemInstance | None = None
+    auto_sold_item: ItemInstance | None = None
+    auto_sold_gold: int = 0
     weekly_reward_claimed: bool = False
     weekly_reward_locked: bool = False
     consolation: bool = False
@@ -137,6 +140,24 @@ class EquipmentResult:
     message: str
     profile: PlayerProfile
     item: ItemInstance | None = None
+
+
+@dataclass
+class SellResult:
+    ok: bool
+    message: str
+    profile: PlayerProfile
+    gold: int = 0
+    sold_count: int = 0
+    sold_items: list[str] = field(default_factory=list)
+
+
+@dataclass
+class AbilityResult:
+    ok: bool
+    message: str
+    profile: PlayerProfile
+    skills: list[SkillTemplate] = field(default_factory=list)
 
 
 @dataclass
@@ -249,6 +270,33 @@ class RPGService:
             skills.append(skill)
         return skills
 
+    def equipped_skills(self, profile: PlayerProfile) -> list[SkillTemplate]:
+        available = {skill.id: skill for skill in self.unlocked_skills(profile)}
+        skills = [
+            available[skill_id]
+            for skill_id in profile.equipped_skill_ids
+            if skill_id in available
+        ][:3]
+        return skills
+
+    def set_equipped_skills(self, user_id: int, display_name: str, skill_ids: list[str]) -> AbilityResult:
+        profile = self.get_profile(user_id, display_name)
+        available = {skill.id: skill for skill in self.unlocked_skills(profile)}
+        selected = []
+        for skill_id in skill_ids:
+            if skill_id in available and skill_id not in selected:
+                selected.append(skill_id)
+            if len(selected) >= 3:
+                break
+        profile.equipped_skill_ids = selected
+        self._save()
+        return AbilityResult(
+            True,
+            "어빌리티 장착을 저장했습니다.",
+            profile,
+            [available[skill_id] for skill_id in selected],
+        )
+
     def explore(self, user_id: int, display_name: str, dungeon_id: str) -> ExploreResult:
         profile = self.get_profile(user_id, display_name)
         dungeon = DUNGEON_BY_ID.get(dungeon_id)
@@ -273,6 +321,7 @@ class RPGService:
             reward.gold = enemy.gold + self.rng.randint(0, 20 * enemy.rank)
             reward.exp = enemy.exp
             reward.dropped_item = self._roll_item_drop(profile, enemy.rank, enemy.drop_chance)
+            self._apply_auto_sell(profile, reward)
             reward.levels_gained = self._grant_exp(profile, reward.exp)
             profile.gold += reward.gold
         else:
@@ -318,6 +367,7 @@ class RPGService:
             reward.exp = boss.exp
             reward.stat_points = boss.stat_points
             reward.dropped_item = self._roll_item_drop(profile, boss.rank + 1, boss.drop_chance)
+            self._apply_auto_sell(profile, reward)
             reward.levels_gained = self._grant_exp(profile, reward.exp)
             reward.weekly_reward_claimed = True
             profile.gold += reward.gold
@@ -336,6 +386,7 @@ class RPGService:
         reward.exp = boss.exp
         reward.stat_points = boss.stat_points
         reward.dropped_item = self._roll_item_drop(profile, boss.rank + 1, boss.drop_chance)
+        self._apply_auto_sell(profile, reward)
         reward.levels_gained = self._grant_exp(profile, reward.exp)
         reward.weekly_reward_claimed = True
         profile.gold += reward.gold
@@ -346,7 +397,7 @@ class RPGService:
 
     def allocate_stat(self, user_id: int, display_name: str, stat: str, amount: int) -> StatAllocationResult:
         profile = self.get_profile(user_id, display_name)
-        amount = max(1, min(50, int(amount)))
+        amount = max(1, int(amount))
         if stat not in {"attack", "hp", "defense"}:
             return StatAllocationResult(False, "올릴 수 없는 스탯입니다.", profile)
         if profile.stat_points < amount:
@@ -461,6 +512,36 @@ class RPGService:
         self._save()
         return EquipmentResult(True, "장비를 장착했습니다.", profile, item)
 
+    def set_equipped_items(self, user_id: int, display_name: str, item_uids: list[int]) -> EquipmentResult:
+        profile = self.get_profile(user_id, display_name)
+        valid = {
+            item.uid: item for item in profile.inventory
+            if not item.destroyed and item.template_id in ITEM_BY_ID
+        }
+        selected = []
+        for uid in item_uids:
+            if uid in valid and uid not in selected:
+                selected.append(uid)
+            if len(selected) >= MAX_EQUIPPED_ITEMS:
+                break
+        profile.equipped_item_uids = selected
+        self._save()
+        return EquipmentResult(True, "장착 상태를 저장했습니다.", profile)
+
+    def auto_equip_best(self, user_id: int, display_name: str) -> EquipmentResult:
+        profile = self.get_profile(user_id, display_name)
+        best = sorted(
+            [
+                item for item in profile.inventory
+                if not item.destroyed and item.template_id in ITEM_BY_ID
+            ],
+            key=self.item_score,
+            reverse=True,
+        )[:MAX_EQUIPPED_ITEMS]
+        profile.equipped_item_uids = [item.uid for item in best]
+        self._save()
+        return EquipmentResult(True, "전투력 기준 최강 장비를 장착했습니다.", profile)
+
     def unequip_item(self, user_id: int, display_name: str, item_uid: int) -> EquipmentResult:
         profile = self.get_profile(user_id, display_name)
         item = self._find_item(profile, item_uid)
@@ -478,6 +559,73 @@ class RPGService:
         if item_uid in profile.equipped_item_uids:
             return self.unequip_item(user_id, display_name, item_uid)
         return self.equip_item(user_id, display_name, item_uid)
+
+    def sell_item(self, user_id: int, display_name: str, item_uid: int) -> SellResult:
+        profile = self.get_profile(user_id, display_name)
+        item = self._find_item(profile, item_uid)
+        if item is None:
+            return SellResult(False, "해당 UID의 장비를 찾지 못했습니다.", profile)
+        if item.uid in profile.equipped_item_uids:
+            return SellResult(False, "장착 중인 장비는 먼저 장착 해제해야 판매할 수 있습니다.", profile)
+        price = self.item_sell_price(item)
+        profile.inventory = [owned for owned in profile.inventory if owned.uid != item.uid]
+        profile.gold += price
+        self._save()
+        return SellResult(True, "장비를 판매했습니다.", profile, price, 1, [self.item_title(item)])
+
+    def sell_items_by_uids(self, user_id: int, display_name: str, item_uids: list[int]) -> SellResult:
+        profile = self.get_profile(user_id, display_name)
+        equipped = set(profile.equipped_item_uids)
+        selected = set(item_uids)
+        sold_items = []
+        kept_items = []
+        total_gold = 0
+        for item in profile.inventory:
+            if item.uid in selected and item.uid not in equipped and item.template_id in ITEM_BY_ID:
+                total_gold += self.item_sell_price(item)
+                sold_items.append(self.item_title(item))
+            else:
+                kept_items.append(item)
+        if not sold_items:
+            return SellResult(False, "판매할 수 있는 선택 장비가 없습니다.", profile)
+        profile.inventory = kept_items
+        profile.gold += total_gold
+        self._save()
+        return SellResult(True, "선택한 장비를 판매했습니다.", profile, total_gold, len(sold_items), sold_items)
+
+    def sell_items_by_rarity(self, user_id: int, display_name: str, rarities: list[str]) -> SellResult:
+        profile = self.get_profile(user_id, display_name)
+        rarity_set = {rarity for rarity in rarities if rarity in RARITIES}
+        equipped = set(profile.equipped_item_uids)
+        sold_items = []
+        kept_items = []
+        total_gold = 0
+        for item in profile.inventory:
+            template = ITEM_BY_ID.get(item.template_id)
+            if template is not None and template.rarity in rarity_set and item.uid not in equipped:
+                total_gold += self.item_sell_price(item)
+                sold_items.append(self.item_title(item))
+            else:
+                kept_items.append(item)
+        if not sold_items:
+            return SellResult(False, "해당 등급에서 판매할 수 있는 장비가 없습니다.", profile)
+        profile.inventory = kept_items
+        profile.gold += total_gold
+        self._save()
+        return SellResult(True, "선택 등급 장비를 일괄 판매했습니다.", profile, total_gold, len(sold_items), sold_items)
+
+    def set_auto_sell_rarities(self, user_id: int, display_name: str, rarities: list[str]) -> SellResult:
+        profile = self.get_profile(user_id, display_name)
+        selected = [
+            rarity for rarity in RARITIES
+            if rarity in set(rarities)
+        ]
+        profile.auto_sell_rarities = selected
+        self._save()
+        return SellResult(True, "자동판매 등급 설정을 저장했습니다.", profile)
+
+    def item_sell_price(self, item: ItemInstance) -> int:
+        return sell_price(item.template_id, item.stars, destroyed=item.destroyed)
 
     def equipped_items(self, profile: PlayerProfile) -> list[ItemInstance]:
         valid_items = [
@@ -567,7 +715,7 @@ class RPGService:
         player_effects: list[ActiveEffect] = []
         enemy_effects: list[ActiveEffect] = []
         triggered_patterns: set[int] = set()
-        skills = self.unlocked_skills(profile)
+        skills = self.equipped_skills(profile)
         uses_left = {skill.id: skill.uses for skill in skills if skill.uses > 0}
         cooldowns = {skill.id: 0 for skill in skills}
         log: list[str] = []
@@ -963,6 +1111,20 @@ class RPGService:
         profile.inventory.append(item)
         return item
 
+    def _apply_auto_sell(self, profile: PlayerProfile, reward: RewardReport) -> None:
+        item = reward.dropped_item
+        if item is None or item.template_id not in ITEM_BY_ID:
+            return
+        rarity = ITEM_BY_ID[item.template_id].rarity
+        if rarity not in profile.auto_sell_rarities:
+            return
+        price = self.item_sell_price(item)
+        profile.inventory = [owned for owned in profile.inventory if owned.uid != item.uid]
+        reward.dropped_item = None
+        reward.auto_sold_item = item
+        reward.auto_sold_gold = price
+        reward.gold += price
+
     def _roll_rarity(self, rank: int) -> str:
         rank = max(1, rank)
         weights = {
@@ -1003,6 +1165,10 @@ class RPGService:
     def _cleanup_profile(self, profile: PlayerProfile) -> None:
         if profile.job_id not in JOB_BY_ID:
             profile.job_id = "novice"
+        profile.auto_sell_rarities = [
+            rarity for rarity in profile.auto_sell_rarities
+            if rarity in RARITIES
+        ]
         profile.inventory = [
             item for item in profile.inventory
             if item.uid > 0 and item.template_id in ITEM_BY_ID
@@ -1020,6 +1186,7 @@ class RPGService:
             ]
             profile.equipment_initialized = True
         self._cleanup_equipped_items(profile)
+        self._cleanup_equipped_skills(profile)
         profile.next_item_uid = max(
             profile.next_item_uid,
             max((item.uid for item in profile.inventory), default=0) + 1,
@@ -1034,6 +1201,13 @@ class RPGService:
             uid for uid in profile.equipped_item_uids
             if uid in valid_uids
         ))[:MAX_EQUIPPED_ITEMS]
+
+    def _cleanup_equipped_skills(self, profile: PlayerProfile) -> None:
+        available = {skill.id for skill in self.unlocked_skills(profile)}
+        profile.equipped_skill_ids = [
+            skill_id for skill_id in profile.equipped_skill_ids
+            if skill_id in available
+        ][:3]
 
     def _save(self) -> None:
         self.store.save_profiles(self._profiles)

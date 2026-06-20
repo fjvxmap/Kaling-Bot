@@ -463,6 +463,13 @@ def restore_cost(rarity: str) -> int:
     return RESTORE_COST[rarity]
 
 
+def sell_price(template_id: str, stars: int, *, destroyed: bool = False) -> int:
+    template = ITEM_BY_ID[template_id]
+    multiplier = star_multiplier(stars)
+    rate = 0.16 if destroyed else 0.38
+    return max(1, round(template.base_price * multiplier * rate))
+
+
 def enhancement_odds(rarity: str, stars: int) -> tuple[float, float, float]:
     tier = RARITIES.index(rarity)
     success = max(0.15, 0.86 - 0.055 * stars - 0.045 * tier)

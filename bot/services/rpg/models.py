@@ -55,6 +55,8 @@ class PlayerProfile:
     dungeon_clear_count: int = 0
     equipment_initialized: bool = True
     equipped_item_uids: list[int] = field(default_factory=list)
+    auto_sell_rarities: list[str] = field(default_factory=list)
+    equipped_skill_ids: list[str] = field(default_factory=list)
     inventory: list[ItemInstance] = field(default_factory=list)
     next_item_uid: int = 1
 
@@ -87,6 +89,10 @@ class PlayerProfile:
                     for uid in value
                     if str(uid).isdigit()
                 ]
+            elif key == "auto_sell_rarities" and isinstance(value, list):
+                profile.auto_sell_rarities = [str(rarity) for rarity in value]
+            elif key == "equipped_skill_ids" and isinstance(value, list):
+                profile.equipped_skill_ids = [str(skill_id) for skill_id in value]
             else:
                 setattr(profile, key, value)
         profile.version = 1
@@ -102,6 +108,8 @@ class PlayerProfile:
             uid for uid in profile.equipped_item_uids
             if isinstance(uid, int) and uid > 0
         ))
+        profile.auto_sell_rarities = list(dict.fromkeys(str(rarity) for rarity in profile.auto_sell_rarities))
+        profile.equipped_skill_ids = list(dict.fromkeys(str(skill_id) for skill_id in profile.equipped_skill_ids))
         profile.next_item_uid = max(1, int(profile.next_item_uid))
         return profile
 
