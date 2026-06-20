@@ -52,7 +52,9 @@ Commands:
 Testing flags currently disable daily explore limits and boss reward locks.
 Boss battles are message-based sessions: players can join before start, share boss HP,
 keep separate HP/CT/warning objectives, use personal ephemeral ability buttons without
-spending a turn, and spend turns only with the attack button.
+spending a turn, and spend turns with attack or guard. Guard skips your attack and only
+for that incoming hit raises defense by 1000%. HP warnings queue per player; queued HP
+warnings take priority over CT warnings and are shown one at a time.
 
 Runtime RPG state is stored at `bot/data/rpg_state.json` and ignored by Git.
 

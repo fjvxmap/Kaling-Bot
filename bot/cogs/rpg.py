@@ -1571,10 +1571,15 @@ class BossAbilityMenuButton(discord.ui.Button):
             return
         self.view.session.message = interaction.message
         profile = self.view.cog.service.get_profile(interaction.user.id, interaction.user.display_name)
+        self.view.cog._prepare_visible_warning(self.view.session, participant, profile)
         skills = self.view.cog.service.equipped_skills(profile)
         if not skills:
             await interaction.response.send_message("장착한 어빌리티가 없습니다. `/rpg 어빌리티`에서 먼저 장착하세요.", ephemeral=True)
             return
+        await interaction.message.edit(
+            embed=self.view.cog._boss_session_embed(self.view.session),
+            view=BossSessionView(self.view.cog, self.view.session),
+        )
         await interaction.response.send_message(
             embed=self.view.cog._boss_ability_embed(self.view.session, participant, skills),
             view=BossAbilityView(self.view.cog, self.view.session, interaction.user.id, interaction.user.display_name, skills),
