@@ -1,0 +1,12 @@
+[
+  {
+    "id": "recipe",
+    "name": "New Recipe",
+    "result_item_id": "item",
+    "level_req": 1,
+    "gold": 0,
+    "materials": {},
+    "description": "",
+    "sort_order": 10
+  }
+]

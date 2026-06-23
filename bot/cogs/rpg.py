@@ -781,7 +781,7 @@ class RPGCog(commands.Cog):
         self._activate_next_warning(session, participant)
 
     def _hp_warning(self, session: BossSession, idx: int, rule) -> BossWarning:
-        pattern = self._pattern_for_warning(session, rule.pattern_id)
+        pattern = rule.pattern or self._pattern_for_warning(session, rule.pattern_id)
         return BossWarning(
             source=f"hp:{idx}",
             name=f"{pattern.name} ({rule.threshold * 100:.0f}%)",
@@ -798,7 +798,7 @@ class RPGCog(commands.Cog):
             objective = "hits"
             required = 1
         else:
-            pattern = self._pattern_for_warning(session, rule.pattern_id)
+            pattern = rule.pattern or self._pattern_for_warning(session, rule.pattern_id)
             objective = rule.objective
             required = rule.required
         return BossWarning(

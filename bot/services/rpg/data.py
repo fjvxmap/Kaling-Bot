@@ -112,6 +112,7 @@ class BossHPWarningTemplate:
     pattern_id: str
     objective: str
     required: int
+    pattern: BossPattern | None = None
 
 
 @dataclass(frozen=True)
@@ -126,6 +127,7 @@ class BossCTWarningTemplate:
     pattern_id: str
     objective: str
     required: int
+    pattern: BossPattern | None = None
 
 
 @dataclass(frozen=True)
@@ -428,12 +430,24 @@ def _boss_pattern(raw: dict[str, Any]) -> BossPattern:
     )
 
 
-def _hp_warning(raw: dict[str, Any]) -> BossHPWarningTemplate:
+def _warning_pattern(raw: dict[str, Any], fallback_id: str, fallback_name: str) -> BossPattern | None:
+    pattern = raw.get("pattern")
+    if not isinstance(pattern, dict):
+        return None
+    normalized = dict(pattern)
+    normalized.setdefault("id", raw.get("pattern_id", fallback_id))
+    normalized.setdefault("name", fallback_name)
+    return _boss_pattern(normalized)
+
+
+def _hp_warning(raw: dict[str, Any], index: int = 0) -> BossHPWarningTemplate:
+    pattern = _warning_pattern(raw, f"hp_warning_{index + 1}", "HP Warning Failure")
     return BossHPWarningTemplate(
         threshold=float(raw["threshold"]),
-        pattern_id=str(raw["pattern_id"]),
+        pattern_id=str(raw.get("pattern_id", pattern.id if pattern is not None else "")),
         objective=str(raw.get("objective", "damage")),
         required=max(1, int(raw.get("required", 1))),
+        pattern=pattern,
     )
 
 
@@ -444,27 +458,45 @@ def _ct_gauge(raw: dict[str, Any]) -> BossCTGaugeTemplate:
     )
 
 
-def _ct_warning(raw: dict[str, Any]) -> BossCTWarningTemplate:
+def _ct_warning(raw: dict[str, Any], index: int = 0) -> BossCTWarningTemplate:
+    pattern = _warning_pattern(raw, f"ct_warning_{index + 1}", "CT Warning Failure")
     return BossCTWarningTemplate(
         above=float(raw.get("above", 0.0)),
-        pattern_id=str(raw["pattern_id"]),
+        pattern_id=str(raw.get("pattern_id", pattern.id if pattern is not None else "")),
         objective=str(raw.get("objective", "hits")),
         required=max(1, int(raw.get("required", 1))),
+        pattern=pattern,
     )
 
 
 def _boss(raw: dict[str, Any]) -> BossTemplate:
     patterns = [_boss_pattern(pattern) for pattern in raw.get("patterns", [])]
-    pattern_by_id = {
-        pattern.id or pattern.name: pattern
-        for pattern in patterns
-    }
     ct = raw.get("ct", {})
     rank = int(raw["rank"])
     gold = int(raw["gold"])
     exp = int(raw["exp"])
     stat_points = int(raw.get("stat_points", 0))
     drop_chance = float(raw.get("drop_chance", 0.0))
+    hp_warnings = sorted(
+        [_hp_warning(warning, index) for index, warning in enumerate(raw.get("hp_warnings", []))],
+        key=lambda warning: warning.threshold,
+        reverse=True,
+    )
+    ct_warnings = sorted(
+        [_ct_warning(warning, index) for index, warning in enumerate(ct.get("warnings_by_hp", []))],
+        key=lambda warning: warning.above,
+        reverse=True,
+    )
+    direct_patterns = [
+        warning.pattern
+        for warning in [*hp_warnings, *ct_warnings]
+        if warning.pattern is not None
+    ]
+    all_patterns = [*patterns, *direct_patterns]
+    pattern_by_id = {
+        pattern.id or pattern.name: pattern
+        for pattern in all_patterns
+    }
     return BossTemplate(
         id=str(raw["id"]),
         name=str(raw["name"]),
@@ -475,23 +507,15 @@ def _boss(raw: dict[str, Any]) -> BossTemplate:
         exp=exp,
         stat_points=stat_points,
         drop_chance=drop_chance,
-        patterns=patterns,
+        patterns=all_patterns,
         description=str(raw.get("description", "")),
-        hp_warnings=sorted(
-            [_hp_warning(warning) for warning in raw.get("hp_warnings", [])],
-            key=lambda warning: warning.threshold,
-            reverse=True,
-        ),
+        hp_warnings=hp_warnings,
         ct_gauge=sorted(
             [_ct_gauge(rule) for rule in ct.get("gauge_by_hp", [])],
             key=lambda rule: rule.above,
             reverse=True,
         ),
-        ct_warnings=sorted(
-            [_ct_warning(warning) for warning in ct.get("warnings_by_hp", [])],
-            key=lambda warning: warning.above,
-            reverse=True,
-        ),
+        ct_warnings=ct_warnings,
         pattern_by_id=pattern_by_id,
         rewards=_reward(
             raw.get("rewards"),

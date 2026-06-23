@@ -328,7 +328,7 @@ function renderBosses() {
 }
 
 function renderBossDetail(boss) {
-  boss.patterns ||= [];
+  normalizeBossWarnings(boss);
   boss.hp_warnings ||= [];
   boss.ct ||= { gauge_by_hp: [], warnings_by_hp: [] };
   boss.ct.gauge_by_hp ||= [];
@@ -348,7 +348,6 @@ function renderBossDetail(boss) {
       textAreaField("설명", boss, "description", { full: true }),
     ]),
     statsEditor(boss, "stats", "보스 스탯"),
-    bossPatternEditor(boss),
     bossHpWarningEditor(boss),
     bossCtEditor(boss),
     rewardEditor(boss, "rewards", "클리어 보상"),
@@ -535,6 +534,81 @@ function entityButton(config, row) {
   ]);
 }
 
+function normalizeBossWarnings(boss) {
+  boss.patterns ||= [];
+  boss.hp_warnings ||= [];
+  boss.ct ||= { gauge_by_hp: [], warnings_by_hp: [] };
+  boss.ct.gauge_by_hp ||= [];
+  boss.ct.warnings_by_hp ||= [];
+  for (const warning of boss.hp_warnings) {
+    ensureWarningPattern(boss, warning, "threshold");
+  }
+  for (const warning of boss.ct.warnings_by_hp) {
+    ensureWarningPattern(boss, warning, "above");
+  }
+}
+
+function ensureWarningPattern(boss, warning, thresholdKey) {
+  if (warning.pattern && typeof warning.pattern === "object") {
+    warning.pattern.id ||= warning.pattern_id || nextId(`${thresholdKey}_failure`, bossWarningPatterns(boss));
+    warning.pattern.name ||= "전조 실패 효과";
+    delete warning.pattern_id;
+    return;
+  }
+  const legacyPattern = (boss.patterns || []).find((pattern) => (
+    pattern.id === warning.pattern_id || pattern.name === warning.pattern_id
+  ));
+  if (legacyPattern) {
+    warning.pattern = structuredClone(legacyPattern);
+  } else {
+    warning.pattern = blankBossPattern(boss, `${thresholdKey}_failure`, "전조 실패 효과");
+  }
+  delete warning.pattern_id;
+}
+
+function blankBossPattern(boss, prefix, name) {
+  return {
+    id: nextId(prefix, bossWarningPatterns(boss)),
+    name,
+    damage_multiplier: 0,
+    hits: 0,
+    player_mods: {},
+    boss_mods: {},
+    duration: 0,
+  };
+}
+
+function defaultWarningPattern(boss, prefix, name) {
+  const usedIds = new Set();
+  for (const warning of boss.hp_warnings || []) {
+    if (warning.pattern?.id) {
+      usedIds.add(warning.pattern.id);
+    }
+  }
+  for (const warning of boss.ct?.warnings_by_hp || []) {
+    if (warning.pattern?.id) {
+      usedIds.add(warning.pattern.id);
+    }
+  }
+  const legacy = (boss.patterns || []).find((pattern) => pattern.id && !usedIds.has(pattern.id));
+  return legacy ? structuredClone(legacy) : blankBossPattern(boss, prefix, name);
+}
+
+function bossWarningPatterns(boss) {
+  const rows = [...(boss.patterns || [])];
+  for (const warning of boss.hp_warnings || []) {
+    if (warning.pattern) {
+      rows.push(warning.pattern);
+    }
+  }
+  for (const warning of boss.ct?.warnings_by_hp || []) {
+    if (warning.pattern) {
+      rows.push(warning.pattern);
+    }
+  }
+  return rows;
+}
+
 function mainDetail(title, row, body) {
   const rows = state.content[state.tab] || [];
   const detail = document.getElementById("detailPanel");
@@ -646,78 +720,15 @@ function enemyPanel(dungeon, enemy, index) {
   ]);
 }
 
-function bossPatternEditor(boss) {
-  const addButton = el("button", {
-    type: "button",
-    onclick: () => {
-      boss.patterns.push({
-        id: nextId("pattern", boss.patterns),
-        threshold: 0,
-        name: "New Pattern",
-        damage_multiplier: 0,
-        hits: 0,
-        player_mods: {},
-        boss_mods: {},
-        duration: 0,
-      });
-      markDirty();
-      render();
-    },
-  }, "패턴 추가");
-  return el("section", { className: "section" }, [
-    el("div", { className: "section-head" }, [
-      el("h3", {}, "패턴"),
-      addButton,
-    ]),
-    el("div", { className: "rows" }, boss.patterns.map((pattern, index) => bossPatternPanel(boss, pattern, index))),
-  ]);
-}
-
-function bossPatternPanel(boss, pattern, index) {
-  return el("div", { className: "subpanel" }, [
-    el("div", { className: "subpanel-head" }, [
-      el("div", { className: "subpanel-title" }, [
-        el("strong", {}, pattern.name || pattern.id),
-        el("span", { className: "badge" }, pattern.id),
-      ]),
-      el("button", {
-        type: "button",
-        className: "danger",
-        onclick: () => {
-          const removedId = String(pattern.id ?? "");
-          const changed = deleteBossPatternReferences(boss, removedId);
-          boss.patterns.splice(index, 1);
-          markDirty();
-          if (changed > 0) {
-            setStatus(`패턴 삭제: ${removedId} · 전조 참조 ${changed}개 자동 삭제`);
-          }
-          render();
-        },
-      }, "삭제"),
-    ]),
-    el("div", { className: "form-grid three" }, [
-      bossPatternIdField(boss, pattern),
-      textField("이름", pattern, "name"),
-      numberField("표시용 임계값", pattern, "threshold", { step: 0.01 }),
-      numberField("피해 배율", pattern, "damage_multiplier", { step: 0.01 }),
-      numberField("타수", pattern, "hits", { step: 1 }),
-      numberField("지속 턴", pattern, "duration", { step: 1 }),
-    ]),
-    statsEditor(pattern, "player_mods", "유저에게 적용"),
-    statsEditor(pattern, "boss_mods", "보스에게 적용"),
-  ]);
-}
-
 function bossHpWarningEditor(boss) {
-  const patternOptions = boss.patterns.map((pattern) => [pattern.id, `${pattern.name || pattern.id} (${pattern.id})`]);
   const addButton = el("button", {
     type: "button",
     onclick: () => {
       boss.hp_warnings.push({
         threshold: 0.5,
-        pattern_id: boss.patterns[0]?.id ?? "",
         objective: "damage",
         required: 1,
+        pattern: defaultWarningPattern(boss, "hp_failure", "체력 전조 실패 효과"),
       });
       markDirty();
       render();
@@ -728,12 +739,11 @@ function bossHpWarningEditor(boss) {
       el("h3", {}, "체력 전조"),
       addButton,
     ]),
-    el("div", { className: "rows" }, boss.hp_warnings.map((warning, index) => warningRow(boss.hp_warnings, warning, index, patternOptions))),
+    el("div", { className: "rows" }, boss.hp_warnings.map((warning, index) => warningPanel(boss, boss.hp_warnings, warning, index))),
   ]);
 }
 
 function bossCtEditor(boss) {
-  const patternOptions = boss.patterns.map((pattern) => [pattern.id, `${pattern.name || pattern.id} (${pattern.id})`]);
   const addGauge = el("button", {
     type: "button",
     onclick: () => {
@@ -747,9 +757,9 @@ function bossCtEditor(boss) {
     onclick: () => {
       boss.ct.warnings_by_hp.push({
         above: 0,
-        pattern_id: boss.patterns[0]?.id ?? "",
         objective: "hits",
         required: 1,
+        pattern: defaultWarningPattern(boss, "ct_failure", "CT 전조 실패 효과"),
       });
       markDirty();
       render();
@@ -775,22 +785,50 @@ function bossCtEditor(boss) {
         el("h3", {}, "CT 전조"),
         addWarning,
       ]),
-      el("div", { className: "rows" }, boss.ct.warnings_by_hp.map((warning, index) => warningRow(boss.ct.warnings_by_hp, warning, index, patternOptions, "above"))),
+      el("div", { className: "rows" }, boss.ct.warnings_by_hp.map((warning, index) => warningPanel(boss, boss.ct.warnings_by_hp, warning, index, "above"))),
     ]),
   ]);
 }
 
-function warningRow(rows, warning, index, patternOptions, thresholdKey = "threshold") {
-  return el("div", { className: "row" }, [
-    numberField(thresholdKey === "above" ? "HP 비율 초과" : "HP 임계값", warning, thresholdKey, { step: 0.01 }),
-    selectField("패턴", warning, "pattern_id", patternOptions),
-    selectField("요구 조건", warning, "objective", OBJECTIVES),
-    numberField("요구량", warning, "required", { step: 1 }),
-    deleteButton(() => {
-      rows.splice(index, 1);
-      markDirty();
-      render();
-    }),
+function warningPanel(boss, rows, warning, index, thresholdKey = "threshold") {
+  ensureWarningPattern(boss, warning, thresholdKey);
+  const title = thresholdKey === "above" ? "CT 전조" : "체력 전조";
+  return el("div", { className: "subpanel" }, [
+    el("div", { className: "subpanel-head" }, [
+      el("div", { className: "subpanel-title" }, [
+        el("strong", {}, `${title} ${index + 1}`),
+        el("span", { className: "badge" }, warning.pattern?.name || "실패 효과"),
+      ]),
+      deleteButton(() => {
+        rows.splice(index, 1);
+        markDirty();
+        render();
+      }),
+    ]),
+    el("div", { className: "form-grid three" }, [
+      numberField(thresholdKey === "above" ? "HP 비율 초과" : "HP 임계값", warning, thresholdKey, { step: 0.01 }),
+      selectField("요구 조건", warning, "objective", OBJECTIVES),
+      numberField("요구량", warning, "required", { step: 1 }),
+    ]),
+    patternEffectEditor(warning.pattern),
+  ]);
+}
+
+function patternEffectEditor(pattern) {
+  return el("section", { className: "section" }, [
+    el("div", { className: "section-head" }, [
+      el("h3", {}, "실패 시 발동"),
+      el("span", { className: "muted" }, "이 전조를 못 풀고 턴을 넘기면 실행됩니다."),
+    ]),
+    el("div", { className: "form-grid three" }, [
+      textField("효과 ID", pattern, "id"),
+      textField("효과 이름", pattern, "name"),
+      numberField("피해 배율", pattern, "damage_multiplier", { step: 0.01 }),
+      numberField("타수", pattern, "hits", { step: 1 }),
+      numberField("지속 턴", pattern, "duration", { step: 1 }),
+    ]),
+    statsEditor(pattern, "player_mods", "유저에게 적용"),
+    statsEditor(pattern, "boss_mods", "보스에게 적용"),
   ]);
 }
 
@@ -1049,32 +1087,6 @@ function idField(entityKey, obj) {
   return fieldWrap("ID", input);
 }
 
-function bossPatternIdField(boss, pattern) {
-  const input = el("input", {
-    type: "text",
-    value: pattern.id ?? "",
-    onchange: (event) => {
-      const oldId = String(pattern.id ?? "");
-      const newId = event.target.value.trim();
-      if (oldId === newId) {
-        return;
-      }
-      if (!isValidPatternIdChange(boss, pattern, oldId, newId)) {
-        event.target.value = oldId;
-        return;
-      }
-      pattern.id = newId;
-      const changed = renameBossPatternReferences(boss, oldId, newId);
-      markDirty();
-      if (changed > 0) {
-        setStatus(`패턴 ID 변경: ${oldId} -> ${newId} · 전조 참조 ${changed}개 자동 변경`);
-      }
-      render();
-    },
-  });
-  return fieldWrap("ID", input);
-}
-
 function isValidIdChange(entityKey, obj, oldId, newId) {
   if (!newId || !ID_PATTERN.test(newId)) {
     showToast("ID는 영문, 숫자, 밑줄, 하이픈만 사용할 수 있습니다.", true);
@@ -1083,19 +1095,6 @@ function isValidIdChange(entityKey, obj, oldId, newId) {
   const duplicate = (state.content[entityKey] || []).some((row) => row !== obj && row.id === newId);
   if (duplicate) {
     showToast(`${newId} ID가 이미 존재합니다.`, true);
-    return false;
-  }
-  return oldId !== newId;
-}
-
-function isValidPatternIdChange(boss, pattern, oldId, newId) {
-  if (!newId || !ID_PATTERN.test(newId)) {
-    showToast("패턴 ID는 영문, 숫자, 밑줄, 하이픈만 사용할 수 있습니다.", true);
-    return false;
-  }
-  const duplicate = (boss.patterns || []).some((row) => row !== pattern && row.id === newId);
-  if (duplicate) {
-    showToast(`${newId} 패턴 ID가 이미 존재합니다.`, true);
     return false;
   }
   return oldId !== newId;
@@ -1267,42 +1266,6 @@ function renameJobReferences(oldId, newId) {
     state.content.player.start.job_id = newId;
     changed += 1;
   }
-  return changed;
-}
-
-function renameBossPatternReferences(boss, oldId, newId) {
-  if (!oldId || !newId || oldId === newId) {
-    return 0;
-  }
-  let changed = 0;
-  for (const warning of boss.hp_warnings || []) {
-    if (warning.pattern_id === oldId) {
-      warning.pattern_id = newId;
-      changed += 1;
-    }
-  }
-  for (const warning of boss.ct?.warnings_by_hp || []) {
-    if (warning.pattern_id === oldId) {
-      warning.pattern_id = newId;
-      changed += 1;
-    }
-  }
-  return changed;
-}
-
-function deleteBossPatternReferences(boss, removedId) {
-  if (!removedId) {
-    return 0;
-  }
-  let changed = 0;
-  const hpBefore = boss.hp_warnings?.length || 0;
-  boss.hp_warnings = (boss.hp_warnings || []).filter((warning) => warning.pattern_id !== removedId);
-  changed += hpBefore - boss.hp_warnings.length;
-
-  boss.ct ||= {};
-  const ctBefore = boss.ct.warnings_by_hp?.length || 0;
-  boss.ct.warnings_by_hp = (boss.ct.warnings_by_hp || []).filter((warning) => warning.pattern_id !== removedId);
-  changed += ctBefore - boss.ct.warnings_by_hp.length;
   return changed;
 }
 

@@ -1,0 +1,68 @@
+[
+  {
+    "id": "moss_spore",
+    "name": "이끼 포자",
+    "rarity": "normal",
+    "description": "폐허 계열 제작의 기본 재료입니다."
+  },
+  {
+    "id": "crystal_shard",
+    "name": "수정 파편",
+    "rarity": "rare",
+    "description": "초반 무기와 마법 계열 장비 제작에 쓰입니다."
+  },
+  {
+    "id": "ember_ore",
+    "name": "잿불 광석",
+    "rarity": "epic",
+    "description": "중반 공격형 장비의 핵심 재료입니다."
+  },
+  {
+    "id": "ash_mark",
+    "name": "잿빛 문장",
+    "rarity": "unique",
+    "description": "상위 장비 제작에 쓰이는 고급 재료입니다."
+  },
+  {
+    "id": "star_fragment",
+    "name": "별 파편",
+    "rarity": "legendary",
+    "description": "최종 장비 제작에 필요한 희귀 재료입니다."
+  },
+  {
+    "id": "slime_crown_gel",
+    "name": "왕관 젤",
+    "rarity": "rare",
+    "description": "Slime Emperor가 남기는 보스 재료입니다."
+  },
+  {
+    "id": "wyvern_scale",
+    "name": "비룡 비늘",
+    "rarity": "epic",
+    "description": "Crimson Wyvern의 열기를 품은 비늘입니다."
+  },
+  {
+    "id": "clockwork_core",
+    "name": "시계태엽 코어",
+    "rarity": "epic",
+    "description": "Clockwork Knight의 동력 코어입니다."
+  },
+  {
+    "id": "mirror_shard",
+    "name": "거울 조각",
+    "rarity": "unique",
+    "description": "Mirror Witch의 저주가 남은 재료입니다."
+  },
+  {
+    "id": "black_star_dust",
+    "name": "흑성 가루",
+    "rarity": "legendary",
+    "description": "Black Star의 힘이 응축된 재료입니다."
+  },
+  {
+    "id": "gold_brick",
+    "name": "히히이로카네",
+    "rarity": "legendary",
+    "description": ""
+  }
+]

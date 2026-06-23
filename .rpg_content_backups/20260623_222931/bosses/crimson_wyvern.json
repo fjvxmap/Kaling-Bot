@@ -1,0 +1,206 @@
+{
+  "id": "crimson_wyvern",
+  "name": "Crimson Wyvern",
+  "level_req": 8,
+  "rank": 3,
+  "stats": {
+    "base_atk": 25,
+    "max_hp": 620,
+    "atk": 0.1,
+    "strength": 0.08,
+    "dmg_amplification": 0.04
+  },
+  "gold": 1900,
+  "exp": 430,
+  "stat_points": 1,
+  "drop_chance": 1,
+  "description": "2차 전직 직후 도전하는 공격형 보스입니다.",
+  "patterns": [
+    {
+      "threshold": 0.75,
+      "name": "Ignited Scales",
+      "damage_multiplier": 0,
+      "hits": 0,
+      "player_mods": {},
+      "boss_mods": {
+        "atk": 0.28,
+        "dmg_amplification": 0.16
+      },
+      "duration": 3,
+      "id": "ignited_scales"
+    },
+    {
+      "threshold": 0.5,
+      "name": "Wing Buffet",
+      "damage_multiplier": 0.85,
+      "hits": 4,
+      "player_mods": {},
+      "boss_mods": {},
+      "duration": 0,
+      "id": "wing_buffet"
+    },
+    {
+      "threshold": 0.22,
+      "name": "Crimson Breath",
+      "damage_multiplier": 1.1,
+      "hits": 5,
+      "player_mods": {},
+      "boss_mods": {},
+      "duration": 0,
+      "id": "crimson_breath"
+    },
+    {
+      "id": "ct_phase_1",
+      "threshold": 0,
+      "name": "Crimson Wyvern CT 1",
+      "damage_multiplier": 0.83,
+      "hits": 3,
+      "player_mods": {},
+      "boss_mods": {
+        "atk": 0.06,
+        "dmg_amplification": 0.035
+      },
+      "duration": 2
+    },
+    {
+      "id": "ct_phase_2",
+      "threshold": 0,
+      "name": "Crimson Wyvern CT 2",
+      "damage_multiplier": 0.99,
+      "hits": 3,
+      "player_mods": {},
+      "boss_mods": {
+        "atk": 0.12,
+        "dmg_amplification": 0.07
+      },
+      "duration": 2
+    },
+    {
+      "id": "ct_phase_3",
+      "threshold": 0,
+      "name": "Crimson Wyvern CT 3",
+      "damage_multiplier": 1.15,
+      "hits": 3,
+      "player_mods": {},
+      "boss_mods": {
+        "atk": 0.18,
+        "dmg_amplification": 0.105
+      },
+      "duration": 2
+    },
+    {
+      "id": "ct_phase_4",
+      "threshold": 0,
+      "name": "Crimson Wyvern CT 4",
+      "damage_multiplier": 1.31,
+      "hits": 3,
+      "player_mods": {},
+      "boss_mods": {
+        "atk": 0.24,
+        "dmg_amplification": 0.14
+      },
+      "duration": 2
+    }
+  ],
+  "hp_warnings": [
+    {
+      "threshold": 0.9,
+      "pattern_id": "ignited_scales",
+      "objective": "damage",
+      "required": 24
+    },
+    {
+      "threshold": 0.74,
+      "pattern_id": "wing_buffet",
+      "objective": "hits",
+      "required": 5
+    },
+    {
+      "threshold": 0.58,
+      "pattern_id": "crimson_breath",
+      "objective": "debuff",
+      "required": 1
+    },
+    {
+      "threshold": 0.42,
+      "pattern_id": "ignited_scales",
+      "objective": "damage",
+      "required": 29
+    },
+    {
+      "threshold": 0.26,
+      "pattern_id": "wing_buffet",
+      "objective": "hits",
+      "required": 6
+    },
+    {
+      "threshold": 0.1,
+      "pattern_id": "crimson_breath",
+      "objective": "debuff",
+      "required": 2
+    }
+  ],
+  "ct": {
+    "gauge_by_hp": [
+      {
+        "above": 0,
+        "max": 4
+      }
+    ],
+    "warnings_by_hp": [
+      {
+        "above": 0.75,
+        "pattern_id": "ct_phase_1",
+        "objective": "hits",
+        "required": 6
+      },
+      {
+        "above": 0.5,
+        "pattern_id": "ct_phase_2",
+        "objective": "hits",
+        "required": 7
+      },
+      {
+        "above": 0.25,
+        "pattern_id": "ct_phase_3",
+        "objective": "hits",
+        "required": 8
+      },
+      {
+        "above": 0,
+        "pattern_id": "ct_phase_4",
+        "objective": "hits",
+        "required": 8
+      }
+    ]
+  },
+  "rewards": {
+    "gold": {
+      "min": 1900,
+      "max": 2260
+    },
+    "exp": 430,
+    "stat_points": 1,
+    "items": [
+      {
+        "chance": 1,
+        "rank": 4
+      }
+    ],
+    "materials": [
+      {
+        "id": "wyvern_scale",
+        "chance": 1,
+        "min": 1,
+        "max": 2
+      },
+      {
+        "id": "ember_ore",
+        "chance": 0.65,
+        "min": 1,
+        "max": 3
+      }
+    ]
+  },
+  "sort_order": 20
+}

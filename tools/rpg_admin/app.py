@@ -142,11 +142,9 @@ def validate_content(content: dict[str, Any]) -> list[str]:
     for boss in content.get("bosses", []):
         pattern_ids = ensure_unique_ids(boss.get("patterns", []), f"boss {boss.get('id')} pattern", errors)
         for warning in boss.get("hp_warnings", []):
-            if warning.get("pattern_id") not in pattern_ids:
-                errors.append(f"boss {boss.get('id')} hp warning pattern not found: {warning.get('pattern_id')}")
+            validate_warning_pattern(warning, pattern_ids, f"boss {boss.get('id')} hp warning", errors)
         for warning in boss.get("ct", {}).get("warnings_by_hp", []):
-            if warning.get("pattern_id") not in pattern_ids:
-                errors.append(f"boss {boss.get('id')} ct warning pattern not found: {warning.get('pattern_id')}")
+            validate_warning_pattern(warning, pattern_ids, f"boss {boss.get('id')} ct warning", errors)
         validate_reward(boss.get("rewards", {}), items, materials, rarities, f"boss {boss.get('id')} rewards", errors)
 
     for label, ids in (("skills", skills), ("recipes", recipes), ("dungeons", dungeons), ("bosses", bosses)):
@@ -176,6 +174,25 @@ def ensure_unique_ids(rows: Any, label: str, errors: list[str]) -> set[str]:
 def check_rarity(rarity: Any, rarities: set[str], label: str, errors: list[str]) -> None:
     if str(rarity) not in rarities:
         errors.append(f"{label} rarity not found: {rarity}")
+
+
+def validate_warning_pattern(
+    warning: dict[str, Any],
+    legacy_pattern_ids: set[str],
+    label: str,
+    errors: list[str],
+) -> None:
+    pattern = warning.get("pattern")
+    if isinstance(pattern, dict):
+        pattern_id = str(pattern.get("id", ""))
+        if pattern_id and not ID_RE.match(pattern_id):
+            errors.append(f"{label} pattern has invalid id: {pattern_id}")
+        if not str(pattern.get("name", "")):
+            errors.append(f"{label} pattern missing name")
+        return
+    pattern_id = str(warning.get("pattern_id", ""))
+    if pattern_id not in legacy_pattern_ids:
+        errors.append(f"{label} pattern not found: {pattern_id}")
 
 
 def validate_reward(

@@ -1,0 +1,255 @@
+[
+  {
+    "id": "normal_01",
+    "name": "Iron Knife",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 2,
+      "atk": 0.006
+    },
+    "base_price": 123
+  },
+  {
+    "id": "normal_08",
+    "name": "Leather Guard",
+    "rarity": "normal",
+    "stats": {
+      "max_hp": 14,
+      "garrison": 0.018
+    },
+    "base_price": 127
+  },
+  {
+    "id": "normal_20",
+    "name": "Simple Glaive",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 1,
+      "max_hp": 6,
+      "atk": 0.006,
+      "defense": 0.006
+    },
+    "base_price": 162
+  },
+  {
+    "id": "rare_01",
+    "name": "Silver Knife",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 3,
+      "atk": 0.022,
+      "dmg_amplification": 0.01
+    },
+    "base_price": 414
+  },
+  {
+    "id": "rare_14",
+    "name": "Kite Shield",
+    "rarity": "rare",
+    "stats": {
+      "max_hp": 24,
+      "defense": 0.026,
+      "garrison": 0.05
+    },
+    "base_price": 502
+  },
+  {
+    "id": "rare_20",
+    "name": "Polished Glaive",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 2,
+      "max_hp": 16,
+      "atk": 0.016,
+      "defense": 0.014,
+      "strength": 0.012
+    },
+    "base_price": 608
+  },
+  {
+    "id": "epic_01",
+    "name": "Crimson Knife",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 5,
+      "atk": 0.05,
+      "enmity": 0.035
+    },
+    "base_price": 1284
+  },
+  {
+    "id": "epic_08",
+    "name": "Ironwall Guard",
+    "rarity": "epic",
+    "stats": {
+      "max_hp": 42,
+      "defense": 0.065,
+      "garrison": 0.055,
+      "dmg_mitigation": 1.4
+    },
+    "base_price": 1872
+  },
+  {
+    "id": "epic_20",
+    "name": "Royal Glaive",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 4,
+      "max_hp": 32,
+      "hp_bonus": 0.026,
+      "atk": 0.03,
+      "defense": 0.028,
+      "strength": 0.025,
+      "enmity": 0.02
+    },
+    "base_price": 2713
+  },
+  {
+    "id": "unique_01",
+    "name": "Void Knife",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 7,
+      "atk": 0.07,
+      "enmity": 0.075,
+      "dmg_amplification": 0.045
+    },
+    "base_price": 4461
+  },
+  {
+    "id": "unique_08",
+    "name": "Citadel Guard",
+    "rarity": "unique",
+    "stats": {
+      "max_hp": 76,
+      "hp_bonus": 0.06,
+      "defense": 0.095,
+      "garrison": 0.12,
+      "dmg_mitigation": 2.4
+    },
+    "base_price": 7381
+  },
+  {
+    "id": "unique_20",
+    "name": "Dominion Glaive",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 6,
+      "max_hp": 52,
+      "hp_bonus": 0.045,
+      "atk": 0.045,
+      "defense": 0.045,
+      "garrison": 0.04,
+      "strength": 0.04,
+      "enmity": 0.035,
+      "dmg_mitigation": 1.2,
+      "dmg_amplification": 0.035
+    },
+    "base_price": 12056
+  },
+  {
+    "id": "legendary_01",
+    "name": "Excalibur",
+    "rarity": "legendary",
+    "stats": {
+      "base_atk": 18,
+      "atk": 0.18,
+      "strength": 0.22,
+      "dmg_amplification": 0.08
+    },
+    "base_price": 19727
+  },
+  {
+    "id": "legendary_08",
+    "name": "Aegis",
+    "rarity": "legendary",
+    "stats": {
+      "max_hp": 150,
+      "hp_bonus": 0.18,
+      "defense": 0.22,
+      "garrison": 0.24,
+      "dmg_mitigation": 6.0
+    },
+    "base_price": 30199
+  },
+  {
+    "id": "legendary_20",
+    "name": "Paragon Glaive",
+    "rarity": "legendary",
+    "stats": {
+      "base_atk": 10,
+      "max_hp": 100,
+      "hp_bonus": 0.1,
+      "atk": 0.1,
+      "defense": 0.1,
+      "garrison": 0.1,
+      "strength": 0.1,
+      "enmity": 0.1,
+      "dmg_mitigation": 3.0,
+      "dmg_amplification": 0.1
+    },
+    "base_price": 48279
+  },
+  {
+    "id": "crafted_moss_blade",
+    "name": "Mossguard Blade",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 4,
+      "max_hp": 18,
+      "atk": 0.024,
+      "garrison": 0.024
+    }
+  },
+  {
+    "id": "crafted_crystal_staff",
+    "name": "Crystal Channeler",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 5,
+      "atk": 0.052,
+      "strength": 0.035,
+      "dmg_amplification": 0.03
+    }
+  },
+  {
+    "id": "crafted_ember_glaive",
+    "name": "Emberforged Glaive",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 8,
+      "max_hp": 48,
+      "atk": 0.07,
+      "defense": 0.045,
+      "enmity": 0.06,
+      "dmg_amplification": 0.045
+    }
+  },
+  {
+    "id": "crafted_mirror_dagger",
+    "name": "Mirrorfall Dagger",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 9,
+      "atk": 0.085,
+      "enmity": 0.09,
+      "dmg_amplification": 0.05
+    }
+  },
+  {
+    "id": "crafted_black_star_relic",
+    "name": "Black Star Relic",
+    "rarity": "legendary",
+    "stats": {
+      "base_atk": 16,
+      "max_hp": 120,
+      "hp_bonus": 0.08,
+      "atk": 0.14,
+      "defense": 0.08,
+      "strength": 0.12,
+      "enmity": 0.12,
+      "dmg_mitigation": 3.2,
+      "dmg_amplification": 0.09
+    }
+  }
+]

@@ -1,0 +1,24 @@
+{
+  "attack": {
+    "label": "공격력",
+    "choice_name": "공격력 +1",
+    "stat": "base_atk",
+    "points_field": "base_atk_points",
+    "amount": 1
+  },
+  "hp": {
+    "label": "최대 HP",
+    "choice_name": "최대 HP +5",
+    "stat": "max_hp",
+    "points_field": "max_hp_points",
+    "amount": 5
+  },
+  "defense": {
+    "label": "방어",
+    "choice_name": "방어 +2%",
+    "stat": "defense",
+    "points_field": "defense_points",
+    "amount": 0.02,
+    "round": 4
+  }
+}

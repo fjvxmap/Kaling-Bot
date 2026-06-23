@@ -1,0 +1,412 @@
+[
+  {
+    "id": "quick_strike",
+    "name": "Quick Strike",
+    "unlock_level": 1,
+    "uses": 0,
+    "cooldown": 2,
+    "role": "attack",
+    "damage_multiplier": 1.12,
+    "hits": 1,
+    "player_mods": {},
+    "enemy_mods": {},
+    "duration": 0,
+    "heal_power": 0.0,
+    "damage_cut": 0.0,
+    "job_ids": [],
+    "note": ""
+  },
+  {
+    "id": "guard_focus",
+    "name": "Guard Focus",
+    "unlock_level": 3,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "defense",
+    "damage_multiplier": 0.0,
+    "hits": 0,
+    "player_mods": {
+      "defense": 0.04,
+      "garrison": 0.035
+    },
+    "enemy_mods": {},
+    "duration": 3,
+    "heal_power": 0.0,
+    "damage_cut": 0.08,
+    "job_ids": [],
+    "note": ""
+  },
+  {
+    "id": "power_strike",
+    "name": "Power Strike",
+    "unlock_level": 3,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "attack",
+    "damage_multiplier": 1.42,
+    "hits": 1,
+    "player_mods": {},
+    "enemy_mods": {},
+    "duration": 0,
+    "heal_power": 0.0,
+    "damage_cut": 0.0,
+    "job_ids": [
+      "warrior_1"
+    ],
+    "note": ""
+  },
+  {
+    "id": "iron_body",
+    "name": "Iron Body",
+    "unlock_level": 4,
+    "uses": 0,
+    "cooldown": 6,
+    "role": "defense",
+    "damage_multiplier": 0.0,
+    "hits": 0,
+    "player_mods": {
+      "defense": 0.08,
+      "dmg_mitigation": 1.5
+    },
+    "enemy_mods": {},
+    "duration": 3,
+    "heal_power": 0.0,
+    "damage_cut": 0.12,
+    "job_ids": [
+      "warrior_1"
+    ],
+    "note": ""
+  },
+  {
+    "id": "rage",
+    "name": "Rage",
+    "unlock_level": 8,
+    "uses": 0,
+    "cooldown": 6,
+    "role": "buff",
+    "damage_multiplier": 0.0,
+    "hits": 0,
+    "player_mods": {
+      "atk": 0.08,
+      "strength": 0.05
+    },
+    "enemy_mods": {},
+    "duration": 3,
+    "heal_power": 0.0,
+    "damage_cut": 0.0,
+    "job_ids": [
+      "hero_2"
+    ],
+    "note": ""
+  },
+  {
+    "id": "raging_blow",
+    "name": "Raging Blow",
+    "unlock_level": 14,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "attack",
+    "damage_multiplier": 0.92,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "duration": 0,
+    "heal_power": 0.0,
+    "damage_cut": 0.0,
+    "job_ids": [
+      "hero_3"
+    ],
+    "note": ""
+  },
+  {
+    "id": "guardian_oath",
+    "name": "Guardian Oath",
+    "unlock_level": 8,
+    "uses": 0,
+    "cooldown": 6,
+    "role": "defense",
+    "damage_multiplier": 0.0,
+    "hits": 0,
+    "player_mods": {
+      "defense": 0.08,
+      "garrison": 0.08,
+      "dmg_mitigation": 1.8
+    },
+    "enemy_mods": {},
+    "duration": 3,
+    "heal_power": 0.0,
+    "damage_cut": 0.14,
+    "job_ids": [
+      "paladin_2"
+    ],
+    "note": ""
+  },
+  {
+    "id": "blast",
+    "name": "Blast",
+    "unlock_level": 14,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "attack",
+    "damage_multiplier": 1.55,
+    "hits": 2,
+    "player_mods": {},
+    "enemy_mods": {
+      "defense": -0.06
+    },
+    "duration": 2,
+    "heal_power": 0.0,
+    "damage_cut": 0.0,
+    "job_ids": [
+      "paladin_3"
+    ],
+    "note": ""
+  },
+  {
+    "id": "energy_bolt",
+    "name": "Energy Bolt",
+    "unlock_level": 3,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "attack",
+    "damage_multiplier": 1.35,
+    "hits": 1,
+    "player_mods": {},
+    "enemy_mods": {},
+    "duration": 0,
+    "heal_power": 0.0,
+    "damage_cut": 0.0,
+    "job_ids": [
+      "magician_1"
+    ],
+    "note": ""
+  },
+  {
+    "id": "magic_barrier",
+    "name": "Magic Barrier",
+    "unlock_level": 4,
+    "uses": 0,
+    "cooldown": 6,
+    "role": "defense",
+    "damage_multiplier": 0.0,
+    "hits": 0,
+    "player_mods": {
+      "defense": 0.06,
+      "dmg_mitigation": 1.2
+    },
+    "enemy_mods": {},
+    "duration": 3,
+    "heal_power": 0.0,
+    "damage_cut": 0.1,
+    "job_ids": [
+      "magician_1"
+    ],
+    "note": ""
+  },
+  {
+    "id": "arcane_mark",
+    "name": "Arcane Mark",
+    "unlock_level": 8,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "debuff",
+    "damage_multiplier": 0.0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {
+      "defense": -0.08,
+      "dmg_mitigation": -1.5
+    },
+    "duration": 3,
+    "heal_power": 0.0,
+    "damage_cut": 0.0,
+    "job_ids": [
+      "archmage_2"
+    ],
+    "note": ""
+  },
+  {
+    "id": "meteor",
+    "name": "Meteor",
+    "unlock_level": 14,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "attack",
+    "damage_multiplier": 0.78,
+    "hits": 6,
+    "player_mods": {},
+    "enemy_mods": {},
+    "duration": 0,
+    "heal_power": 0.0,
+    "damage_cut": 0.0,
+    "job_ids": [
+      "archmage_3"
+    ],
+    "note": ""
+  },
+  {
+    "id": "heal",
+    "name": "Heal",
+    "unlock_level": 8,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "heal",
+    "damage_multiplier": 0.0,
+    "hits": 0,
+    "player_mods": {
+      "defense": 0.03,
+      "dmg_mitigation": 0.8
+    },
+    "enemy_mods": {},
+    "duration": 2,
+    "heal_power": 1.45,
+    "damage_cut": 0.0,
+    "job_ids": [
+      "bishop_2"
+    ],
+    "note": ""
+  },
+  {
+    "id": "holy_symbol",
+    "name": "Holy Symbol",
+    "unlock_level": 14,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0.0,
+    "hits": 0,
+    "player_mods": {
+      "atk": 0.1,
+      "defense": 0.07
+    },
+    "enemy_mods": {},
+    "duration": 4,
+    "heal_power": 0.55,
+    "damage_cut": 0.0,
+    "job_ids": [
+      "bishop_3"
+    ],
+    "note": ""
+  },
+  {
+    "id": "lucky_seven",
+    "name": "Lucky Seven",
+    "unlock_level": 3,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "attack",
+    "damage_multiplier": 0.82,
+    "hits": 2,
+    "player_mods": {},
+    "enemy_mods": {},
+    "duration": 0,
+    "heal_power": 0.0,
+    "damage_cut": 0.0,
+    "job_ids": [
+      "thief_1"
+    ],
+    "note": ""
+  },
+  {
+    "id": "smoke_screen",
+    "name": "Smoke Screen",
+    "unlock_level": 4,
+    "uses": 0,
+    "cooldown": 6,
+    "role": "debuff",
+    "damage_multiplier": 0.0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {
+      "atk": -0.06,
+      "dmg_amplification": -0.04
+    },
+    "duration": 3,
+    "heal_power": 0.0,
+    "damage_cut": 0.08,
+    "job_ids": [
+      "thief_1"
+    ],
+    "note": ""
+  },
+  {
+    "id": "drain",
+    "name": "Drain",
+    "unlock_level": 8,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "heal",
+    "damage_multiplier": 0.92,
+    "hits": 2,
+    "player_mods": {},
+    "enemy_mods": {},
+    "duration": 0,
+    "heal_power": 0.65,
+    "damage_cut": 0.0,
+    "job_ids": [
+      "night_lord_2"
+    ],
+    "note": ""
+  },
+  {
+    "id": "quad_throw",
+    "name": "Quad Throw",
+    "unlock_level": 14,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "attack",
+    "damage_multiplier": 0.82,
+    "hits": 4,
+    "player_mods": {
+      "enmity": 0.07
+    },
+    "enemy_mods": {},
+    "duration": 2,
+    "heal_power": 0.0,
+    "damage_cut": 0.0,
+    "job_ids": [
+      "night_lord_3"
+    ],
+    "note": ""
+  },
+  {
+    "id": "savage_blow",
+    "name": "Savage Blow",
+    "unlock_level": 8,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "attack",
+    "damage_multiplier": 0.52,
+    "hits": 6,
+    "player_mods": {},
+    "enemy_mods": {},
+    "duration": 0,
+    "heal_power": 0.0,
+    "damage_cut": 0.0,
+    "job_ids": [
+      "shadower_2"
+    ],
+    "note": ""
+  },
+  {
+    "id": "assassinate",
+    "name": "Assassinate",
+    "unlock_level": 14,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "attack",
+    "damage_multiplier": 1.25,
+    "hits": 3,
+    "player_mods": {
+      "enmity": 0.08
+    },
+    "enemy_mods": {},
+    "duration": 2,
+    "heal_power": 0.0,
+    "damage_cut": 0.0,
+    "job_ids": [
+      "shadower_3"
+    ],
+    "note": ""
+  }
+]
