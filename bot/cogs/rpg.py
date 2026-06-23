@@ -9,14 +9,17 @@ from discord.ext import commands
 from bot.services.rpg.data import (
     BOSS_BY_ID,
     BOSSES,
+    CRAFTING_RECIPES,
     DAILY_EXPLORES,
     DUNGEONS,
     ITEM_BY_ID,
     JOBS,
+    MATERIALS,
     MAX_EQUIPPED_ITEMS,
     RARITIES,
     RARITY_COLORS,
     RARITY_LABELS,
+    STAT_ALLOCATIONS,
     BossPattern,
     BossTemplate,
     SkillTemplate,
@@ -25,6 +28,7 @@ from bot.services.rpg.manager import (
     ActiveEffect,
     AbilityResult,
     BossResult,
+    CraftResult,
     EnhancementPreview,
     EnhancementResult,
     EquipmentResult,
@@ -49,9 +53,12 @@ JOB_CHOICES = [
     if job.id != "novice"
 ]
 STAT_CHOICES = [
-    app_commands.Choice(name="공격력 +1", value="attack"),
-    app_commands.Choice(name="최대 HP +5", value="hp"),
-    app_commands.Choice(name="방어 +2%", value="defense"),
+    app_commands.Choice(name=str(rule.get("choice_name", rule.get("label", stat_id))), value=stat_id)
+    for stat_id, rule in STAT_ALLOCATIONS.items()
+]
+CRAFT_CHOICES = [
+    app_commands.Choice(name=f"{recipe.name} · Lv.{recipe.level_req}+", value=recipe.id)
+    for recipe in CRAFTING_RECIPES[:25]
 ]
 
 OBJECTIVE_LABELS = {
@@ -102,19 +109,12 @@ class BossSession:
     participants: dict[int, BossParticipant] = field(default_factory=dict)
     rewards: dict[int, str] = field(default_factory=dict)
     log: list[str] = field(default_factory=list)
-    hp_thresholds: list[float] = field(default_factory=list)
     message: discord.Message | None = None
 
     def __post_init__(self) -> None:
         self.boss_max_hp = max(1, int(self.boss.stats.get("max_hp", 1)))
         self.boss_hp = self.boss_max_hp
-        self.ct_max = max(3, 7 - min(4, self.boss.rank))
-        threshold_count = min(10, max(5, self.boss.rank + 3))
-        if threshold_count <= 1:
-            self.hp_thresholds = [0.5]
-        else:
-            step = 0.8 / (threshold_count - 1)
-            self.hp_thresholds = [round(0.9 - step * idx, 2) for idx in range(threshold_count)]
+        self.ct_max = self.boss.ct_gauge[0].max if self.boss.ct_gauge else max(3, 7 - min(4, self.boss.rank))
 
 
 class RPGCog(commands.Cog):
@@ -151,12 +151,14 @@ class RPGCog(commands.Cog):
         lines = []
         for dungeon in self.service.dungeons():
             state = "입장 가능" if profile.level >= dungeon.level_req else f"Lv.{dungeon.level_req} 필요"
-            exp_values = [enemy.exp for enemy in dungeon.enemies]
-            gold_values = [enemy.gold for enemy in dungeon.enemies]
             rare_names = ", ".join(enemy.name for enemy in dungeon.enemies if enemy.rare) or "없음"
+            reward_lines = ", ".join(
+                f"{enemy.name}: {self.service.reward_summary(enemy.rewards)}"
+                for enemy in dungeon.enemies[:3]
+            )
             lines.append(
                 f"**{dungeon.name}** · {state}\n"
-                f"EXP {min(exp_values)}~{max(exp_values)} · 골드 {min(gold_values)}~{max(gold_values)}G · 희귀 {rare_names}\n"
+                f"{self._trim(reward_lines, 700)} · 희귀 {rare_names}\n"
                 f"{dungeon.description}"
             )
         embed = discord.Embed(
@@ -198,7 +200,7 @@ class RPGCog(commands.Cog):
             gate = "도전 가능" if profile.level >= boss.level_req else f"Lv.{boss.level_req} 필요"
             lines.append(
                 f"**{boss.name}** · {gate}\n"
-                f"보상 {boss.gold}G/{boss.exp}EXP/스탯 {boss.stat_points} · {boss.description}"
+                f"보상 {self.service.reward_summary(boss.rewards)} · {boss.description}"
             )
         embed = discord.Embed(
             title="보스 목록",
@@ -315,6 +317,27 @@ class RPGCog(commands.Cog):
             return
         view = EquipmentView(self, interaction.user.id, interaction.user.display_name)
         await interaction.response.send_message(embed=self._equipment_embed(profile), view=view)
+
+    @rpg.command(name="재료", description="보유 제작 재료와 제작 가능 항목을 확인합니다.")
+    async def materials(self, interaction: discord.Interaction) -> None:
+        profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
+        await interaction.response.send_message(embed=self._materials_embed(profile))
+
+    @rpg.command(name="제작", description="재료와 골드를 사용해 원하는 장비를 제작합니다.")
+    @app_commands.rename(recipe="제작법")
+    @app_commands.describe(recipe="확인할 제작법. 비워두면 제작 UI를 표시합니다.")
+    @app_commands.choices(recipe=CRAFT_CHOICES)
+    async def craft(
+        self,
+        interaction: discord.Interaction,
+        recipe: app_commands.Choice[str] | None = None,
+    ) -> None:
+        profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
+        selected_recipe_id = recipe.value if recipe is not None else self._default_crafting_recipe_id(profile)
+        await interaction.response.send_message(
+            embed=self._crafting_embed(profile, selected_recipe_id),
+            view=CraftingView(self, interaction.user.id, interaction.user.display_name, selected_recipe_id),
+        )
 
     @rpg.command(name="장착", description="장비 장착 관리 UI를 엽니다.")
     async def equipment(self, interaction: discord.Interaction) -> None:
@@ -492,6 +515,7 @@ class RPGCog(commands.Cog):
         self._add_warning_progress(participant, "damage", damage)
         self._add_warning_progress(participant, "hits", skill.hits if damage > 0 else 0)
         self._add_warning_progress(participant, "debuff", 1 if skill.enemy_mods else 0)
+        cleared_ct_warning = self._clear_ready_ct_warning(session, participant)
         if skill.cooldown > 0:
             participant.ability_cooldowns[skill.id] = skill.cooldown
         bits = []
@@ -511,6 +535,9 @@ class RPGCog(commands.Cog):
             self._grant_boss_session_rewards(session)
             return True, "어빌리티로 보스를 클리어했습니다."
         self._queue_due_hp_warnings(session, participant, profile)
+        self._queue_ct_warning(session, participant, profile)
+        if cleared_ct_warning:
+            return True, f"{skill.name} 사용: {', '.join(bits)} · CT 전조 해제"
         if not had_warning and participant.pending_warning is not None:
             return True, f"전조가 발생했습니다. {skill.name} 사용: {', '.join(bits)}"
         return True, f"{skill.name} 사용: {', '.join(bits)}"
@@ -555,8 +582,10 @@ class RPGCog(commands.Cog):
             return True, "보스를 클리어했습니다."
 
         pattern_replaced_counter = False
+        resolved_ct_warning = False
         if participant.pending_warning is not None:
             warning = participant.pending_warning
+            resolved_ct_warning = warning.source == "ct"
             if warning.progress >= warning.required:
                 session.log.append(f"{participant.display_name}: {warning.name} 전조 달성")
             else:
@@ -582,6 +611,8 @@ class RPGCog(commands.Cog):
                 if participant.hp <= 0:
                     participant.alive = False
             participant.pending_warning = None
+            if resolved_ct_warning:
+                participant.ct = 0
             if not participant.alive:
                 self._check_boss_party_failed(session)
                 return True, "전조 실패로 전투 불능이 되었습니다."
@@ -604,7 +635,7 @@ class RPGCog(commands.Cog):
                 self._check_boss_party_failed(session)
                 return True, "전투 불능 상태가 되었습니다."
 
-        participant.ct += 1
+        self._advance_ct(session, participant, resolved_ct_warning)
         self._finish_boss_turn(session, participant, profile)
         self._check_boss_party_failed(session)
         return True, "턴을 진행했습니다."
@@ -636,8 +667,10 @@ class RPGCog(commands.Cog):
         session.log.append(f"{participant.display_name}: 가드")
 
         pattern_replaced_counter = False
+        resolved_ct_warning = False
         if participant.pending_warning is not None:
             warning = participant.pending_warning
+            resolved_ct_warning = warning.source == "ct"
             if warning.progress >= warning.required:
                 session.log.append(f"{participant.display_name}: {warning.name} 전조 달성")
             else:
@@ -661,6 +694,8 @@ class RPGCog(commands.Cog):
                 if participant.hp <= 0:
                     participant.alive = False
             participant.pending_warning = None
+            if resolved_ct_warning:
+                participant.ct = 0
             if not participant.alive:
                 self._check_boss_party_failed(session)
                 return True, "전조 실패로 전투 불능이 되었습니다."
@@ -681,7 +716,7 @@ class RPGCog(commands.Cog):
                 self._check_boss_party_failed(session)
                 return True, "전투 불능 상태가 되었습니다."
 
-        participant.ct += 1
+        self._advance_ct(session, participant, resolved_ct_warning)
         self._finish_boss_turn(session, participant, profile)
         self._check_boss_party_failed(session)
         return True, "가드로 턴을 넘겼습니다."
@@ -689,31 +724,28 @@ class RPGCog(commands.Cog):
     def _prepare_visible_warning(self, session: BossSession, participant: BossParticipant, profile: PlayerProfile | None = None) -> None:
         if participant.pending_warning is not None or session.completed or session.failed:
             return
-        profile = profile or self.service.get_profile(participant.user_id, participant.display_name)
         self._queue_due_hp_warnings(session, participant, profile)
-        if participant.ct >= session.ct_max:
-            self._queue_ct_warning(session, participant, profile)
+        self._queue_ct_warning(session, participant, profile)
         self._activate_next_warning(session, participant)
 
     def _queue_due_hp_warnings(self, session: BossSession, participant: BossParticipant, profile: PlayerProfile | None = None) -> None:
         if session.completed or session.failed:
             return
-        profile = profile or self.service.get_profile(participant.user_id, participant.display_name)
-        ratio = session.boss_hp / max(1, session.boss_max_hp)
-        for idx, threshold in enumerate(session.hp_thresholds):
+        ratio = self._boss_hp_ratio(session)
+        for idx, rule in enumerate(session.boss.hp_warnings):
             if idx in participant.triggered_thresholds:
                 continue
-            if ratio <= threshold:
+            if ratio <= rule.threshold:
                 participant.triggered_thresholds.add(idx)
-                participant.queued_warnings.append(self._hp_warning(session, idx, threshold, profile))
+                participant.queued_warnings.append(self._hp_warning(session, idx, rule))
 
     def _queue_ct_warning(self, session: BossSession, participant: BossParticipant, profile: PlayerProfile | None = None) -> None:
         if session.completed or session.failed:
             return
-        profile = profile or self.service.get_profile(participant.user_id, participant.display_name)
-        if participant.ct >= session.ct_max:
+        if self._has_ct_warning(participant):
+            return
+        if participant.ct >= self._current_ct_max(session):
             participant.queued_warnings.append(self._ct_warning(session, profile))
-            participant.ct = 0
 
     def _activate_next_warning(self, session: BossSession, participant: BossParticipant) -> None:
         if participant.pending_warning is not None or not participant.queued_warnings:
@@ -739,73 +771,83 @@ class RPGCog(commands.Cog):
         self._queue_ct_warning(session, participant, profile)
         self._activate_next_warning(session, participant)
 
-    def _hp_warning(self, session: BossSession, idx: int, threshold: float, profile: PlayerProfile) -> BossWarning:
-        pattern = session.boss.patterns[idx % len(session.boss.patterns)]
-        objective = self._warning_objective(idx, profile)
-        required = self._warning_required(session, objective, hp_threshold=True)
+    def _hp_warning(self, session: BossSession, idx: int, rule) -> BossWarning:
+        pattern = self._pattern_for_warning(session, rule.pattern_id)
         return BossWarning(
             source=f"hp:{idx}",
-            name=f"{pattern.name} ({threshold * 100:.0f}%)",
+            name=f"{pattern.name} ({rule.threshold * 100:.0f}%)",
+            pattern=pattern,
+            objective=rule.objective,
+            required=rule.required,
+            threshold=rule.threshold,
+        )
+
+    def _ct_warning(self, session: BossSession, profile: PlayerProfile | None = None) -> BossWarning:
+        rule = self._current_ct_warning(session)
+        if rule is None:
+            pattern = session.boss.patterns[0] if session.boss.patterns else BossPattern(0.0, f"{session.boss.name} CT")
+            objective = "hits"
+            required = 1
+        else:
+            pattern = self._pattern_for_warning(session, rule.pattern_id)
+            objective = rule.objective
+            required = rule.required
+        return BossWarning(
+            source="ct",
+            name=pattern.name,
             pattern=pattern,
             objective=objective,
             required=required,
-            threshold=threshold,
         )
 
-    def _ct_warning(self, session: BossSession, profile: PlayerProfile) -> BossWarning:
-        pattern = self._ct_pattern(session)
-        objective = "hits"
-        return BossWarning(
-            source="ct",
-            name=f"{session.boss.name} CT",
-            pattern=pattern,
-            objective=objective,
-            required=self._warning_required(session, objective, hp_threshold=False),
-        )
+    def _pattern_for_warning(self, session: BossSession, pattern_id: str) -> BossPattern:
+        pattern = session.boss.pattern_by_id.get(pattern_id)
+        if pattern is not None:
+            return pattern
+        for candidate in session.boss.patterns:
+            if candidate.id == pattern_id or candidate.name == pattern_id:
+                return candidate
+        if session.boss.patterns:
+            return session.boss.patterns[0]
+        return BossPattern(0.0, pattern_id or session.boss.name)
 
-    def _ct_pattern(self, session: BossSession) -> BossPattern:
-        phase = self._boss_phase(session)
-        multiplier = 0.55 + 0.16 * phase + 0.04 * session.boss.rank
-        hits = max(2, min(6, session.boss.rank))
-        return BossPattern(
-            0.0,
-            f"{session.boss.name} CT",
-            multiplier,
-            hits,
-            boss_mods={"atk": 0.06 * phase, "dmg_amplification": 0.035 * phase},
-            duration=2,
-        )
+    def _boss_hp_ratio(self, session: BossSession) -> float:
+        return session.boss_hp / max(1, session.boss_max_hp)
 
-    def _boss_phase(self, session: BossSession) -> int:
-        ratio = session.boss_hp / max(1, session.boss_max_hp)
-        if ratio <= 0.25:
-            return 4
-        if ratio <= 0.5:
-            return 3
-        if ratio <= 0.75:
-            return 2
-        return 1
+    def _current_ct_max(self, session: BossSession) -> int:
+        ratio = self._boss_hp_ratio(session)
+        for rule in session.boss.ct_gauge:
+            if ratio >= rule.above:
+                return rule.max
+        return session.ct_max
 
-    def _warning_objective(self, idx: int, profile: PlayerProfile) -> str:
-        candidates = ["damage", "hits", "debuff"]
-        objective = candidates[idx % len(candidates)]
-        if objective == "debuff" and not any(skill.enemy_mods for skill in self.service.equipped_skills(profile)):
-            return "damage"
-        return objective
+    def _current_ct_warning(self, session: BossSession):
+        ratio = self._boss_hp_ratio(session)
+        for rule in session.boss.ct_warnings:
+            if ratio >= rule.above:
+                return rule
+        return session.boss.ct_warnings[-1] if session.boss.ct_warnings else None
 
-    def _warning_required(self, session: BossSession, objective: str, *, hp_threshold: bool) -> int:
-        phase = self._boss_phase(session)
-        if objective == "damage":
-            ratio = 0.022 + 0.004 * session.boss.rank + 0.004 * phase
-            if not hp_threshold:
-                ratio += 0.01
-            return max(10 + 4 * session.boss.rank, round(session.boss_max_hp * ratio))
-        if objective == "hits":
-            base = 2 + phase + session.boss.rank // 3
-            return max(2, min(8, base + (0 if hp_threshold else 1)))
-        if objective == "debuff":
-            return 1 if phase <= 2 else 2
-        return 1
+    def _has_ct_warning(self, participant: BossParticipant) -> bool:
+        if participant.pending_warning is not None and participant.pending_warning.source == "ct":
+            return True
+        return any(warning.source == "ct" for warning in participant.queued_warnings)
+
+    def _advance_ct(self, session: BossSession, participant: BossParticipant, resolved_ct_warning: bool) -> None:
+        if resolved_ct_warning:
+            participant.ct = 0
+            return
+        participant.ct = min(self._current_ct_max(session), participant.ct + 1)
+
+    def _clear_ready_ct_warning(self, session: BossSession, participant: BossParticipant) -> bool:
+        warning = participant.pending_warning
+        if warning is None or warning.source != "ct" or warning.progress < warning.required:
+            return False
+        session.log.append(f"{participant.display_name}: {warning.name} CT 전조 해제")
+        participant.pending_warning = None
+        participant.ct = 0
+        self._activate_next_warning(session, participant)
+        return True
 
     def _add_warning_progress(self, participant: BossParticipant, objective: str, amount: int) -> None:
         warning = participant.pending_warning
@@ -892,6 +934,9 @@ class RPGCog(commands.Cog):
             value="\n".join(self.service.item_title(item) for item in equipped) if equipped else "장비 없음",
             inline=False,
         )
+        material_summary = self._material_summary(profile, limit=6)
+        if material_summary:
+            embed.add_field(name="주요 재료", value=material_summary, inline=False)
         if profile.auto_sell_rarities:
             embed.add_field(
                 name="자동판매",
@@ -937,20 +982,18 @@ class RPGCog(commands.Cog):
             embed.set_footer(text="아래 메뉴에서 던전을 고른 뒤 탐색 버튼을 누르세요.")
             return embed
 
-        exp_values = [enemy.exp for enemy in selected.enemies]
-        gold_values = [enemy.gold for enemy in selected.enemies]
         enemy_lines = []
         for enemy in selected.enemies:
             marker = "희귀" if enemy.rare else "일반"
             enemy_lines.append(
-                f"`{marker}` **{enemy.name}** · EXP {enemy.exp} · {enemy.gold}G"
+                f"`{marker}` **{enemy.name}** · {self.service.reward_summary(enemy.rewards)}"
             )
         gate = "입장 가능" if profile.level >= selected.level_req else f"Lv.{selected.level_req} 필요"
         embed.add_field(
             name=selected.name,
             value=(
                 f"{gate}\n"
-                f"EXP {min(exp_values)}~{max(exp_values)} · 골드 {min(gold_values)}~{max(gold_values)}G\n"
+                f"{self._trim('; '.join(enemy_lines), 700)}\n"
                 f"{selected.description}"
             ),
             inline=False,
@@ -985,9 +1028,10 @@ class RPGCog(commands.Cog):
         else:
             color = 0x5865F2
             status = "대기 중"
+        ct_max = self._current_ct_max(session)
         embed = discord.Embed(
             title=f"{session.boss.name} 보스전",
-            description=f"상태: **{status}** · CT {session.ct_max}칸 · 보상 제한 없음",
+            description=f"상태: **{status}** · CT {ct_max}칸 · 보상 제한 없음",
             color=color,
         )
         embed.add_field(
@@ -1012,8 +1056,9 @@ class RPGCog(commands.Cog):
                 )
             cooldowns = ", ".join(f"{skill_id}:{turns}" for skill_id, turns in participant.ability_cooldowns.items()) or "없음"
             queued = len(participant.queued_warnings)
+            participant_ct = min(participant.ct, ct_max)
             participant_lines.append(
-                f"**{participant.display_name}** · {state} · CT {participant.ct}/{session.ct_max}\n"
+                f"**{participant.display_name}** · {state} · CT {participant_ct}/{ct_max}\n"
                 f"전조: {warning} · 대기 {queued} · 쿨: {cooldowns}"
             )
         embed.add_field(
@@ -1228,6 +1273,94 @@ class RPGCog(commands.Cog):
         )
         return embed
 
+    def _materials_embed(self, profile: PlayerProfile) -> discord.Embed:
+        embed = discord.Embed(
+            title="제작 재료",
+            description=f"보유 골드 {profile.gold}G",
+            color=0x4BA3FF,
+        )
+        material_lines = []
+        for material in MATERIALS:
+            amount = profile.materials.get(material.id, 0)
+            if amount <= 0:
+                continue
+            label = RARITY_LABELS.get(material.rarity, material.rarity)
+            material_lines.append(f"[{label}] **{material.name}** x{amount}")
+        embed.add_field(
+            name="보유 재료",
+            value=self._trim("\n".join(material_lines), 1500) if material_lines else "보유 재료 없음",
+            inline=False,
+        )
+        craftable = [
+            recipe for recipe in self.service.crafting_recipes()
+            if self.service.can_craft(profile, recipe)
+        ]
+        if craftable:
+            lines = [
+                f"**{recipe.name}**\n{self.service.recipe_result_text(recipe)}"
+                for recipe in craftable[:6]
+            ]
+            embed.add_field(name="제작 가능", value=self._trim("\n\n".join(lines), 1800), inline=False)
+        else:
+            embed.add_field(name="제작 가능", value="현재 제작 가능한 장비가 없습니다.", inline=False)
+        return embed
+
+    def _crafting_embed(
+        self,
+        profile: PlayerProfile,
+        selected_recipe_id: str | None = None,
+        result: CraftResult | None = None,
+    ) -> discord.Embed:
+        recipes = self._crafting_display_recipes(profile)
+        selected = next((recipe for recipe in recipes if recipe.id == selected_recipe_id), None)
+        embed = discord.Embed(
+            title="장비 제작",
+            description=result.message if result is not None else f"보유 골드 {profile.gold}G",
+            color=0xFFB84D,
+        )
+        craftable = [recipe for recipe in recipes if self.service.can_craft(profile, recipe)]
+        if craftable:
+            lines = [
+                f"**{recipe.name}** · {self.service.recipe_status_text(profile, recipe)}\n"
+                f"{self.service.recipe_result_text(recipe)}\n"
+                f"비용 {recipe.gold}G · {self.service.material_cost_text(profile, recipe.materials)}"
+                for recipe in craftable[:5]
+            ]
+            embed.add_field(name=f"제작 가능 {len(craftable)}개", value=self._trim("\n\n".join(lines), 2200), inline=False)
+        else:
+            embed.add_field(name="제작 가능", value="현재 제작 가능한 장비가 없습니다.", inline=False)
+
+        if result is not None and result.item is not None:
+            embed.add_field(
+                name="제작 결과",
+                value=f"{self.service.item_title(result.item)}\n{self.service.item_stats_text(result.item)}",
+                inline=False,
+            )
+
+        if selected is not None:
+            status = self.service.recipe_status_text(profile, selected)
+            embed.add_field(
+                name="선택 제작",
+                value=(
+                    f"**{selected.name}** · {status}\n"
+                    f"{selected.description}\n"
+                    f"{self.service.recipe_result_text(selected)}"
+                ),
+                inline=False,
+            )
+            embed.add_field(name="제작 비용", value=f"{selected.gold}G", inline=True)
+            embed.add_field(
+                name="제작 재료",
+                value=self.service.material_cost_text(profile, selected.materials),
+                inline=False,
+            )
+        elif recipes:
+            embed.add_field(name="선택 제작", value="제작법을 선택하세요.", inline=False)
+
+        material_summary = self._material_summary(profile, limit=8)
+        embed.add_field(name="보유 재료", value=material_summary or "보유 재료 없음", inline=False)
+        return embed
+
     def _enhancement_picker_embed(self, profile: PlayerProfile) -> discord.Embed:
         display_items = self._enhancement_display_items(profile)
         embed = discord.Embed(
@@ -1312,9 +1445,21 @@ class RPGCog(commands.Cog):
             parts.append(f"스탯 포인트 {reward.stat_points}")
         if reward.levels_gained:
             parts.append(f"레벨업 +{reward.levels_gained}")
-        if reward.dropped_item:
+        dropped_items = getattr(reward, "dropped_items", [])
+        if dropped_items:
+            parts.append("드랍: " + ", ".join(self.service.item_title(item) for item in dropped_items))
+        elif reward.dropped_item:
             parts.append(f"드랍: {self.service.item_title(reward.dropped_item)}")
-        if reward.auto_sold_item:
+        materials = getattr(reward, "materials", {})
+        if materials:
+            parts.append(
+                "재료: "
+                + ", ".join(f"{self.service.material_name(material_id)} x{amount}" for material_id, amount in materials.items())
+            )
+        auto_sold_items = getattr(reward, "auto_sold_items", [])
+        if auto_sold_items:
+            parts.append(f"자동판매: {len(auto_sold_items)}개 · {reward.auto_sold_gold}G")
+        elif reward.auto_sold_item:
             parts.append(f"자동판매: {self.service.item_title(reward.auto_sold_item)} · {reward.auto_sold_gold}G")
         if not parts:
             return "보상 없음"
@@ -1324,6 +1469,40 @@ class RPGCog(commands.Cog):
         if len(text) <= limit:
             return text
         return text[: limit - 3] + "..."
+
+    def _material_summary(self, profile: PlayerProfile, *, limit: int = 8) -> str:
+        lines = []
+        known_order = {material.id: idx for idx, material in enumerate(MATERIALS)}
+        for material_id, amount in sorted(
+            profile.materials.items(),
+            key=lambda entry: (known_order.get(entry[0], 999), entry[0]),
+        ):
+            if amount <= 0:
+                continue
+            lines.append(f"{self.service.material_name(material_id)} x{amount}")
+            if len(lines) >= limit:
+                break
+        remaining = sum(1 for amount in profile.materials.values() if amount > 0) - len(lines)
+        if remaining > 0:
+            lines.append(f"외 {remaining}종")
+        return "\n".join(lines)
+
+    def _crafting_display_recipes(self, profile: PlayerProfile):
+        recipes = self.service.crafting_recipes()
+        return sorted(
+            recipes,
+            key=lambda recipe: (
+                not self.service.can_craft(profile, recipe),
+                profile.level < recipe.level_req,
+                recipe.level_req,
+                recipe.sort_order,
+                recipe.name,
+            ),
+        )[:25]
+
+    def _default_crafting_recipe_id(self, profile: PlayerProfile) -> str | None:
+        recipes = self._crafting_display_recipes(profile)
+        return recipes[0].id if recipes else None
 
     def _explore_limit_text(self, profile: PlayerProfile) -> str:
         if not self.service.explore_limit_enabled():
@@ -1467,6 +1646,86 @@ class ExplorationRunButton(discord.ui.Button):
         await interaction.response.edit_message(
             embed=self.view.cog._explore_embed(result),
             view=view,
+        )
+
+
+class CraftingView(discord.ui.View):
+    def __init__(
+        self,
+        cog: RPGCog,
+        user_id: int,
+        display_name: str,
+        selected_recipe_id: str | None = None,
+    ) -> None:
+        super().__init__(timeout=180)
+        self.cog = cog
+        self.user_id = user_id
+        self.display_name = display_name
+        profile = self.cog.service.get_profile(user_id, display_name)
+        recipes = self.cog._crafting_display_recipes(profile)
+        self.selected_recipe_id = selected_recipe_id or (recipes[0].id if recipes else None)
+
+        options = []
+        for recipe in recipes:
+            status = self.cog.service.recipe_status_text(profile, recipe)
+            template = ITEM_BY_ID.get(recipe.result_item_id)
+            rarity = RARITY_LABELS.get(template.rarity, template.rarity) if template is not None else "오류"
+            options.append(
+                discord.SelectOption(
+                    label=f"{recipe.name} · Lv.{recipe.level_req}+",
+                    value=recipe.id,
+                    description=f"{status} · {rarity} · {recipe.gold}G"[:100],
+                    default=recipe.id == self.selected_recipe_id,
+                )
+            )
+        if options:
+            self.add_item(CraftingRecipeSelect(options))
+        selected = next((recipe for recipe in recipes if recipe.id == self.selected_recipe_id), None)
+        self.add_item(CraftingConfirmButton(disabled=selected is None or not self.cog.service.can_craft(profile, selected)))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.user_id:
+            return True
+        await interaction.response.send_message("이 제작 UI는 명령을 실행한 사람만 사용할 수 있습니다.", ephemeral=True)
+        return False
+
+
+class CraftingRecipeSelect(discord.ui.Select):
+    def __init__(self, options: list[discord.SelectOption]) -> None:
+        super().__init__(
+            placeholder="제작할 장비 선택",
+            min_values=1,
+            max_values=1,
+            options=options,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, CraftingView)
+        recipe_id = self.values[0]
+        profile = self.view.cog.service.get_profile(self.view.user_id, self.view.display_name)
+        await interaction.response.edit_message(
+            embed=self.view.cog._crafting_embed(profile, recipe_id),
+            view=CraftingView(self.view.cog, self.view.user_id, self.view.display_name, recipe_id),
+        )
+
+
+class CraftingConfirmButton(discord.ui.Button):
+    def __init__(self, *, disabled: bool = False) -> None:
+        super().__init__(label="제작", style=discord.ButtonStyle.primary, disabled=disabled)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, CraftingView)
+        if self.view.selected_recipe_id is None:
+            await interaction.response.send_message("제작법을 선택하세요.", ephemeral=True)
+            return
+        result = self.view.cog.service.craft_item(
+            self.view.user_id,
+            self.view.display_name,
+            self.view.selected_recipe_id,
+        )
+        await interaction.response.edit_message(
+            embed=self.view.cog._crafting_embed(result.profile, self.view.selected_recipe_id, result),
+            view=CraftingView(self.view.cog, self.view.user_id, self.view.display_name, self.view.selected_recipe_id),
         )
 
 

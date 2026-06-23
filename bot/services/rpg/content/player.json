@@ -1,0 +1,19 @@
+{
+  "start": {
+    "job_id": "novice",
+    "level": 1,
+    "gold": 130,
+    "stat_points": 0,
+    "base_atk": 12,
+    "max_hp": 120,
+    "atk": 0.0,
+    "defense": 0.08,
+    "garrison": 0.0,
+    "strength": 0.0,
+    "enmity": 0.0,
+    "damage_cut": 0.0,
+    "dmg_mitigation": 0.0,
+    "dmg_amplification": 0.0,
+    "hp_bonus": 0.0
+  }
+}

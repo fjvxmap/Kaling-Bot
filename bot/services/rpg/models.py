@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field, fields
 from typing import Any
 
+from .data import MATERIAL_BY_ID, PLAYER_START
+
 
 @dataclass
 class ItemInstance:
@@ -57,12 +59,20 @@ class PlayerProfile:
     equipped_item_uids: list[int] = field(default_factory=list)
     auto_sell_rarities: list[str] = field(default_factory=list)
     equipped_skill_ids: list[str] = field(default_factory=list)
+    materials: dict[str, int] = field(default_factory=dict)
     inventory: list[ItemInstance] = field(default_factory=list)
     next_item_uid: int = 1
 
     @classmethod
     def create(cls, user_id: int, display_name: str) -> "PlayerProfile":
-        return cls(user_id=user_id, display_name=display_name or "Player")
+        profile = cls(user_id=user_id, display_name=display_name or "Player")
+        known = {field.name for field in fields(cls)}
+        for key, value in PLAYER_START.items():
+            if key in known and key not in {"user_id", "display_name"}:
+                setattr(profile, key, value)
+        profile.user_id = user_id
+        profile.display_name = display_name or "Player"
+        return profile
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "PlayerProfile":
@@ -93,6 +103,12 @@ class PlayerProfile:
                 profile.auto_sell_rarities = [str(rarity) for rarity in value]
             elif key == "equipped_skill_ids" and isinstance(value, list):
                 profile.equipped_skill_ids = [str(skill_id) for skill_id in value]
+            elif key == "materials" and isinstance(value, dict):
+                profile.materials = {
+                    str(material_id): max(0, int(amount))
+                    for material_id, amount in value.items()
+                    if str(material_id) in MATERIAL_BY_ID
+                }
             else:
                 setattr(profile, key, value)
         profile.version = 1
@@ -110,6 +126,11 @@ class PlayerProfile:
         ))
         profile.auto_sell_rarities = list(dict.fromkeys(str(rarity) for rarity in profile.auto_sell_rarities))
         profile.equipped_skill_ids = list(dict.fromkeys(str(skill_id) for skill_id in profile.equipped_skill_ids))
+        profile.materials = {
+            material_id: amount
+            for material_id, amount in profile.materials.items()
+            if material_id in MATERIAL_BY_ID and amount > 0
+        }
         profile.next_item_uid = max(1, int(profile.next_item_uid))
         return profile
 

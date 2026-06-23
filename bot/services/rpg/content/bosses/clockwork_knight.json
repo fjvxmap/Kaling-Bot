@@ -1,0 +1,216 @@
+{
+  "id": "clockwork_knight",
+  "name": "Clockwork Knight",
+  "level_req": 11,
+  "rank": 4,
+  "stats": {
+    "base_atk": 32,
+    "max_hp": 880,
+    "defense": 0.15,
+    "garrison": 0.1,
+    "dmg_mitigation": 6.0
+  },
+  "gold": 2800,
+  "exp": 620,
+  "stat_points": 2,
+  "drop_chance": 1.0,
+  "description": "강화와 디버프 스킬 활용이 필요한 방어형 보스입니다.",
+  "patterns": [
+    {
+      "threshold": 0.72,
+      "name": "Gear Lock",
+      "damage_multiplier": 0.0,
+      "hits": 0,
+      "player_mods": {
+        "atk": -0.18,
+        "strength": -0.14
+      },
+      "boss_mods": {},
+      "duration": 3,
+      "id": "gear_lock"
+    },
+    {
+      "threshold": 0.48,
+      "name": "Iron Rewind",
+      "damage_multiplier": 0.0,
+      "hits": 0,
+      "player_mods": {},
+      "boss_mods": {
+        "defense": 0.24,
+        "damage_cut": 0.24,
+        "dmg_mitigation": 4.0
+      },
+      "duration": 3,
+      "id": "iron_rewind"
+    },
+    {
+      "threshold": 0.18,
+      "name": "Final Gear",
+      "damage_multiplier": 0.95,
+      "hits": 5,
+      "player_mods": {},
+      "boss_mods": {},
+      "duration": 0,
+      "id": "final_gear"
+    },
+    {
+      "id": "ct_phase_1",
+      "threshold": 0.0,
+      "name": "Clockwork Knight CT 1",
+      "damage_multiplier": 0.87,
+      "hits": 4,
+      "player_mods": {},
+      "boss_mods": {
+        "atk": 0.06,
+        "dmg_amplification": 0.035
+      },
+      "duration": 2
+    },
+    {
+      "id": "ct_phase_2",
+      "threshold": 0.0,
+      "name": "Clockwork Knight CT 2",
+      "damage_multiplier": 1.03,
+      "hits": 4,
+      "player_mods": {},
+      "boss_mods": {
+        "atk": 0.12,
+        "dmg_amplification": 0.07
+      },
+      "duration": 2
+    },
+    {
+      "id": "ct_phase_3",
+      "threshold": 0.0,
+      "name": "Clockwork Knight CT 3",
+      "damage_multiplier": 1.19,
+      "hits": 4,
+      "player_mods": {},
+      "boss_mods": {
+        "atk": 0.18,
+        "dmg_amplification": 0.105
+      },
+      "duration": 2
+    },
+    {
+      "id": "ct_phase_4",
+      "threshold": 0.0,
+      "name": "Clockwork Knight CT 4",
+      "damage_multiplier": 1.35,
+      "hits": 4,
+      "player_mods": {},
+      "boss_mods": {
+        "atk": 0.24,
+        "dmg_amplification": 0.14
+      },
+      "duration": 2
+    }
+  ],
+  "hp_warnings": [
+    {
+      "threshold": 0.9,
+      "pattern_id": "gear_lock",
+      "objective": "damage",
+      "required": 37
+    },
+    {
+      "threshold": 0.77,
+      "pattern_id": "iron_rewind",
+      "objective": "hits",
+      "required": 4
+    },
+    {
+      "threshold": 0.63,
+      "pattern_id": "final_gear",
+      "objective": "debuff",
+      "required": 1
+    },
+    {
+      "threshold": 0.5,
+      "pattern_id": "gear_lock",
+      "objective": "damage",
+      "required": 44
+    },
+    {
+      "threshold": 0.37,
+      "pattern_id": "iron_rewind",
+      "objective": "hits",
+      "required": 6
+    },
+    {
+      "threshold": 0.23,
+      "pattern_id": "final_gear",
+      "objective": "debuff",
+      "required": 2
+    },
+    {
+      "threshold": 0.1,
+      "pattern_id": "gear_lock",
+      "objective": "damage",
+      "required": 48
+    }
+  ],
+  "ct": {
+    "gauge_by_hp": [
+      {
+        "above": 0.0,
+        "max": 3
+      }
+    ],
+    "warnings_by_hp": [
+      {
+        "above": 0.75,
+        "pattern_id": "ct_phase_1",
+        "objective": "hits",
+        "required": 6
+      },
+      {
+        "above": 0.5,
+        "pattern_id": "ct_phase_2",
+        "objective": "hits",
+        "required": 7
+      },
+      {
+        "above": 0.25,
+        "pattern_id": "ct_phase_3",
+        "objective": "hits",
+        "required": 8
+      },
+      {
+        "above": 0.0,
+        "pattern_id": "ct_phase_4",
+        "objective": "hits",
+        "required": 8
+      }
+    ]
+  },
+  "rewards": {
+    "gold": {
+      "min": 2800,
+      "max": 3280
+    },
+    "exp": 620,
+    "stat_points": 2,
+    "items": [
+      {
+        "chance": 1.0,
+        "rank": 5
+      }
+    ],
+    "materials": [
+      {
+        "id": "clockwork_core",
+        "chance": 1.0,
+        "min": 1,
+        "max": 2
+      },
+      {
+        "id": "ember_ore",
+        "chance": 0.75,
+        "min": 2,
+        "max": 4
+      }
+    ]
+  },
+  "sort_order": 30
+}

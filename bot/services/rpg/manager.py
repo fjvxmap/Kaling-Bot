@@ -8,7 +8,10 @@ from .data import (
     BOSS_BY_ID,
     BOSS_WEEKLY_REWARD_LIMIT_ENABLED,
     BOSSES,
+    CRAFTING_RECIPE_BY_ID,
+    CRAFTING_RECIPES,
     DAILY_EXPLORES,
+    DROP_RARITY_WEIGHTS,
     DUNGEON_BY_ID,
     DUNGEONS,
     EXPLORE_LIMIT_ENABLED,
@@ -17,19 +20,26 @@ from .data import (
     ITEMS_BY_RARITY,
     JOB_BY_ID,
     JOBS,
+    MATERIAL_BY_ID,
+    MATERIALS,
     MAX_ENHANCEMENT_STARS,
     MAX_EQUIPPED_ITEMS,
     PERCENT_STATS,
     RARITIES,
     RARITY_LABELS,
     SKILLS,
+    STAT_ALLOCATIONS,
     STAT_LABELS,
     STAT_ORDER,
     BossPattern,
     BossTemplate,
+    CraftingRecipe,
     DungeonTemplate,
     EnemyTemplate,
     JobTemplate,
+    MaterialTemplate,
+    RewardItemDrop,
+    RewardTemplate,
     SkillTemplate,
     enhancement_cost,
     enhancement_odds,
@@ -70,8 +80,11 @@ class RewardReport:
     stat_points: int = 0
     levels_gained: int = 0
     dropped_item: ItemInstance | None = None
+    dropped_items: list[ItemInstance] = field(default_factory=list)
     auto_sold_item: ItemInstance | None = None
+    auto_sold_items: list[ItemInstance] = field(default_factory=list)
     auto_sold_gold: int = 0
+    materials: dict[str, int] = field(default_factory=dict)
     weekly_reward_claimed: bool = False
     weekly_reward_locked: bool = False
     consolation: bool = False
@@ -168,6 +181,17 @@ class JobResult:
     job: JobTemplate | None = None
 
 
+@dataclass
+class CraftResult:
+    ok: bool
+    message: str
+    profile: PlayerProfile
+    recipe: CraftingRecipe | None = None
+    item: ItemInstance | None = None
+    missing_materials: dict[str, int] = field(default_factory=dict)
+    missing_gold: int = 0
+
+
 class RPGService:
     def __init__(self, store: RPGStore | None = None, rng: Random | None = None) -> None:
         self.store = store or RPGStore()
@@ -219,6 +243,12 @@ class RPGService:
 
     def jobs(self) -> list[JobTemplate]:
         return list(JOBS)
+
+    def materials(self) -> list[MaterialTemplate]:
+        return list(MATERIALS)
+
+    def crafting_recipes(self) -> list[CraftingRecipe]:
+        return list(CRAFTING_RECIPES)
 
     def current_job(self, profile: PlayerProfile) -> JobTemplate:
         return JOB_BY_ID.get(profile.job_id, JOB_BY_ID["novice"])
@@ -297,6 +327,46 @@ class RPGService:
             [available[skill_id] for skill_id in selected],
         )
 
+    def craft_item(self, user_id: int, display_name: str, recipe_id: str) -> CraftResult:
+        profile = self.get_profile(user_id, display_name)
+        recipe = CRAFTING_RECIPE_BY_ID.get(recipe_id)
+        if recipe is None:
+            return CraftResult(False, "알 수 없는 제작법입니다.", profile)
+        if recipe.result_item_id not in ITEM_BY_ID:
+            return CraftResult(False, "제작 결과 장비 설정이 올바르지 않습니다.", profile, recipe)
+        if profile.level < recipe.level_req:
+            return CraftResult(False, f"Lv.{recipe.level_req}부터 제작할 수 있습니다.", profile, recipe)
+        missing_materials = self.missing_crafting_materials(profile, recipe)
+        missing_gold = max(0, recipe.gold - profile.gold)
+        if missing_materials or missing_gold > 0:
+            message = "재료가 부족합니다." if missing_materials else "골드가 부족합니다."
+            return CraftResult(False, message, profile, recipe, missing_materials=missing_materials, missing_gold=missing_gold)
+
+        profile.gold -= recipe.gold
+        for material_id, amount in recipe.materials.items():
+            profile.materials[material_id] = profile.materials.get(material_id, 0) - amount
+            if profile.materials[material_id] <= 0:
+                del profile.materials[material_id]
+        item = self._grant_item(profile, recipe.result_item_id, recipe.result_stars)
+        self._save()
+        return CraftResult(True, "제작이 완료되었습니다.", profile, recipe, item)
+
+    def can_craft(self, profile: PlayerProfile, recipe: CraftingRecipe) -> bool:
+        return (
+            profile.level >= recipe.level_req
+            and profile.gold >= recipe.gold
+            and not self.missing_crafting_materials(profile, recipe)
+            and recipe.result_item_id in ITEM_BY_ID
+        )
+
+    def missing_crafting_materials(self, profile: PlayerProfile, recipe: CraftingRecipe) -> dict[str, int]:
+        missing: dict[str, int] = {}
+        for material_id, required in recipe.materials.items():
+            owned = profile.materials.get(material_id, 0)
+            if owned < required:
+                missing[material_id] = required - owned
+        return missing
+
     def explore(self, user_id: int, display_name: str, dungeon_id: str) -> ExploreResult:
         profile = self.get_profile(user_id, display_name)
         dungeon = DUNGEON_BY_ID.get(dungeon_id)
@@ -318,18 +388,10 @@ class RPGService:
         reward = RewardReport()
         if battle.won:
             profile.dungeon_clear_count += 1
-            reward.gold = enemy.gold + self.rng.randint(0, 20 * enemy.rank)
-            reward.exp = enemy.exp
-            reward.dropped_item = self._roll_item_drop(profile, enemy.rank, enemy.drop_chance)
-            self._apply_auto_sell(profile, reward)
-            reward.levels_gained = self._grant_exp(profile, reward.exp)
-            profile.gold += reward.gold
+            reward = self._grant_reward(profile, enemy.rewards)
         else:
+            reward = self._grant_reward(profile, enemy.consolation_rewards)
             reward.consolation = True
-            reward.gold = max(1, enemy.gold // 5)
-            reward.exp = max(1, enemy.exp // 5)
-            reward.levels_gained = self._grant_exp(profile, reward.exp)
-            profile.gold += reward.gold
         self._save()
         return ExploreResult(
             True,
@@ -363,15 +425,9 @@ class RPGService:
         )
         reward = RewardReport(weekly_reward_locked=reward_locked)
         if battle.won and not reward_locked:
-            reward.gold = boss.gold + self.rng.randint(0, 120 * boss.rank)
-            reward.exp = boss.exp
-            reward.stat_points = boss.stat_points
-            reward.dropped_item = self._roll_item_drop(profile, boss.rank + 1, boss.drop_chance)
-            self._apply_auto_sell(profile, reward)
-            reward.levels_gained = self._grant_exp(profile, reward.exp)
+            reward = self._grant_reward(profile, boss.rewards)
+            reward.weekly_reward_locked = reward_locked
             reward.weekly_reward_claimed = True
-            profile.gold += reward.gold
-            profile.stat_points += reward.stat_points
             profile.boss_clear_count += 1
             if BOSS_WEEKLY_REWARD_LIMIT_ENABLED:
                 profile.weekly_boss_clears[boss.id] = weekly_key
@@ -381,16 +437,8 @@ class RPGService:
     def grant_boss_reward(self, user_id: int, display_name: str, boss_id: str) -> RewardReport:
         profile = self.get_profile(user_id, display_name)
         boss = BOSS_BY_ID[boss_id]
-        reward = RewardReport()
-        reward.gold = boss.gold + self.rng.randint(0, 120 * boss.rank)
-        reward.exp = boss.exp
-        reward.stat_points = boss.stat_points
-        reward.dropped_item = self._roll_item_drop(profile, boss.rank + 1, boss.drop_chance)
-        self._apply_auto_sell(profile, reward)
-        reward.levels_gained = self._grant_exp(profile, reward.exp)
+        reward = self._grant_reward(profile, boss.rewards)
         reward.weekly_reward_claimed = True
-        profile.gold += reward.gold
-        profile.stat_points += reward.stat_points
         profile.boss_clear_count += 1
         self._save()
         return reward
@@ -398,24 +446,27 @@ class RPGService:
     def allocate_stat(self, user_id: int, display_name: str, stat: str, amount: int) -> StatAllocationResult:
         profile = self.get_profile(user_id, display_name)
         amount = max(1, int(amount))
-        if stat not in {"attack", "hp", "defense"}:
+        rule = STAT_ALLOCATIONS.get(stat)
+        if rule is None:
             return StatAllocationResult(False, "올릴 수 없는 스탯입니다.", profile)
+        target = str(rule.get("stat", ""))
+        points_field = str(rule.get("points_field", ""))
+        if not hasattr(profile, target) or not hasattr(profile, points_field):
+            return StatAllocationResult(False, "스탯 설정이 올바르지 않습니다.", profile)
         if profile.stat_points < amount:
             return StatAllocationResult(False, f"스탯 포인트가 부족합니다. 보유: {profile.stat_points}", profile)
 
         profile.stat_points -= amount
-        if stat == "attack":
-            profile.base_atk += amount
-            profile.base_atk_points += amount
-            label = "공격력"
-        elif stat == "hp":
-            profile.max_hp += 5 * amount
-            profile.max_hp_points += amount
-            label = "최대 HP"
-        else:
-            profile.defense = round(profile.defense + 0.02 * amount, 4)
-            profile.defense_points += amount
-            label = "방어"
+        value = float(rule.get("amount", 0.0)) * amount
+        current = getattr(profile, target)
+        updated = current + value
+        if "round" in rule:
+            updated = round(updated, int(rule["round"]))
+        elif isinstance(current, int):
+            updated = int(round(updated))
+        setattr(profile, target, updated)
+        setattr(profile, points_field, int(getattr(profile, points_field)) + amount)
+        label = str(rule.get("label", stat))
         self._save()
         return StatAllocationResult(True, f"{label}에 {amount}포인트를 투자했습니다.", profile, amount)
 
@@ -663,6 +714,66 @@ class RPGService:
     def item_stats_text(self, item: ItemInstance) -> str:
         stats = scaled_item_stats(item.template_id, item.stars)
         return self.format_stats(stats, signed=True)
+
+    def material_name(self, material_id: str) -> str:
+        material = MATERIAL_BY_ID.get(material_id)
+        return material.name if material is not None else material_id
+
+    def material_quantity_text(self, profile: PlayerProfile, material_id: str, required: int | None = None) -> str:
+        owned = profile.materials.get(material_id, 0)
+        if required is None:
+            return f"{self.material_name(material_id)} x{owned}"
+        return f"{self.material_name(material_id)} {owned}/{required}"
+
+    def material_cost_text(self, profile: PlayerProfile, materials: dict[str, int]) -> str:
+        if not materials:
+            return "재료 없음"
+        return ", ".join(
+            self.material_quantity_text(profile, material_id, amount)
+            for material_id, amount in materials.items()
+        )
+
+    def recipe_result_text(self, recipe: CraftingRecipe) -> str:
+        template = ITEM_BY_ID.get(recipe.result_item_id)
+        if template is None:
+            return "알 수 없는 장비"
+        stats = scaled_item_stats(template.id, recipe.result_stars)
+        stars = f" +{recipe.result_stars}" if recipe.result_stars else ""
+        return f"[{RARITY_LABELS[template.rarity]}] {template.name}{stars}\n{self.format_stats(stats, signed=True)}"
+
+    def recipe_status_text(self, profile: PlayerProfile, recipe: CraftingRecipe) -> str:
+        if recipe.result_item_id not in ITEM_BY_ID:
+            return "설정 오류"
+        if profile.level < recipe.level_req:
+            return f"Lv.{recipe.level_req} 필요"
+        missing_materials = self.missing_crafting_materials(profile, recipe)
+        missing_gold = max(0, recipe.gold - profile.gold)
+        if not missing_materials and missing_gold <= 0:
+            return "제작 가능"
+        bits = []
+        if missing_gold:
+            bits.append(f"골드 -{missing_gold}G")
+        for material_id, amount in missing_materials.items():
+            bits.append(f"{self.material_name(material_id)} -{amount}")
+        return "부족: " + ", ".join(bits)
+
+    def reward_summary(self, reward: RewardTemplate) -> str:
+        parts = []
+        if reward.gold_min or reward.gold_max:
+            if reward.gold_min == reward.gold_max:
+                parts.append(f"{reward.gold_min}G")
+            else:
+                parts.append(f"{reward.gold_min}~{reward.gold_max}G")
+        if reward.exp:
+            parts.append(f"{reward.exp}EXP")
+        if reward.stat_points:
+            parts.append(f"스탯 {reward.stat_points}")
+        if reward.item_drops:
+            parts.append("장비")
+        if reward.material_drops:
+            material_names = ", ".join(self.material_name(drop.id) for drop in reward.material_drops[:3])
+            parts.append(f"재료 {material_names}")
+        return " · ".join(parts) if parts else "보상 없음"
 
     def format_stats(self, stats: CombatStats | dict[str, float], *, signed: bool = False) -> str:
         raw = stats.__dict__ if isinstance(stats, CombatStats) else stats
@@ -1101,40 +1212,103 @@ class RPGService:
                 return enemy
         return dungeon.enemies[0]
 
-    def _roll_item_drop(self, profile: PlayerProfile, rank: int, chance: float) -> ItemInstance | None:
-        if self.rng.random() > chance:
+    def _grant_reward(self, profile: PlayerProfile, template: RewardTemplate) -> RewardReport:
+        reward = RewardReport()
+        if template.gold_max > template.gold_min:
+            reward.gold = self.rng.randint(template.gold_min, template.gold_max)
+        else:
+            reward.gold = template.gold_min
+        reward.exp = template.exp
+        reward.stat_points = template.stat_points
+        for drop in template.item_drops:
+            item = self._roll_reward_item(profile, drop)
+            if item is not None:
+                reward.dropped_items.append(item)
+        if reward.dropped_items:
+            reward.dropped_item = reward.dropped_items[0]
+        for drop in template.material_drops:
+            if drop.id not in MATERIAL_BY_ID or self.rng.random() > drop.chance:
+                continue
+            amount = self.rng.randint(drop.min, drop.max)
+            if amount <= 0:
+                continue
+            profile.materials[drop.id] = profile.materials.get(drop.id, 0) + amount
+            reward.materials[drop.id] = reward.materials.get(drop.id, 0) + amount
+        self._apply_auto_sell(profile, reward)
+        reward.levels_gained = self._grant_exp(profile, reward.exp)
+        profile.gold += reward.gold
+        profile.stat_points += reward.stat_points
+        return reward
+
+    def _roll_reward_item(self, profile: PlayerProfile, drop: RewardItemDrop) -> ItemInstance | None:
+        if self.rng.random() > drop.chance:
             return None
-        rarity = self._roll_rarity(rank)
-        template = self.rng.choice(ITEMS_BY_RARITY[rarity])
-        item = ItemInstance(profile.next_item_uid, template.id)
+        if drop.template_id:
+            return self._grant_item(profile, drop.template_id, drop.stars)
+        if drop.rarity:
+            items = ITEMS_BY_RARITY.get(drop.rarity, [])
+            if not items:
+                return None
+            template = self.rng.choice(items)
+            return self._grant_item(profile, template.id, drop.stars)
+        if drop.rank > 0:
+            return self._roll_item_drop(profile, drop.rank, 1.0)
+        return None
+
+    def _grant_item(self, profile: PlayerProfile, template_id: str, stars: int = 0) -> ItemInstance | None:
+        if template_id not in ITEM_BY_ID:
+            return None
+        item = ItemInstance(profile.next_item_uid, template_id, stars=max(0, int(stars)))
         profile.next_item_uid += 1
         profile.inventory.append(item)
         return item
 
+    def _roll_item_drop(self, profile: PlayerProfile, rank: int, chance: float) -> ItemInstance | None:
+        if self.rng.random() > chance:
+            return None
+        rarity = self._roll_rarity(rank)
+        items = ITEMS_BY_RARITY.get(rarity, [])
+        if not items:
+            return None
+        template = self.rng.choice(items)
+        return self._grant_item(profile, template.id)
+
     def _apply_auto_sell(self, profile: PlayerProfile, reward: RewardReport) -> None:
-        item = reward.dropped_item
-        if item is None or item.template_id not in ITEM_BY_ID:
+        kept_items = []
+        sold_items = []
+        sold_gold = 0
+        for item in reward.dropped_items:
+            if item.template_id not in ITEM_BY_ID:
+                continue
+            rarity = ITEM_BY_ID[item.template_id].rarity
+            if rarity not in profile.auto_sell_rarities:
+                kept_items.append(item)
+                continue
+            sold_gold += self.item_sell_price(item)
+            sold_items.append(item)
+        if not sold_items:
             return
-        rarity = ITEM_BY_ID[item.template_id].rarity
-        if rarity not in profile.auto_sell_rarities:
-            return
-        price = self.item_sell_price(item)
-        profile.inventory = [owned for owned in profile.inventory if owned.uid != item.uid]
-        reward.dropped_item = None
-        reward.auto_sold_item = item
-        reward.auto_sold_gold = price
-        reward.gold += price
+        sold_uids = {item.uid for item in sold_items}
+        profile.inventory = [owned for owned in profile.inventory if owned.uid not in sold_uids]
+        reward.dropped_items = kept_items
+        reward.dropped_item = kept_items[0] if kept_items else None
+        reward.auto_sold_items.extend(sold_items)
+        reward.auto_sold_item = sold_items[0]
+        reward.auto_sold_gold += sold_gold
+        reward.gold += sold_gold
 
     def _roll_rarity(self, rank: int) -> str:
         rank = max(1, rank)
-        weights = {
-            "normal": max(450, 6200 - 880 * rank),
-            "rare": 2350 + 280 * rank,
-            "epic": 850 + 230 * rank,
-            "unique": 260 + 115 * rank,
-            "legendary": 45 + 48 * rank,
-        }
+        weights = {}
+        for rarity in RARITIES:
+            rule = DROP_RARITY_WEIGHTS.get(rarity, {})
+            weight = int(rule.get("base", 0)) + int(rule.get("per_rank", 0)) * rank
+            if "minimum" in rule:
+                weight = max(int(rule["minimum"]), weight)
+            weights[rarity] = max(0, weight)
         total = sum(weights.values())
+        if total <= 0:
+            return RARITIES[0] if RARITIES else "normal"
         roll = self.rng.randint(1, total)
         running = 0
         for rarity in RARITIES:
@@ -1169,6 +1343,11 @@ class RPGService:
             rarity for rarity in profile.auto_sell_rarities
             if rarity in RARITIES
         ]
+        profile.materials = {
+            material_id: max(0, int(amount))
+            for material_id, amount in profile.materials.items()
+            if material_id in MATERIAL_BY_ID and int(amount) > 0
+        }
         profile.inventory = [
             item for item in profile.inventory
             if item.uid > 0 and item.template_id in ITEM_BY_ID
