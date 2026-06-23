@@ -19,6 +19,7 @@ from bot.services.rpg.data import (
     RARITIES,
     RARITY_COLORS,
     RARITY_LABELS,
+    SKILLS,
     STAT_ALLOCATIONS,
     BossPattern,
     BossTemplate,
@@ -65,6 +66,14 @@ OBJECTIVE_LABELS = {
     "damage": "피해",
     "hits": "타수",
     "debuff": "디버프",
+}
+
+RARITY_EMOJIS = {
+    "normal": "⚪",
+    "rare": "🔵",
+    "epic": "🟣",
+    "unique": "🟠",
+    "legendary": "🟡",
 }
 
 
@@ -1042,6 +1051,12 @@ class RPGCog(commands.Cog):
             ),
             inline=False,
         )
+        if self._has_visible_effects(session.boss_effects):
+            embed.add_field(
+                name="보스 버프/디버프",
+                value=self._effects_text(session.boss_effects, limit=900),
+                inline=False,
+            )
         participant_lines = []
         for participant in session.participants.values():
             state = "전투 불능" if not participant.alive else f"HP {participant.hp}/{participant.max_hp}"
@@ -1057,9 +1072,13 @@ class RPGCog(commands.Cog):
             cooldowns = ", ".join(f"{skill_id}:{turns}" for skill_id, turns in participant.ability_cooldowns.items()) or "없음"
             queued = len(participant.queued_warnings)
             participant_ct = min(participant.ct, ct_max)
+            effect_line = ""
+            if self._has_visible_effects(participant.player_effects):
+                effect_line = f"\n효과: {self._effects_text(participant.player_effects, limit=360, compact=True)}"
             participant_lines.append(
                 f"**{participant.display_name}** · {state} · CT {participant_ct}/{ct_max}\n"
                 f"전조: {warning} · 대기 {queued} · 쿨: {cooldowns}"
+                f"{effect_line}"
             )
         embed.add_field(
             name=f"참가자 {len(session.participants)}명",
@@ -1110,6 +1129,18 @@ class RPGCog(commands.Cog):
             embed.add_field(name="개인 전조", value="없음", inline=False)
         if participant.queued_warnings:
             embed.add_field(name="대기 전조", value=f"{len(participant.queued_warnings)}개", inline=True)
+        if self._has_visible_effects(participant.player_effects):
+            embed.add_field(
+                name="내 버프/디버프",
+                value=self._effects_text(participant.player_effects, limit=900),
+                inline=False,
+            )
+        if self._has_visible_effects(session.boss_effects):
+            embed.add_field(
+                name="보스 버프/디버프",
+                value=self._effects_text(session.boss_effects, limit=900),
+                inline=False,
+            )
         lines = []
         for skill in skills:
             cooldown = participant.ability_cooldowns.get(skill.id, 0)
@@ -1153,16 +1184,23 @@ class RPGCog(commands.Cog):
         result: EquipmentResult | None = None,
     ) -> discord.Embed:
         description = result.message if result is not None else "아래 메뉴에서 장비를 고른 뒤 장착/해제하세요."
-        embed = discord.Embed(title="장비 장착", description=description, color=0xA0A7B4)
-
         equipped = self.service.equipped_items(profile)
         equipped_ids = {item.uid for item in equipped}
         selected_uids = selected_uids if selected_uids is not None else list(profile.equipped_item_uids)
+        selected_item_pool = [
+            item for item in profile.inventory
+            if item.uid in set(selected_uids) and not item.destroyed and item.template_id in ITEM_BY_ID
+        ]
+        embed = discord.Embed(
+            title="장비 장착",
+            description=description,
+            color=self._items_embed_color(selected_item_pool or equipped),
+        )
         slot_lines = []
         for idx in range(MAX_EQUIPPED_ITEMS):
             if idx < len(equipped):
                 item = equipped[idx]
-                slot_lines.append(f"`{idx + 1}` {self.service.item_title(item)}")
+                slot_lines.append(f"`{idx + 1}` {self._item_display_title(item)}")
             else:
                 slot_lines.append(f"`{idx + 1}` 비어 있음")
         embed.add_field(
@@ -1171,13 +1209,10 @@ class RPGCog(commands.Cog):
             inline=False,
         )
 
-        selected_items = [
-            item for item in profile.inventory
-            if item.uid in set(selected_uids) and not item.destroyed and item.template_id in ITEM_BY_ID
-        ]
+        selected_items = selected_item_pool
         if selected_items:
             lines = [
-                f"{self.service.item_title(item)}\n{self.service.item_stats_text(item)}"
+                f"{self._item_display_title(item)}\n{self.service.item_stats_text(item)}"
                 for item in selected_items
             ]
             embed.add_field(name=f"적용 대기 {len(selected_items)}/{MAX_EQUIPPED_ITEMS}", value=self._trim("\n\n".join(lines), 1600), inline=False)
@@ -1188,7 +1223,7 @@ class RPGCog(commands.Cog):
                 marker = "장착" if item.uid in equipped_ids else "보유"
                 if item.destroyed:
                     marker = "파괴"
-                lines.append(f"`{marker}` {self.service.item_title(item)}")
+                lines.append(f"`{marker}` {self._item_display_title(item)}")
             embed.add_field(name="보유 장비", value="\n".join(lines) if lines else "장비 없음", inline=False)
 
         embed.add_field(
@@ -1197,7 +1232,7 @@ class RPGCog(commands.Cog):
             inline=False,
         )
         if len(profile.inventory) > 25:
-            embed.set_footer(text="선택 UI는 장착 중인 장비와 전투력 높은 장비를 우선해 25개까지 표시합니다.")
+            embed.set_footer(text="선택 UI는 장착 중인 장비, 높은 등급, 전투력 높은 장비를 우선해 25개까지 표시합니다.")
         return embed
 
     def _sell_embed(
@@ -1366,17 +1401,17 @@ class RPGCog(commands.Cog):
         embed = discord.Embed(
             title="장비 강화",
             description="아래 선택 메뉴에서 강화할 장비를 고르세요. 선택하면 비용, 확률, 증가 스탯이 표시됩니다.",
-            color=0xFFB84D,
+            color=self._items_embed_color(display_items),
         )
         equipped_ids = {item.uid for item in self.service.equipped_items(profile)}
         lines = []
         for item in display_items:
             marker = "장착" if item.uid in equipped_ids else "보유"
-            lines.append(f"`{marker}` {self.service.item_title(item)}")
+            lines.append(f"`{marker}` {self._item_display_title(item)}")
         embed.add_field(name="장비", value="\n".join(lines), inline=False)
         footer = f"보유 골드 {profile.gold}G"
         if len(profile.inventory) > len(display_items):
-            footer += " · 선택 UI는 전투력 높은 25개만 표시"
+            footer += " · 선택 UI는 높은 등급과 전투력 기준 25개만 표시"
         embed.set_footer(text=footer)
         return embed
 
@@ -1387,7 +1422,7 @@ class RPGCog(commands.Cog):
         embed = discord.Embed(title="강화 미리보기", description=preview.message, color=color)
         if preview.item is None:
             return embed
-        embed.add_field(name="장비", value=self.service.item_title(preview.item), inline=False)
+        embed.add_field(name="장비", value=self._item_display_title(preview.item), inline=False)
         embed.add_field(name="현재 스탯", value=self.service.format_stats(preview.before_stats, signed=True), inline=False)
         if preview.ok:
             success, fail, destroy = preview.odds
@@ -1408,7 +1443,7 @@ class RPGCog(commands.Cog):
             color = RARITY_COLORS[ITEM_BY_ID[result.item.template_id].rarity]
         embed = discord.Embed(title="장비 강화", description=result.message, color=color)
         if result.item is not None:
-            embed.add_field(name="장비", value=self.service.item_title(result.item), inline=False)
+            embed.add_field(name="장비", value=self._item_display_title(result.item), inline=False)
             embed.add_field(name="스탯", value=self.service.item_stats_text(result.item), inline=False)
         if result.cost:
             embed.add_field(name="비용", value=f"{result.cost}G", inline=True)
@@ -1464,6 +1499,75 @@ class RPGCog(commands.Cog):
         if not parts:
             return "보상 없음"
         return "\n".join(parts)
+
+    def _has_visible_effects(self, effects: list[ActiveEffect]) -> bool:
+        return any(effect.turns > 0 and effect.mods for effect in effects)
+
+    def _effects_text(self, effects: list[ActiveEffect], *, limit: int, compact: bool = False) -> str:
+        active = [effect for effect in effects if effect.turns > 0 and effect.mods]
+        if not active:
+            return "없음"
+        lines = []
+        for effect in active:
+            kind = self._effect_kind(effect)
+            source = self._effect_source_name(effect)
+            stats = self.service.format_stats(effect.mods, signed=True)
+            if compact:
+                lines.append(f"{kind} {source}({stats}, {effect.turns}턴)")
+            else:
+                lines.append(f"`{kind}` **{source}** · {stats} · 남은 {effect.turns}턴")
+        separator = " / " if compact else "\n"
+        return self._trim(separator.join(lines), limit)
+
+    def _effect_kind(self, effect: ActiveEffect) -> str:
+        values = [value for value in effect.mods.values() if value]
+        if values and all(value >= 0 for value in values):
+            return "버프"
+        if values and all(value <= 0 for value in values):
+            return "디버프"
+        return "혼합"
+
+    def _effect_source_name(self, effect: ActiveEffect) -> str:
+        if effect.source_id.startswith("boss:"):
+            return effect.source_id.removeprefix("boss:")
+        skill = next((candidate for candidate in SKILLS if candidate.id == effect.source_id), None)
+        return skill.name if skill is not None else effect.source_id
+
+    def _rarity_emoji(self, rarity: str) -> str:
+        return RARITY_EMOJIS.get(rarity, "▫️")
+
+    def _rarity_rank(self, rarity: str) -> int:
+        try:
+            return RARITIES.index(rarity)
+        except ValueError:
+            return -1
+
+    def _item_rarity_rank(self, item) -> int:
+        template = ITEM_BY_ID.get(item.template_id)
+        if template is None:
+            return -1
+        return self._rarity_rank(template.rarity)
+
+    def _item_display_title(self, item) -> str:
+        template = ITEM_BY_ID[item.template_id]
+        label = RARITY_LABELS.get(template.rarity, template.rarity)
+        marker = self._rarity_emoji(template.rarity)
+        destroyed = " 파괴됨" if item.destroyed else ""
+        return f"{marker} [{label}] #{item.uid} {template.name} +{item.stars}{destroyed}"
+
+    def _item_select_label(self, item) -> str:
+        template = ITEM_BY_ID[item.template_id]
+        label = RARITY_LABELS.get(template.rarity, template.rarity)
+        destroyed = " 파괴" if item.destroyed else ""
+        return f"[{label}] #{item.uid} {template.name} +{item.stars}{destroyed}"[:100]
+
+    def _items_embed_color(self, items) -> int:
+        valid_items = [item for item in items if item.template_id in ITEM_BY_ID]
+        if not valid_items:
+            return 0xA0A7B4
+        best = max(valid_items, key=lambda item: self._item_rarity_rank(item))
+        rarity = ITEM_BY_ID[best.template_id].rarity
+        return RARITY_COLORS.get(rarity, 0xA0A7B4)
 
     def _trim(self, text: str, limit: int) -> str:
         if len(text) <= limit:
@@ -1524,6 +1628,8 @@ class RPGCog(commands.Cog):
             key=lambda item: (
                 item.uid not in equipped_ids,
                 item.destroyed,
+                -self._item_rarity_rank(item),
+                -item.stars,
                 -self.service.item_score(item),
                 item.uid,
             ),
@@ -1545,10 +1651,14 @@ class RPGCog(commands.Cog):
         )[:25]
 
     def _enhancement_display_items(self, profile: PlayerProfile):
+        equipped_ids = set(profile.equipped_item_uids)
         return sorted(
             profile.inventory,
             key=lambda item: (
                 item.destroyed,
+                -self._item_rarity_rank(item),
+                item.uid not in equipped_ids,
+                -item.stars,
                 -self.service.item_score(item),
                 item.uid,
             ),
@@ -1924,9 +2034,10 @@ class EquipmentView(discord.ui.View):
                 marker = "파괴됨"
             options.append(
                 discord.SelectOption(
-                    label=f"#{item.uid} {template.name} +{item.stars}",
+                    label=self.cog._item_select_label(item),
                     value=str(item.uid),
                     description=f"{marker} · {self.cog.service.item_stats_text(item)}"[:100],
+                    emoji=self.cog._rarity_emoji(template.rarity),
                     default=item.uid in self.selected_uids,
                 )
             )
@@ -2224,9 +2335,10 @@ class EnhancementView(discord.ui.View):
             status = "파괴됨" if item.destroyed else self.cog.service.item_stats_text(item)
             options.append(
                 discord.SelectOption(
-                    label=f"#{item.uid} {template.name} +{item.stars}",
+                    label=self.cog._item_select_label(item),
                     value=str(item.uid),
                     description=f"{marker} · {status}"[:100],
+                    emoji=self.cog._rarity_emoji(template.rarity),
                     default=item.uid == selected_uid,
                 )
             )

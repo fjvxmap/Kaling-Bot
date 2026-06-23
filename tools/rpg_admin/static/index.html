@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RPG Content Admin</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>RPG Content Admin</h1>
+        <p>장비, 재료, 제작식, 던전, 보스, 직업, 스킬 데이터를 편집합니다.</p>
+      </div>
+      <div class="actions">
+        <button id="reloadBtn" type="button">다시 불러오기</button>
+        <button id="validateBtn" type="button">검증</button>
+        <button id="saveBtn" type="button" class="primary">저장</button>
+      </div>
+    </header>
+
+    <div class="statusbar">
+      <span id="dirtyState">로드 대기</span>
+      <span id="statusText"></span>
+    </div>
+
+    <div class="shell">
+      <nav id="nav" class="nav"></nav>
+      <main id="main" class="main">
+        <div class="empty">콘텐츠를 불러오는 중입니다.</div>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
