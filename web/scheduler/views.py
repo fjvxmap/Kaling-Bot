@@ -4,6 +4,7 @@ import json
 import os
 import secrets
 from datetime import date, datetime, time, timedelta
+from urllib.parse import urlencode
 
 import requests
 from django.shortcuts import render
@@ -79,8 +80,8 @@ def discord_login(request: HttpRequest) -> HttpResponse:
         "scope": "identify",
         "state": state,
     }
-    auth_url = "https://discord.com/api/oauth2/authorize"
-    query = "&".join([f"{key}={requests.utils.quote(str(value))}" for key, value in params.items()])
+    auth_url = "https://discord.com/oauth2/authorize"
+    query = urlencode(params)
     return HttpResponseRedirect(f"{auth_url}?{query}")
 
 

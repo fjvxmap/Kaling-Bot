@@ -2,12 +2,1834 @@
   {
     "id": "guardian_angel_ring",
     "name": "가디언 엔젤 링",
-    "rarity": "epic",
+    "rarity": "unique",
     "stats": {
       "max_hp": 30,
-      "hp_bonus": 0.2
+      "hp_bonus": 0.32
     },
     "base_price": 1,
-    "description": "가디언 엔젤 슬라임이 왕관처럼 사용하던 반지이다. 아무리 봐도 슬라임한테 씌우면 그대로 통과할 것 같은데 어떻게 쓴 거지 미친놈"
+    "description": "가디언 엔젤 슬라임이 왕관처럼 사용하던 반지이다. 씌우면 그대로 통과할 것 같은데 어떻게 쓴 것일까",
+    "excluded_from_gacha": true
+  },
+  {
+    "id": "hraesvelgr",
+    "name": "흐레스벨그",
+    "rarity": "legendary",
+    "stats": {
+      "atk": 0.12,
+      "strength": 0.3,
+      "triple_attack_rate": -1,
+      "double_attack_rate": -1
+    },
+    "base_price": 1,
+    "description": "응축된 마력을 탄환으로 엮어 쏘아낸다. 표적을 꿰뚫는 순간 봉인된 힘이 폭발하듯 흩어지며, 그 참상은 독수리가 먹잇감을 산 채로 찢어 집어삼키는 모습과도 같다.",
+    "effects": {
+      "flurry": {
+        "count": 4,
+        "duration": -1,
+        "undispellable": true,
+        "target": "self"
+      },
+      "bonus_damage": [
+        {
+          "ratio": 0.45,
+          "duration": -1,
+          "undispellable": true,
+          "target": "self"
+        }
+      ]
+    },
+    "fixed_stats": [
+      "triple_attack_rate",
+      "double_attack_rate"
+    ],
+    "excluded_from_gacha": true
+  },
+  {
+    "id": "eden",
+    "name": "에덴",
+    "rarity": "unique",
+    "stats": {
+      "atk": 0.28,
+      "strength": 0.14
+    },
+    "base_price": 1,
+    "description": "샛별이자 빛의 인도자, 금단의 어둠으로 추락하노라.\n한때 새벽의 자식이었던 그는, 이제 금기를 범한 죄로 몸을 씻었다.\n그러나 더럽혀진 날개일지라도, 끝내 그는 어리석은 자의 심연을 밝히리라."
+  },
+  {
+    "id": "wooden_sword",
+    "name": "목검",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.05
+    },
+    "base_price": 20,
+    "description": "적당한 굵기의 나뭇가지를 주워 급조한 목검이다."
+  },
+  {
+    "id": "hrunting",
+    "name": "흐룬팅",
+    "rarity": "legendary",
+    "stats": {
+      "defense": -0.15,
+      "enmity": 0.7
+    },
+    "base_price": 1,
+    "description": "헤아릴 수 없는 피를 마신 검신은 마침내 흑요처럼 검게 물들었다.\n그리고 이상하게도, 베어낼수록 그 칼날은 더욱 예리해진다.",
+    "effects": {
+      "double_strike": {
+        "count": 2,
+        "duration": -1,
+        "undispellable": true,
+        "target": "self"
+      },
+      "bonus_damage": [
+        {
+          "ratio": 0.18,
+          "duration": -1,
+          "undispellable": true,
+          "target": "self"
+        }
+      ]
+    },
+    "fixed_stats": [
+      "defense"
+    ],
+    "excluded_from_gacha": true
+  },
+  {
+    "id": "bronze_sword",
+    "name": "브론즈 소드",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.04
+    },
+    "base_price": 18,
+    "description": "브론즈 소드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "bronze_dagger",
+    "name": "브론즈 대거",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.01,
+      "double_attack_rate": 0.02
+    },
+    "base_price": 21,
+    "description": "브론즈 대거. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "bronze_spear",
+    "name": "브론즈 스피어",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 6
+    },
+    "base_price": 24,
+    "description": "브론즈 스피어. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "bronze_axe",
+    "name": "브론즈 액스",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.06,
+      "defense": -0.01
+    },
+    "base_price": 27,
+    "description": "브론즈 액스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "bronze_knuckle",
+    "name": "브론즈 너클",
+    "rarity": "normal",
+    "stats": {
+      "critical_rate": 0.03
+    },
+    "base_price": 30,
+    "description": "브론즈 너클. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "bronze_bow",
+    "name": "브론즈 보우",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 3,
+      "critical_rate": 0.02
+    },
+    "base_price": 33,
+    "description": "브론즈 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "bronze_wand",
+    "name": "브론즈 완드",
+    "rarity": "normal",
+    "stats": {
+      "max_hp": 11
+    },
+    "base_price": 36,
+    "description": "브론즈 완드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "bronze_gun",
+    "name": "브론즈 건",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 5,
+      "critical_rate": 0.02
+    },
+    "base_price": 39,
+    "description": "브론즈 건. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "iron_sword",
+    "name": "아이언 소드",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.06
+    },
+    "base_price": 42,
+    "description": "아이언 소드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "iron_dagger",
+    "name": "아이언 대거",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.01,
+      "double_attack_rate": 0.01
+    },
+    "base_price": 45,
+    "description": "아이언 대거. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "iron_spear",
+    "name": "아이언 스피어",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 4
+    },
+    "base_price": 48,
+    "description": "아이언 스피어. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "iron_axe",
+    "name": "아이언 액스",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.06,
+      "defense": -0.01
+    },
+    "base_price": 51,
+    "description": "아이언 액스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "iron_knuckle",
+    "name": "아이언 너클",
+    "rarity": "normal",
+    "stats": {
+      "critical_rate": 0.02
+    },
+    "base_price": 54,
+    "description": "아이언 너클. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "iron_bow",
+    "name": "아이언 보우",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 3,
+      "critical_rate": 0.02
+    },
+    "base_price": 57,
+    "description": "아이언 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "iron_staff",
+    "name": "아이언 스태프",
+    "rarity": "normal",
+    "stats": {
+      "critical_damage": 0.04
+    },
+    "base_price": 60,
+    "description": "아이언 스태프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "iron_gun",
+    "name": "아이언 건",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 5,
+      "critical_rate": 0.02
+    },
+    "base_price": 63,
+    "description": "아이언 건. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "oak_staff",
+    "name": "오크 스태프",
+    "rarity": "normal",
+    "stats": {
+      "defense": 0.03
+    },
+    "base_price": 66,
+    "description": "오크 스태프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "oak_bow",
+    "name": "오크 보우",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 3,
+      "critical_rate": 0.02
+    },
+    "base_price": 69,
+    "description": "오크 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "cedar_wand",
+    "name": "시더 완드",
+    "rarity": "normal",
+    "stats": {
+      "max_hp": 17
+    },
+    "base_price": 72,
+    "description": "시더 완드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "willow_rod",
+    "name": "윌로우 로드",
+    "rarity": "normal",
+    "stats": {
+      "defense": 0.03
+    },
+    "base_price": 75,
+    "description": "윌로우 로드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "short_sword",
+    "name": "숏 소드",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.06
+    },
+    "base_price": 78,
+    "description": "숏 소드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "long_knife",
+    "name": "롱 나이프",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.01,
+      "double_attack_rate": 0.01
+    },
+    "base_price": 81,
+    "description": "롱 나이프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "training_spear",
+    "name": "수련용 스피어",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 6
+    },
+    "base_price": 84,
+    "description": "수련용 스피어. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "hand_axe",
+    "name": "핸드 액스",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.06,
+      "defense": -0.01
+    },
+    "base_price": 87,
+    "description": "핸드 액스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "buckler_blade",
+    "name": "버클러 블레이드",
+    "rarity": "normal",
+    "stats": {
+      "max_hp": 22,
+      "defense": 0.02
+    },
+    "base_price": 90,
+    "description": "버클러 블레이드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "hunter_bow",
+    "name": "헌터 보우",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 3,
+      "critical_rate": 0.02
+    },
+    "base_price": 93,
+    "description": "헌터 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "apprentice_staff",
+    "name": "견습 스태프",
+    "rarity": "normal",
+    "stats": {
+      "critical_damage": 0.04
+    },
+    "base_price": 96,
+    "description": "견습 스태프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "rusty_blade",
+    "name": "녹슨 블레이드",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 6,
+      "atk": 0.02
+    },
+    "base_price": 99,
+    "description": "녹슨 블레이드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "rusty_knife",
+    "name": "녹슨 나이프",
+    "rarity": "normal",
+    "stats": {
+      "critical_rate": 0.03
+    },
+    "base_price": 102,
+    "description": "녹슨 나이프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "rusty_halberd",
+    "name": "녹슨 할버드",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.02,
+      "critical_rate": 0.03
+    },
+    "base_price": 105,
+    "description": "녹슨 할버드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "rusty_club",
+    "name": "녹슨 클럽",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 5
+    },
+    "base_price": 108,
+    "description": "녹슨 클럽. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "sailor_cutlass",
+    "name": "세일러 커틀러스",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 6,
+      "atk": 0.02
+    },
+    "base_price": 111,
+    "description": "세일러 커틀러스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "dock_hook",
+    "name": "도크 후크",
+    "rarity": "normal",
+    "stats": {
+      "critical_rate": 0.04
+    },
+    "base_price": 114,
+    "description": "도크 후크. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "militia_pike",
+    "name": "민병대 파이크",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.02,
+      "critical_rate": 0.01
+    },
+    "base_price": 117,
+    "description": "민병대 파이크. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "peasant_hammer",
+    "name": "농부 해머",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 9
+    },
+    "base_price": 120,
+    "description": "농부 해머. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "street_mace",
+    "name": "스트리트 메이스",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.06,
+      "defense": -0.01
+    },
+    "base_price": 123,
+    "description": "스트리트 메이스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "copper_rapier",
+    "name": "카퍼 레이피어",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 5
+    },
+    "base_price": 126,
+    "description": "카퍼 레이피어. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "copper_sabre",
+    "name": "카퍼 세이버",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 4,
+      "atk": 0.02
+    },
+    "base_price": 129,
+    "description": "카퍼 세이버. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "copper_lance",
+    "name": "카퍼 랜스",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 7
+    },
+    "base_price": 132,
+    "description": "카퍼 랜스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "copper_tomahawk",
+    "name": "카퍼 토마호크",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.06,
+      "defense": -0.01
+    },
+    "base_price": 135,
+    "description": "카퍼 토마호크. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "bone_dagger",
+    "name": "본 대거",
+    "rarity": "normal",
+    "stats": {
+      "critical_rate": 0.03
+    },
+    "base_price": 138,
+    "description": "본 대거. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "bone_spear",
+    "name": "본 스피어",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.02,
+      "critical_rate": 0.03
+    },
+    "base_price": 141,
+    "description": "본 스피어. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "bone_club",
+    "name": "본 클럽",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 7
+    },
+    "base_price": 144,
+    "description": "본 클럽. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "stone_axe",
+    "name": "스톤 액스",
+    "rarity": "normal",
+    "stats": {
+      "atk": 0.06,
+      "defense": -0.01
+    },
+    "base_price": 147,
+    "description": "스톤 액스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "stone_sling",
+    "name": "스톤 슬링",
+    "rarity": "normal",
+    "stats": {
+      "double_attack_rate": 0.04
+    },
+    "base_price": 150,
+    "description": "스톤 슬링. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "plain_katana",
+    "name": "무명 카타나",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 4,
+      "atk": 0.02
+    },
+    "base_price": 153,
+    "description": "무명 카타나. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "plain_nodachi",
+    "name": "무명 노다치",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 6
+    },
+    "base_price": 156,
+    "description": "무명 노다치. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "field_bow",
+    "name": "필드 보우",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 5,
+      "critical_rate": 0.02
+    },
+    "base_price": 159,
+    "description": "필드 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "field_crossbow",
+    "name": "필드 크로스보우",
+    "rarity": "normal",
+    "stats": {
+      "double_attack_rate": 0.02
+    },
+    "base_price": 162,
+    "description": "필드 크로스보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "novice_tome",
+    "name": "초심자 마도서",
+    "rarity": "normal",
+    "stats": {
+      "defense": 0.03
+    },
+    "base_price": 165,
+    "description": "초심자 마도서. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "novice_harp",
+    "name": "초심자 하프",
+    "rarity": "normal",
+    "stats": {
+      "critical_damage": 0.04
+    },
+    "base_price": 168,
+    "description": "초심자 하프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "novice_orb",
+    "name": "초심자 오브",
+    "rarity": "normal",
+    "stats": {
+      "max_hp": 11
+    },
+    "base_price": 171,
+    "description": "초심자 오브. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "tin_rod",
+    "name": "틴 로드",
+    "rarity": "normal",
+    "stats": {
+      "defense": 0.03
+    },
+    "base_price": 174,
+    "description": "틴 로드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "tin_blade",
+    "name": "틴 블레이드",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 4,
+      "atk": 0.02
+    },
+    "base_price": 177,
+    "description": "틴 블레이드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "tin_claw",
+    "name": "틴 클로",
+    "rarity": "normal",
+    "stats": {
+      "critical_rate": 0.02
+    },
+    "base_price": 180,
+    "description": "틴 클로. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "traveler_sword",
+    "name": "여행자 소드",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 6,
+      "atk": 0.02
+    },
+    "base_price": 183,
+    "description": "여행자 소드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "traveler_dagger",
+    "name": "여행자 대거",
+    "rarity": "normal",
+    "stats": {
+      "critical_rate": 0.04
+    },
+    "base_price": 186,
+    "description": "여행자 대거. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "traveler_staff",
+    "name": "여행자 스태프",
+    "rarity": "normal",
+    "stats": {
+      "max_hp": 14
+    },
+    "base_price": 189,
+    "description": "여행자 스태프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "traveler_bow",
+    "name": "여행자 보우",
+    "rarity": "normal",
+    "stats": {
+      "double_attack_rate": 0.03
+    },
+    "base_price": 192,
+    "description": "여행자 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "traveler_gun",
+    "name": "여행자 건",
+    "rarity": "normal",
+    "stats": {
+      "base_atk": 5,
+      "critical_rate": 0.02
+    },
+    "base_price": 195,
+    "description": "여행자 건. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+  },
+  {
+    "id": "steel_sword",
+    "name": "스틸 소드",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 4,
+      "atk": 0.09
+    },
+    "base_price": 95,
+    "description": "스틸 소드. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "steel_dagger",
+    "name": "스틸 대거",
+    "rarity": "rare",
+    "stats": {
+      "atk": 0.05,
+      "triple_attack_rate": 0.02
+    },
+    "base_price": 102,
+    "description": "스틸 대거. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "steel_spear",
+    "name": "스틸 스피어",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 10,
+      "critical_rate": 0.05
+    },
+    "base_price": 109,
+    "description": "스틸 스피어. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "steel_axe",
+    "name": "스틸 액스",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 10,
+      "enmity": 0.11
+    },
+    "base_price": 116,
+    "description": "스틸 액스. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "steel_knuckle",
+    "name": "스틸 너클",
+    "rarity": "rare",
+    "stats": {
+      "critical_rate": 0.05,
+      "double_attack_rate": 0.04
+    },
+    "base_price": 123,
+    "description": "스틸 너클. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "steel_bow",
+    "name": "스틸 보우",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 5,
+      "triple_attack_rate": 0.02
+    },
+    "base_price": 130,
+    "description": "스틸 보우. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "steel_staff",
+    "name": "스틸 스태프",
+    "rarity": "rare",
+    "stats": {
+      "max_hp": 23,
+      "defense": 0.03
+    },
+    "base_price": 137,
+    "description": "스틸 스태프. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "steel_gun",
+    "name": "스틸 건",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 7,
+      "triple_attack_rate": 0.02
+    },
+    "base_price": 144,
+    "description": "스틸 건. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "mythril_knife",
+    "name": "미스릴 나이프",
+    "rarity": "rare",
+    "stats": {
+      "critical_rate": 0.05,
+      "double_attack_rate": 0.05
+    },
+    "base_price": 151,
+    "description": "미스릴 나이프. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "mythril_spear",
+    "name": "미스릴 스피어",
+    "rarity": "rare",
+    "stats": {
+      "atk": 0.07,
+      "critical_damage": 0.04
+    },
+    "base_price": 158,
+    "description": "미스릴 스피어. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "mythril_bow",
+    "name": "미스릴 보우",
+    "rarity": "rare",
+    "stats": {
+      "critical_rate": 0.03,
+      "double_attack_rate": 0.06
+    },
+    "base_price": 165,
+    "description": "미스릴 보우. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "mythril_wand",
+    "name": "미스릴 완드",
+    "rarity": "rare",
+    "stats": {
+      "atk": 0.04,
+      "critical_damage": 0.08
+    },
+    "base_price": 172,
+    "description": "미스릴 완드. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "flame_sabre",
+    "name": "플레임 세이버",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 4,
+      "atk": 0.09
+    },
+    "base_price": 179,
+    "description": "플레임 세이버. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "flame_rod",
+    "name": "플레임 로드",
+    "rarity": "rare",
+    "stats": {
+      "atk": 0.04,
+      "critical_damage": 0.06
+    },
+    "base_price": 186,
+    "description": "플레임 로드. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "aqua_blade",
+    "name": "아쿠아 블레이드",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 6,
+      "atk": 0.11
+    },
+    "base_price": 193,
+    "description": "아쿠아 블레이드. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "aqua_staff",
+    "name": "아쿠아 스태프",
+    "rarity": "rare",
+    "stats": {
+      "atk": 0.04,
+      "critical_damage": 0.08
+    },
+    "base_price": 200,
+    "description": "아쿠아 스태프. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "wind_lance",
+    "name": "윈드 랜스",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 9,
+      "critical_rate": 0.04
+    },
+    "base_price": 207,
+    "description": "윈드 랜스. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "wind_bow",
+    "name": "윈드 보우",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 7,
+      "triple_attack_rate": 0.02
+    },
+    "base_price": 214,
+    "description": "윈드 보우. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "earth_axe",
+    "name": "어스 액스",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 10,
+      "atk": 0.05,
+      "defense": -0.01
+    },
+    "base_price": 221,
+    "description": "어스 액스. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "earth_hammer",
+    "name": "어스 해머",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 11,
+      "enmity": 0.11
+    },
+    "base_price": 228,
+    "description": "어스 해머. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "spark_dagger",
+    "name": "스파크 대거",
+    "rarity": "rare",
+    "stats": {
+      "critical_rate": 0.05,
+      "double_attack_rate": 0.05
+    },
+    "base_price": 235,
+    "description": "스파크 대거. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "spark_gun",
+    "name": "스파크 건",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 6,
+      "triple_attack_rate": 0.02
+    },
+    "base_price": 242,
+    "description": "스파크 건. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "shadow_sickle",
+    "name": "섀도 시클",
+    "rarity": "rare",
+    "stats": {
+      "critical_rate": 0.07,
+      "double_attack_rate": 0.04
+    },
+    "base_price": 249,
+    "description": "섀도 시클. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "shadow_tome",
+    "name": "섀도 톰",
+    "rarity": "rare",
+    "stats": {
+      "atk": 0.04,
+      "critical_damage": 0.08
+    },
+    "base_price": 256,
+    "description": "섀도 톰. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "light_rapier",
+    "name": "라이트 레이피어",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 12,
+      "critical_rate": 0.03
+    },
+    "base_price": 263,
+    "description": "라이트 레이피어. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "light_harp",
+    "name": "라이트 하프",
+    "rarity": "rare",
+    "stats": {
+      "atk": 0.04,
+      "critical_damage": 0.06
+    },
+    "base_price": 270,
+    "description": "라이트 하프. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "knight_sword",
+    "name": "나이트 소드",
+    "rarity": "rare",
+    "stats": {
+      "max_hp": 30,
+      "defense": 0.06
+    },
+    "base_price": 277,
+    "description": "나이트 소드. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "knight_lance",
+    "name": "나이트 랜스",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 8,
+      "dmg_mitigation": 0.02
+    },
+    "base_price": 284,
+    "description": "나이트 랜스. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "mercenary_blade",
+    "name": "용병 블레이드",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 4,
+      "atk": 0.09
+    },
+    "base_price": 291,
+    "description": "용병 블레이드. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "mercenary_gun",
+    "name": "용병 건",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 9,
+      "triple_attack_rate": 0.02
+    },
+    "base_price": 298,
+    "description": "용병 건. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "duelist_sabre",
+    "name": "듀얼리스트 세이버",
+    "rarity": "rare",
+    "stats": {
+      "critical_rate": 0.07,
+      "double_attack_rate": 0.03
+    },
+    "base_price": 305,
+    "description": "듀얼리스트 세이버. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "duelist_pistol",
+    "name": "듀얼리스트 피스톨",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 6,
+      "triple_attack_rate": 0.02
+    },
+    "base_price": 312,
+    "description": "듀얼리스트 피스톨. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "raider_axe",
+    "name": "레이더 액스",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 12,
+      "atk": 0.05,
+      "defense": -0.01
+    },
+    "base_price": 319,
+    "description": "레이더 액스. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "raider_claw",
+    "name": "레이더 클로",
+    "rarity": "rare",
+    "stats": {
+      "atk": 0.05,
+      "triple_attack_rate": 0.02
+    },
+    "base_price": 326,
+    "description": "레이더 클로. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "priest_staff",
+    "name": "프리스트 스태프",
+    "rarity": "rare",
+    "stats": {
+      "max_hp": 38,
+      "defense": 0.04
+    },
+    "base_price": 333,
+    "description": "프리스트 스태프. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "sage_wand",
+    "name": "세이지 완드",
+    "rarity": "rare",
+    "stats": {
+      "atk": 0.04,
+      "critical_damage": 0.08
+    },
+    "base_price": 340,
+    "description": "세이지 완드. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "ranger_bow",
+    "name": "레인저 보우",
+    "rarity": "rare",
+    "stats": {
+      "critical_rate": 0.03,
+      "double_attack_rate": 0.04
+    },
+    "base_price": 347,
+    "description": "레인저 보우. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "ranger_crossbow",
+    "name": "레인저 크로스보우",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 7,
+      "triple_attack_rate": 0.02
+    },
+    "base_price": 354,
+    "description": "레인저 크로스보우. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "marine_cutlass",
+    "name": "마린 커틀러스",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 6,
+      "atk": 0.11
+    },
+    "base_price": 361,
+    "description": "마린 커틀러스. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "guardian_mace",
+    "name": "가디언 메이스",
+    "rarity": "rare",
+    "stats": {
+      "base_atk": 10,
+      "dmg_mitigation": 0.02
+    },
+    "base_price": 368,
+    "description": "가디언 메이스. 양산품보다는 한 단계 믿음직한 레어 장비다."
+  },
+  {
+    "id": "highlander",
+    "name": "하이랜더",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 12,
+      "atk": 0.18
+    },
+    "base_price": 820,
+    "description": "육중한 양손검. 빅토리아 아일랜드의 거친 산길을 지나온 전사들이 선호한다."
+  },
+  {
+    "id": "zard",
+    "name": "쟈드",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 18,
+      "critical_rate": 0.08
+    },
+    "base_price": 860,
+    "description": "길게 뻗은 창. 깊은 숲의 몬스터를 상대하기 좋다.",
+    "fixed_stats": [
+      "critical_rate"
+    ]
+  },
+  {
+    "id": "gephart",
+    "name": "게파트",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 11,
+      "atk": 0.14,
+      "garrison": 0.08
+    },
+    "base_price": 880,
+    "description": "단단한 장갑으로 버티며 밀어붙이는 장병기. 방어가 두꺼운 적과 오래 맞서기 좋다."
+  },
+  {
+    "id": "wangfu",
+    "name": "왕푸",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 15,
+      "strength": 0.18
+    },
+    "base_price": 900,
+    "description": "묵직한 도끼창. 힘으로 밀어붙이는 전투에 어울린다."
+  },
+  {
+    "id": "cromi",
+    "name": "크로미",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 9,
+      "skill_damage": 0.18
+    },
+    "base_price": 920,
+    "description": "마력을 응축하는 완드. 어빌리티의 한 방 한 방을 조금 더 또렷하게 만든다."
+  },
+  {
+    "id": "evil_wings",
+    "name": "이블윙즈",
+    "rarity": "epic",
+    "stats": {
+      "atk": 0.12,
+      "skill_damage": 0.14
+    },
+    "base_price": 940,
+    "description": "날개처럼 휘어진 지팡이. 어쩐지 잡는 순간 손끝이 서늘해진다."
+  },
+  {
+    "id": "maple_bow",
+    "name": "메이플 보우",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 9,
+      "triple_attack_rate": 0.03,
+      "double_attack_rate": 0.08
+    },
+    "base_price": 960,
+    "description": "단풍잎 장식이 달린 활. 보기보다 손맛이 좋다.",
+    "fixed_stats": [
+      "triple_attack_rate",
+      "double_attack_rate"
+    ]
+  },
+  {
+    "id": "maple_crossbow",
+    "name": "메이플 크로우",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 12,
+      "critical_rate": 0.08,
+      "double_attack_rate": 0.05
+    },
+    "base_price": 980,
+    "description": "단풍잎 문양이 새겨진 석궁. 조준이 차분해진다.",
+    "fixed_stats": [
+      "critical_rate",
+      "double_attack_rate"
+    ]
+  },
+  {
+    "id": "blood_snowboard",
+    "name": "블러드 스노우보드",
+    "rarity": "epic",
+    "stats": {
+      "hp_bonus": 0.1,
+      "atk": 0.16
+    },
+    "base_price": 1000,
+    "description": "무기인지 탈것인지 아직도 의견이 갈리는 붉은 보드. 맞으면 아픈 쪽으로 결론이 난 듯하다."
+  },
+  {
+    "id": "dark_slayer",
+    "name": "다크 슬레인",
+    "rarity": "epic",
+    "stats": {
+      "critical_rate": 0.06,
+      "double_attack_rate": 0.12
+    },
+    "base_price": 1020,
+    "description": "검은 금속으로 만든 단검. 빠른 연속 공격에 특화되어 있다.",
+    "fixed_stats": [
+      "critical_rate",
+      "double_attack_rate"
+    ]
+  },
+  {
+    "id": "doombringer",
+    "name": "둠브링거",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 21,
+      "atk": 0.08
+    },
+    "base_price": 1040,
+    "description": "무겁게 내려치는 양손검. 한 방의 무게감은 확실하지만 세공은 아직 거칠다."
+  },
+  {
+    "id": "serpent_tongue",
+    "name": "서펜트의 혀",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 14,
+      "critical_rate": 0.09
+    },
+    "base_price": 1060,
+    "description": "가늘고 날카로운 검. 빈틈을 찌르는 감각을 조금 더 또렷하게 만든다.",
+    "fixed_stats": [
+      "critical_rate"
+    ]
+  },
+  {
+    "id": "ryden",
+    "name": "라이덴",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 16,
+      "double_attack_rate": 0.09
+    },
+    "base_price": 1080,
+    "description": "짧은 순간을 파고드는 창. 연속 공격의 리듬을 익히는 전사에게 어울린다.",
+    "fixed_stats": [
+      "double_attack_rate"
+    ]
+  },
+  {
+    "id": "kandayo",
+    "name": "칸데오",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 13,
+      "triple_attack_rate": 0.04
+    },
+    "base_price": 1100,
+    "description": "손에 착 감기는 단검. 빠른 손놀림을 요구하지만 보답은 분명하다.",
+    "fixed_stats": [
+      "triple_attack_rate"
+    ]
+  },
+  {
+    "id": "shinkita",
+    "name": "신기타",
+    "rarity": "epic",
+    "stats": {
+      "max_hp": 35,
+      "atk": 0.17
+    },
+    "base_price": 1120,
+    "description": "예리한 날과 단단한 손잡이가 균형을 이룬 단검. 오래 싸워도 손목이 덜 흔들린다."
+  },
+  {
+    "id": "gold_arund",
+    "name": "골드 아룬드",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 17,
+      "critical_rate": 0.06,
+      "double_attack_rate": 0.04
+    },
+    "base_price": 1140,
+    "description": "금빛 장식이 얹힌 활. 화려하지만 과하지 않아 실전에서도 믿을 만하다.",
+    "fixed_stats": [
+      "critical_rate",
+      "double_attack_rate"
+    ]
+  },
+  {
+    "id": "golden_crow",
+    "name": "골든 크로우",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 19,
+      "critical_rate": 0.07
+    },
+    "base_price": 1160,
+    "description": "묵직한 석궁. 신중히 겨눈 한 발의 안정감이 좋다.",
+    "fixed_stats": [
+      "critical_rate"
+    ]
+  },
+  {
+    "id": "seraphis",
+    "name": "세라피스",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 10,
+      "skill_damage": 0.2
+    },
+    "base_price": 1180,
+    "description": "맑은 마력으로 빛나는 스태프. 어빌리티 운용을 익히는 마법사에게 잘 맞는다."
+  },
+  {
+    "id": "arc_staff",
+    "name": "아크 스태프",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 12,
+      "atk": 0.1,
+      "skill_damage": 0.12
+    },
+    "base_price": 1200,
+    "description": "곡선을 따라 마력이 흐르는 지팡이. 주문과 평타 사이의 균형이 좋다."
+  },
+  {
+    "id": "dark_ritual",
+    "name": "다크 리츄얼",
+    "rarity": "epic",
+    "stats": {
+      "max_hp": -25,
+      "skill_damage": 0.24
+    },
+    "base_price": 1220,
+    "description": "검은 의식에 쓰였다는 완드. 어빌리티 화력은 좋지만 몸이 조금 가벼워진다."
+  },
+  {
+    "id": "blue_screamer",
+    "name": "블루 스크리머",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 20,
+      "strength": 0.1
+    },
+    "base_price": 1240,
+    "description": "푸른빛이 감도는 양손검. 체력이 충분할 때 힘을 더 잘 받는다."
+  },
+  {
+    "id": "red_viper",
+    "name": "레드 바이퍼",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 15,
+      "enmity": 0.16
+    },
+    "base_price": 1260,
+    "description": "붉은 칼날의 폴암. 몰릴수록 날끝이 더 매서워진다."
+  },
+  {
+    "id": "blood_dagger",
+    "name": "블러드 대거",
+    "rarity": "epic",
+    "stats": {
+      "atk": 0.13,
+      "double_attack_rate": 0.08
+    },
+    "base_price": 1280,
+    "description": "붉은 홈이 파인 단검. 빠르게 찌르고 빠지는 전투에 어울린다.",
+    "fixed_stats": [
+      "double_attack_rate"
+    ]
+  },
+  {
+    "id": "dark_gigantic",
+    "name": "다크 기간틱",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 24,
+      "double_attack_rate": -0.03
+    },
+    "base_price": 1300,
+    "description": "거대한 둔기. 느리지만 맞히기만 하면 확실한 힘을 낸다.",
+    "fixed_stats": [
+      "double_attack_rate"
+    ]
+  },
+  {
+    "id": "omega_spear",
+    "name": "오메가 스피어",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 18,
+      "defense": 0.08
+    },
+    "base_price": 1320,
+    "description": "공격과 방어의 간격을 좁히는 창. 전열을 지키는 데 안정적이다."
+  },
+  {
+    "id": "green_dragon",
+    "name": "그린 드래곤",
+    "rarity": "epic",
+    "stats": {
+      "hp_bonus": 0.12,
+      "garrison": 0.1
+    },
+    "base_price": 1340,
+    "description": "비늘 장식이 달린 창. 버티는 전투에서 진가가 드러난다."
+  },
+  {
+    "id": "silver_crow",
+    "name": "실버 크로우",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 15,
+      "triple_attack_rate": 0.03,
+      "double_attack_rate": 0.06
+    },
+    "base_price": 1360,
+    "description": "은빛 장전 장치가 달린 석궁. 안정적인 연사를 돕는다.",
+    "fixed_stats": [
+      "triple_attack_rate",
+      "double_attack_rate"
+    ]
+  },
+  {
+    "id": "maple_lama_staff",
+    "name": "메이플 라마 스태프",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 11,
+      "skill_damage": 0.16,
+      "critical_rate": 0.05
+    },
+    "base_price": 1380,
+    "description": "단풍잎 문양이 새겨진 스태프. 주문의 흐름을 부드럽게 잡아준다.",
+    "fixed_stats": [
+      "critical_rate"
+    ]
+  },
+  {
+    "id": "maple_havoc_hammer",
+    "name": "메이플 해버크 해머",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 22,
+      "dmg_mitigation": 0.03
+    },
+    "base_price": 1400,
+    "description": "단풍 장식이 박힌 해머. 묵직한 타격과 약간의 안정감을 함께 준다."
+  },
+  {
+    "id": "maple_soul_rohen",
+    "name": "메이플 소울 로헨",
+    "rarity": "epic",
+    "stats": {
+      "base_atk": 18,
+      "hp_bonus": 0.06,
+      "atk": 0.11
+    },
+    "base_price": 1420,
+    "description": "단풍의 기운을 담은 검. 아직 전설은 아니지만 성장 구간에서는 든든하다."
+  },
+  {
+    "id": "ereshkigal",
+    "name": "에레쉬키갈",
+    "rarity": "legendary",
+    "stats": {
+      "dmg_amplification": 0.15,
+      "dmg_supplement": 12,
+      "skill_damage": -0.4
+    },
+    "base_price": 1,
+    "effects": {
+      "double_strike": {
+        "count": 2,
+        "duration": 3,
+        "undispellable": true,
+        "target": "self"
+      },
+      "bonus_damage": [
+        {
+          "ratio": 0.6,
+          "duration": 3,
+          "undispellable": true,
+          "target": "self"
+        }
+      ],
+      "flurry": {
+        "count": 3,
+        "duration": 3,
+        "undispellable": true,
+        "target": "self"
+      }
+    },
+    "description": "불길한 낫은 한 번의 베임으로 영혼을 명계에 유폐한다.\n저주의 낙인이 새겨진 혼은, 영원의 혼돈 속을 끝없이 헤매게 되리라.",
+    "stat_effects": [
+      {
+        "stat": "triple_attack_rate",
+        "target": "self",
+        "value": 1.0,
+        "duration": 3,
+        "undispellable": true
+      }
+    ],
+    "fixed_stats": [
+      "skill_damage"
+    ],
+    "excluded_from_gacha": true
+  },
+  {
+    "id": "futsunomitama",
+    "name": "후츠노미타마",
+    "rarity": "legendary",
+    "stats": {
+      "hp_bonus": 0.12,
+      "atk": 0.18
+    },
+    "base_price": 1,
+    "effects": {
+      "post_attack_ability_damage": [
+        {
+          "ratio": 0.24,
+          "count": 4,
+          "duration": -1,
+          "undispellable": true,
+          "target": "self"
+        }
+      ]
+    },
+    "description": "천상의 뜻을 품고 인간에게 전해진 신성한 단검.\n세상의 평화를 바라는 모든 이들의 염원을 힘으로 삼아, 세상을 어지럽히려는 모든 악을 멸한다.",
+    "excluded_from_gacha": true
+  },
+  {
+    "id": "blutgang",
+    "name": "브루트강",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 12,
+      "atk": 0.28,
+      "critical_rate": 0.06
+    },
+    "base_price": 1,
+    "description": "끝을 모르는 충의가 어둠을 부르고, 꺾이지 않는 맹세는 깊이 파고든다.\n기사는 홀로 그녀를 지킨다. 집념에 홀리기라도 한 듯이.\n그녀가 검을 휘두르는 이유는 오직 전하를 위해서. 오직, 그분만을 위해서.\n",
+    "fixed_stats": [
+      "critical_rate"
+    ]
+  },
+  {
+    "id": "causality_driver",
+    "name": "인과의 쐐기",
+    "rarity": "unique",
+    "stats": {
+      "atk": 0.1,
+      "dmg_amplification": 0.23,
+      "critical_rate": 0.06
+    },
+    "base_price": 1,
+    "description": "무수한 비극의 물결을 막아 세울 손을 붙잡아, 헛된 가능성 속에 묻힌 찬란한 기적을 빛 아래 드러내라.\n날카로운 바늘은 아득히 먼 곳, 한없이 미약한 희망의 빛을 가리킨다.\n그리던 미래의 종을 울릴 단 한 번의 순간을 기다리며.\n\n",
+    "effects": {
+      "bonus_damage": [
+        {
+          "ratio": 0.1,
+          "target": "self",
+          "duration": -1,
+          "undispellable": true
+        }
+      ]
+    },
+    "fixed_stats": [
+      "dmg_amplification",
+      "critical_rate"
+    ]
+  },
+  {
+    "id": "claiomh_solais_dion",
+    "name": "휘검 크라우솔라스 디온",
+    "rarity": "unique",
+    "stats": {
+      "hp_bonus": 0.1,
+      "atk": 0.28,
+      "defense": 0.12,
+      "dmg_amplification": 0.04
+    },
+    "base_price": 1,
+    "description": "푸른 칼날의 광휘에는 영원히 순결하고, 영원히 정의로우려는 의지가 깃들어 있다.\n그 빛은 루미엘 성기사단의 단장이 나아갈 길을 영원토록 비추는 이정표가 되리라.\n\n",
+    "fixed_stats": [
+      "dmg_amplification"
+    ]
+  },
+  {
+    "id": "clockwork_blade_kumogakure",
+    "name": "카라쿠리토우・쿠모가쿠레",
+    "rarity": "unique",
+    "stats": {
+      "atk": 0.24,
+      "critical_rate": 0.06,
+      "triple_attack_rate": 0.16
+    },
+    "base_price": 1,
+    "effects": {
+      "bonus_damage": [
+        {
+          "ratio": 0.1,
+          "target": "self",
+          "duration": -1,
+          "undispellable": true
+        }
+      ]
+    },
+    "description": "비취빛 섬광으로 현현하는, 티 하나 없이 정갈한 일섬.\n끊임없는 집념으로 벼려낸 극의를 목도하라. 검이 칼집을 떠나는 순간, 그것이 곧 그대의 마지막이리니.\n빛보다도 빠르게 찬란한 칼날은 어둠을 가르고, 감히 그 앞을 막아서는 모든 것을 무참히 베어 넘긴다.\n\n",
+    "fixed_stats": [
+      "critical_rate",
+      "triple_attack_rate"
+    ]
+  },
+  {
+    "id": "harmonia",
+    "name": "하르모니아",
+    "rarity": "unique",
+    "stats": {
+      "atk": 0.4,
+      "dmg_amplification": 0.04,
+      "dmg_supplement": 20
+    },
+    "base_price": 1,
+    "description": "하프의 선율은 연주하는 이의 마음을 비추는 거울.\n풍요로우면서도 오묘한 가락은 한 줄기 기도처럼 온 우주에 메아리친다.\n하늘에서 별의 세계로, 그리고 그 사이에 놓인 아득한 경계의 끝까지.\n\n",
+    "fixed_stats": [
+      "atk",
+      "dmg_amplification"
+    ]
+  },
+  {
+    "id": "mirror_blade_shard",
+    "name": "인경편",
+    "rarity": "unique",
+    "stats": {
+      "hp_bonus": 0.06,
+      "atk": 0.24,
+      "critical_rate": 0.06,
+      "double_attack_rate": 0.24
+    },
+    "base_price": 1,
+    "description": "환영 같은 빛을 발하는 신비의 검.\n힘을 품고, 수호의 의지를 담는 그릇이 되어, 앞을 가로막는 모든 것을 끝낸다.\n\n",
+    "fixed_stats": [
+      "critical_rate",
+      "double_attack_rate"
+    ]
+  },
+  {
+    "id": "skeletal_eclipse",
+    "name": "주식의 해창",
+    "rarity": "unique",
+    "stats": {
+      "atk": 0.05,
+      "skill_damage": 0.1,
+      "skill_dmg_supplement": 30,
+      "triple_attack_rate": 0.06
+    },
+    "base_price": 1,
+    "description": "자연의 섭리 너머에 존재하는 물질로 빚어진 창.\n은은한 온기와 숨결을 내뿜는 그 모습은 마치 스스로 살아 있는 듯하다.\n창에 매혹된 자는 자신도 모르는 새 의식을 조금씩 빼앗기고, 마침내 죽음에 이른다.",
+    "fixed_stats": [
+      "triple_attack_rate"
+    ]
+  },
+  {
+    "id": "heldenhymne",
+    "name": "헬덴휘므네",
+    "rarity": "unique",
+    "stats": {
+      "atk": 0.15,
+      "defense": -0.05,
+      "critical_rate": 0.1,
+      "critical_damage": 0.04
+    },
+    "base_price": 1,
+    "description": "흔들림 없는 충의를 맹세한 기사가 휘두르는 대검.\n그 칼날은 용의 불꽃보다도 짙은 진홍빛으로 찬란히 빛난다.\n무수한 전장을 거치며 완벽히 벼려진 검은 마침내 주인이 바라던 모습으로 거듭났다.\n백성의 성원과 경애를 등에 업고, 앞으로도 온 대지를 누비며 눈앞의 모든 적을 베어 가르리라.",
+    "effects": {
+      "bonus_damage": [
+        {
+          "ratio": 0.07,
+          "target": "self",
+          "duration": -1,
+          "undispellable": true
+        }
+      ]
+    },
+    "fixed_stats": [
+      "defense",
+      "critical_rate",
+      "critical_damage"
+    ]
+  },
+  {
+    "id": "aetherial_maverick",
+    "name": "매버릭 에테리얼",
+    "rarity": "unique",
+    "stats": {
+      "atk": 0.05,
+      "defense_ignore": 0.06,
+      "skill_damage": 0.1,
+      "skill_dmg_supplement": 30
+    },
+    "base_price": 1,
+    "description": "마법을 화살로 엮고, 화살로 춤을 수놓는다.\n쏘아진 화살마다 새벽빛에 반짝이는 꽃잎처럼 눈부시고 덧없이 흩날리나,\n그 끝에 꿰뚫린 자에게만큼은 더없이 선명한 현실이 된다.",
+    "fixed_stats": [
+      "defense_ignore"
+    ]
+  },
+  {
+    "id": "reunion",
+    "name": "리유니온",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 12,
+      "hp_bonus": 0.1,
+      "atk": 0.28
+    },
+    "base_price": 1,
+    "description": "푸른 하늘의 정수와, 동료들과 다시 만나겠다는 한 소녀의 맹세가 깃든 아름다운 검.\n꺾이지 않는 의지는 바람을 타고 그녀를 이끌어, 그리운 벗들이 있는 곳으로 한 걸음씩 가까이 데려간다."
+  },
+  {
+    "id": "twilight_mark",
+    "name": "트와일라이트 마크",
+    "rarity": "unique",
+    "stats": {
+      "hp_bonus": 0.1,
+      "atk": 0.1
+    },
+    "base_price": 0,
+    "excluded_from_gacha": true,
+    "description": "."
+  },
+  {
+    "id": "dreamy_belt",
+    "name": "몽환의 벨트",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 5,
+      "dmg_supplement": 10,
+      "triple_attack_rate": 0.075,
+      "double_attack_rate": 0.075
+    },
+    "base_price": 0,
+    "excluded_from_gacha": true,
+    "description": "."
   }
 ]

@@ -12,28 +12,36 @@ from bot.services.rpg.data import (
     CRAFTING_RECIPES,
     DAILY_EXPLORES,
     DUNGEONS,
+    GACHA_DEFAULT_POOL_ID,
+    GACHA_POOLS,
     ITEM_BY_ID,
-    JOBS,
+    MATERIAL_BY_ID,
     MATERIALS,
     MAX_EQUIPPED_ITEMS,
+    MAX_EQUIPPED_SKILLS,
     RARITIES,
     RARITY_COLORS,
     RARITY_LABELS,
-    SKILLS,
-    STAT_ALLOCATIONS,
     BossPattern,
     BossTemplate,
+    BossWarningFailureVariant,
+    BossWarningTemplate,
     SkillTemplate,
+    STACK_EFFECT_BY_ID,
 )
 from bot.services.rpg.manager import (
     ActiveEffect,
+    ActiveStackEffect,
     AbilityResult,
     BossResult,
     CraftResult,
+    ExploreBatchResult,
     EnhancementPreview,
     EnhancementResult,
     EquipmentResult,
     ExploreResult,
+    GachaResult,
+    JobResult,
     RPGService,
     SellResult,
 )
@@ -48,24 +56,25 @@ BOSS_CHOICES = [
     app_commands.Choice(name=f"{boss.name} · Lv.{boss.level_req}+", value=boss.id)
     for boss in BOSSES
 ]
-JOB_CHOICES = [
-    app_commands.Choice(name=f"{job.name} · Lv.{job.level_req}+", value=job.id)
-    for job in JOBS
-    if job.id != "novice"
-]
-STAT_CHOICES = [
-    app_commands.Choice(name=str(rule.get("choice_name", rule.get("label", stat_id))), value=stat_id)
-    for stat_id, rule in STAT_ALLOCATIONS.items()
-]
 CRAFT_CHOICES = [
     app_commands.Choice(name=f"{recipe.name} · Lv.{recipe.level_req}+", value=recipe.id)
     for recipe in CRAFTING_RECIPES[:25]
+]
+GACHA_CHOICES = [
+    app_commands.Choice(name=pool.name[:100], value=pool.id)
+    for pool in GACHA_POOLS[:25]
 ]
 
 OBJECTIVE_LABELS = {
     "damage": "피해",
     "hits": "타수",
     "debuff": "디버프",
+    "dispel": "디스펠",
+    "clear_all": "클리어 올",
+    "triple_attack": "트리플 어택",
+    "double_attack": "더블 어택",
+    "ability": "어빌리티",
+    "ability_damage": "어빌리티 피해",
 }
 
 RARITY_EMOJIS = {
@@ -73,8 +82,15 @@ RARITY_EMOJIS = {
     "rare": "🔵",
     "epic": "🟣",
     "unique": "🟠",
-    "legendary": "🟡",
+    "legendary": "🟢",
 }
+
+@dataclass
+class BossWarningObjectiveProgress:
+    objective: str
+    required: int
+    min_damage: int = 0
+    progress: int = 0
 
 
 @dataclass
@@ -82,10 +98,26 @@ class BossWarning:
     source: str
     name: str
     pattern: BossPattern
-    objective: str
-    required: int
-    progress: int = 0
+    objectives: list[BossWarningObjectiveProgress]
     threshold: float | None = None
+    remaining_turns: int = 1
+    failure_variants: list[BossWarningFailureVariant] = field(default_factory=list)
+
+
+@dataclass
+class BossDamageDetail:
+    action: str
+    target: str
+    summary: str
+    total_damage: int
+    hit_damages: list[int]
+    ability_damage: int = 0
+    detail_lines: list[str] = field(default_factory=list)
+    received_damage: int = 0
+    received_hit_damages: list[int] = field(default_factory=list)
+    received_detail_lines: list[str] = field(default_factory=list)
+    received_summary: str = ""
+    received_source: str = ""
 
 
 @dataclass
@@ -99,8 +131,15 @@ class BossParticipant:
     pending_warning: BossWarning | None = None
     queued_warnings: list[BossWarning] = field(default_factory=list)
     triggered_thresholds: set[int] = field(default_factory=set)
+    triggered_hp_effects: set[int] = field(default_factory=set)
     player_effects: list[ActiveEffect] = field(default_factory=list)
+    boss_effects: list[ActiveEffect] = field(default_factory=list)
+    player_stack_effects: list[ActiveStackEffect] = field(default_factory=list)
+    boss_stack_effects: list[ActiveStackEffect] = field(default_factory=list)
     ability_cooldowns: dict[str, int] = field(default_factory=dict)
+    ability_uses_left: dict[str, int] = field(default_factory=dict)
+    last_damage_detail: BossDamageDetail | None = None
+    suppress_warning_activation: bool = False
 
 
 @dataclass
@@ -114,16 +153,16 @@ class BossSession:
     started: bool = False
     completed: bool = False
     failed: bool = False
-    boss_effects: list[ActiveEffect] = field(default_factory=list)
     participants: dict[int, BossParticipant] = field(default_factory=dict)
     rewards: dict[int, str] = field(default_factory=dict)
+    reward_materials: dict[str, int] = field(default_factory=dict)
     log: list[str] = field(default_factory=list)
     message: discord.Message | None = None
 
     def __post_init__(self) -> None:
         self.boss_max_hp = max(1, int(self.boss.stats.get("max_hp", 1)))
         self.boss_hp = self.boss_max_hp
-        self.ct_max = self.boss.ct_gauge[0].max if self.boss.ct_gauge else max(3, 7 - min(4, self.boss.rank))
+        self.ct_max = self.boss.ct_gauge[0].max if self.boss.ct_gauge else self.ct_max
 
 
 class RPGCog(commands.Cog):
@@ -133,6 +172,7 @@ class RPGCog(commands.Cog):
         self.bot = bot
         self.service = RPGService()
         self.boss_sessions: dict[int, BossSession] = {}
+        self._boss_damage_detail_messages: dict[tuple[int, int], discord.WebhookMessage] = {}
         self._next_boss_session_id = 1
 
     @rpg.command(name="시작", description="RPG 프로필을 만들거나 현재 상태를 확인합니다.")
@@ -162,7 +202,7 @@ class RPGCog(commands.Cog):
             state = "입장 가능" if profile.level >= dungeon.level_req else f"Lv.{dungeon.level_req} 필요"
             rare_names = ", ".join(enemy.name for enemy in dungeon.enemies if enemy.rare) or "없음"
             reward_lines = ", ".join(
-                f"{enemy.name}: {self.service.reward_summary(enemy.rewards)}"
+                f"{enemy.name}: {self.service.reward_summary(enemy.rewards, base_gold=enemy.gold, base_exp=enemy.exp)}"
                 for enemy in dungeon.enemies[:3]
             )
             lines.append(
@@ -178,14 +218,18 @@ class RPGCog(commands.Cog):
         embed.add_field(name="탐색지", value="\n\n".join(lines), inline=False)
         await interaction.response.send_message(embed=embed)
 
-    @rpg.command(name="탐색", description="던전을 선택해 제한 없이 탐색합니다.")
-    @app_commands.rename(dungeon="던전")
-    @app_commands.describe(dungeon="탐색할 던전. 비워두면 선택 UI를 표시합니다.")
+    @rpg.command(name="탐색", description="던전을 선택해 탐색합니다.")
+    @app_commands.rename(dungeon="던전", count="횟수")
+    @app_commands.describe(
+        dungeon="탐색할 던전. 비워두면 선택 UI를 표시합니다.",
+        count="한 번에 진행할 탐색 횟수입니다. 최대 50회.",
+    )
     @app_commands.choices(dungeon=DUNGEON_CHOICES)
     async def explore(
         self,
         interaction: discord.Interaction,
         dungeon: app_commands.Choice[str] | None = None,
+        count: app_commands.Range[int, 1, 50] = 1,
     ) -> None:
         if dungeon is None:
             profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
@@ -193,12 +237,21 @@ class RPGCog(commands.Cog):
             view = ExplorationView(self, interaction.user.id, interaction.user.display_name)
             await interaction.response.send_message(embed=embed, view=view)
             return
+        view = ExplorationView(self, interaction.user.id, interaction.user.display_name, dungeon.value)
+        if count > 1:
+            result = self.service.explore_many(
+                interaction.user.id,
+                interaction.user.display_name,
+                dungeon.value,
+                count,
+            )
+            await interaction.response.send_message(embed=self._explore_batch_embed(result), view=view)
+            return
         result = self.service.explore(
             interaction.user.id,
             interaction.user.display_name,
             dungeon.value,
         )
-        view = ExplorationView(self, interaction.user.id, interaction.user.display_name, dungeon.value)
         await interaction.response.send_message(embed=self._explore_embed(result), view=view)
 
     @rpg.command(name="보스목록", description="도전 가능한 보스와 보상 정보를 봅니다.")
@@ -209,7 +262,7 @@ class RPGCog(commands.Cog):
             gate = "도전 가능" if profile.level >= boss.level_req else f"Lv.{boss.level_req} 필요"
             lines.append(
                 f"**{boss.name}** · {gate}\n"
-                f"보상 {self.service.reward_summary(boss.rewards)} · {boss.description}"
+                f"보상 {self.service.reward_summary(boss.rewards, base_gold=boss.gold, base_exp=boss.exp)} · {boss.description}"
             )
         embed = discord.Embed(
             title="보스 목록",
@@ -242,6 +295,20 @@ class RPGCog(commands.Cog):
                     description=f"{template.name}은 Lv.{template.level_req}부터 도전할 수 있습니다.",
                     color=0xED4245,
                 )
+            )
+            return
+        active_session = self._active_boss_session_for_user(interaction.user.id)
+        if active_session is not None:
+            await interaction.response.send_message(
+                embed=discord.Embed(
+                    title="보스 도전 실패",
+                    description=(
+                        f"이미 **{active_session.boss.name}** 보스전에 참가 중입니다. "
+                        "완료되거나 실패한 뒤 다른 보스전에 참가할 수 있습니다."
+                    ),
+                    color=0xED4245,
+                ),
+                ephemeral=True,
             )
             return
 
@@ -289,29 +356,47 @@ class RPGCog(commands.Cog):
 
     @rpg.command(name="전직", description="조건을 만족한 다음 전직을 선택합니다.")
     @app_commands.rename(job="직업")
-    @app_commands.describe(job="전직할 직업")
-    @app_commands.choices(job=JOB_CHOICES)
+    @app_commands.describe(job="전직할 직업. 비워두면 선택 UI를 표시합니다.")
     async def advance_job(
         self,
         interaction: discord.Interaction,
-        job: app_commands.Choice[str],
+        job: str | None = None,
     ) -> None:
+        if job is None:
+            profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
+            view = JobAdvanceView(self, interaction.user.id, interaction.user.display_name)
+            await interaction.response.send_message(
+                embed=self._job_advance_embed(profile),
+                view=view if view.children else None,
+            )
+            return
         result = self.service.advance_job(
             interaction.user.id,
             interaction.user.display_name,
-            job.value,
+            job,
         )
-        color = 0x57F287 if result.ok else 0xED4245
-        embed = discord.Embed(title="전직", description=result.message, color=color)
-        embed.add_field(name="현재 직업", value=self.service.current_job(result.profile).name, inline=True)
-        embed.add_field(name="전투 스탯", value=self.service.format_stats(self.service.profile_stats(result.profile)), inline=False)
-        skills = self.service.unlocked_skills(result.profile)
-        embed.add_field(
-            name="사용 가능한 스킬",
-            value=self._trim("\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in skills), 1000),
-            inline=False,
+        view = JobAdvanceView(self, interaction.user.id, interaction.user.display_name)
+        await interaction.response.send_message(
+            embed=self._job_advance_embed(result.profile, result),
+            view=view if view.children else None,
         )
-        await interaction.response.send_message(embed=embed)
+
+    @advance_job.autocomplete("job")
+    async def advance_job_autocomplete(
+        self,
+        interaction: discord.Interaction,
+        current: str,
+    ) -> list[app_commands.Choice[str]]:
+        profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
+        query = current.lower()
+        jobs = [
+            job for job in self.service.available_jobs(profile)
+            if query in job.name.lower() or query in job.id.lower()
+        ]
+        return [
+            app_commands.Choice(name=f"{job.name} · Lv.{job.level_req}+", value=job.id)
+            for job in jobs[:25]
+        ]
 
     @rpg.command(name="인벤토리", description="보유 장비와 장착 상태를 보고 직접 장착/해제합니다.")
     async def inventory(self, interaction: discord.Interaction) -> None:
@@ -342,10 +427,26 @@ class RPGCog(commands.Cog):
         recipe: app_commands.Choice[str] | None = None,
     ) -> None:
         profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
-        selected_recipe_id = recipe.value if recipe is not None else self._default_crafting_recipe_id(profile)
+        selected_recipe_id = recipe.value if recipe is not None else None
         await interaction.response.send_message(
             embed=self._crafting_embed(profile, selected_recipe_id),
             view=CraftingView(self, interaction.user.id, interaction.user.display_name, selected_recipe_id),
+        )
+
+    @rpg.command(name="가챠", description="보정석을 사용해 랜덤 보상을 획득하는 패널을 엽니다.")
+    @app_commands.rename(pool="풀")
+    @app_commands.describe(pool="사용할 가챠 풀. 비워두면 기본 풀을 사용합니다.")
+    @app_commands.choices(pool=GACHA_CHOICES)
+    async def gacha(
+        self,
+        interaction: discord.Interaction,
+        pool: app_commands.Choice[str] | None = None,
+    ) -> None:
+        selected_pool_id = pool.value if pool is not None else None
+        profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
+        await interaction.response.send_message(
+            embed=self._gacha_panel_embed(profile, selected_pool_id),
+            view=GachaView(self, interaction.user.id, interaction.user.display_name, selected_pool_id),
         )
 
     @rpg.command(name="장착", description="장비 장착 관리 UI를 엽니다.")
@@ -389,9 +490,23 @@ class RPGCog(commands.Cog):
             view=AutoSellView(self, interaction.user.id, interaction.user.display_name),
         )
 
-    @rpg.command(name="어빌리티", description="전투와 보스전에 사용할 어빌리티 3개를 장착합니다.")
+    @rpg.command(name="어빌리티", description="전투와 보스전에 사용할 어빌리티를 장착합니다.")
     async def abilities(self, interaction: discord.Interaction) -> None:
         profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
+        active_session = self._active_boss_session_for_user(interaction.user.id, started_only=True)
+        if active_session is not None:
+            await interaction.response.send_message(
+                embed=discord.Embed(
+                    title="어빌리티 변경 불가",
+                    description=(
+                        f"**{active_session.boss.name}** 보스전 진행 중에는 "
+                        "어빌리티 장착을 바꿀 수 없습니다."
+                    ),
+                    color=0xED4245,
+                ),
+                ephemeral=True,
+            )
+            return
         skills = self.service.unlocked_skills(profile)
         if not skills:
             embed = discord.Embed(
@@ -407,8 +522,8 @@ class RPGCog(commands.Cog):
         )
 
     @rpg.command(name="강화", description="장비를 선택해서 강화 정보와 확률을 확인합니다.")
-    @app_commands.rename(uid="장비_uid")
-    @app_commands.describe(uid="바로 확인할 장비 UID. 비워두면 선택 UI를 표시합니다.")
+    @app_commands.rename(uid="장비번호")
+    @app_commands.describe(uid="바로 확인할 장비 번호. 비워두면 선택 UI를 표시합니다.")
     async def enhance(self, interaction: discord.Interaction, uid: int | None = None) -> None:
         profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
         if not profile.inventory:
@@ -419,49 +534,41 @@ class RPGCog(commands.Cog):
             )
             await interaction.response.send_message(embed=embed)
             return
+        item = self._profile_item(profile, uid)
+        if item is not None and item.destroyed:
+            view = RestoreView(self, interaction.user.id, interaction.user.display_name, uid)
+            embed = self._restore_panel_embed(interaction.user.id, interaction.user.display_name, uid, view.selected_spare_uid)
+            await interaction.response.send_message(embed=embed, view=view)
+            return
         view = EnhancementView(self, interaction.user.id, interaction.user.display_name, uid)
-        if uid is None:
-            embed = self._enhancement_picker_embed(profile)
-        else:
-            embed = self._enhancement_preview_embed(
-                self.service.enhancement_preview(interaction.user.id, interaction.user.display_name, uid)
-            )
+        embed = self._enhancement_picker_embed(profile) if uid is None else self._enhancement_preview_embed(
+            self.service.enhancement_preview(interaction.user.id, interaction.user.display_name, uid)
+        )
         await interaction.response.send_message(embed=embed, view=view)
 
-    @rpg.command(name="복구", description="파괴된 장비 흔적을 +0 상태로 복구합니다.")
-    @app_commands.rename(uid="장비_uid")
-    @app_commands.describe(uid="복구할 장비 UID")
-    async def restore(self, interaction: discord.Interaction, uid: int) -> None:
-        result = self.service.restore(interaction.user.id, interaction.user.display_name, uid)
-        await interaction.response.send_message(embed=self._enhance_result_embed(result))
-
-    @rpg.command(name="스탯", description="원하는 수량만큼 스탯 포인트를 한 번에 투자합니다.")
-    @app_commands.rename(stat="스탯", amount="수량")
-    @app_commands.describe(stat="투자할 스탯", amount="사용할 포인트 수")
-    @app_commands.choices(stat=STAT_CHOICES)
-    async def allocate_stat(
-        self,
-        interaction: discord.Interaction,
-        stat: app_commands.Choice[str],
-        amount: int = 1,
-    ) -> None:
-        result = self.service.allocate_stat(
-            interaction.user.id,
-            interaction.user.display_name,
-            stat.value,
-            amount,
+    @rpg.command(name="복구", description="파괴된 장비 흔적을 성급 3단계 하락 상태로 복구합니다.")
+    @app_commands.rename(uid="장비번호")
+    @app_commands.describe(uid="복구할 장비 번호. 비워두면 강화/복구 UI를 표시합니다.")
+    async def restore(self, interaction: discord.Interaction, uid: int | None = None) -> None:
+        view = RestoreView(self, interaction.user.id, interaction.user.display_name, uid)
+        await interaction.response.send_message(
+            embed=self._restore_panel_embed(
+                interaction.user.id,
+                interaction.user.display_name,
+                view.selected_trace_uid,
+                view.selected_spare_uid,
+            ),
+            view=view,
         )
-        color = 0x57F287 if result.ok else 0xED4245
-        embed = discord.Embed(title="스탯 투자", description=result.message, color=color)
-        embed.add_field(name="남은 포인트", value=f"{result.profile.stat_points}", inline=True)
-        embed.add_field(name="현재 전투 스탯", value=self.service.format_stats(self.service.profile_stats(result.profile)), inline=False)
-        await interaction.response.send_message(embed=embed)
 
     def _add_boss_participant(self, session: BossSession, user_id: int, display_name: str) -> tuple[bool, str]:
         if session.started:
             return False, "이미 시작된 보스전에는 참가할 수 없습니다."
         if user_id in session.participants:
             return True, "이미 참가 중입니다."
+        active_session = self._active_boss_session_for_user(user_id, exclude_session_id=session.id)
+        if active_session is not None:
+            return False, f"이미 {active_session.boss.name} 보스전에 참가 중입니다."
         profile = self.service.get_profile(user_id, display_name)
         if profile.level < session.boss.level_req:
             return False, f"{session.boss.name}은 Lv.{session.boss.level_req}부터 참가할 수 있습니다."
@@ -471,9 +578,29 @@ class RPGCog(commands.Cog):
             display_name=display_name,
             hp=stats.final_hp,
             max_hp=stats.final_hp,
+            boss_stack_effects=self._initial_boss_stack_effects(session.boss),
         )
+        self._refresh_boss_permanent_effects(session)
         session.log.append(f"{display_name} 참가")
         return True, "참가했습니다."
+
+    def _active_boss_session_for_user(
+        self,
+        user_id: int,
+        *,
+        exclude_session_id: int | None = None,
+        started_only: bool = False,
+    ) -> BossSession | None:
+        for session in self.boss_sessions.values():
+            if exclude_session_id is not None and session.id == exclude_session_id:
+                continue
+            if session.completed or session.failed:
+                continue
+            if started_only and not session.started:
+                continue
+            if user_id in session.participants:
+                return session
+        return None
 
     def _start_boss_session(self, session: BossSession, user_id: int) -> tuple[bool, str]:
         if user_id != session.owner_id:
@@ -482,9 +609,75 @@ class RPGCog(commands.Cog):
             return True, "이미 시작되었습니다."
         if not session.participants:
             return False, "참가자가 없습니다."
+        self._refresh_boss_permanent_effects(session)
         session.started = True
         session.log.append("보스전 시작")
+        for participant in session.participants.values():
+            profile = self.service.get_profile(participant.user_id, participant.display_name)
+            self._reset_boss_ability_uses(participant, profile)
+            self._prepare_visible_warning(session, participant, profile)
         return True, "보스전을 시작했습니다."
+
+    def _refresh_boss_permanent_effects(self, session: BossSession) -> None:
+        if session.started:
+            return
+        participants = list(session.participants.values())
+        for participant in participants:
+            participant.player_effects = []
+            participant.boss_stack_effects = self._initial_boss_stack_effects(session.boss)
+        effect_lists = [participant.player_effects for participant in participants]
+        for participant in participants:
+            profile = self.service.get_profile(participant.user_id, participant.display_name)
+            self.service._append_permanent_effects(
+                profile,
+                participant.player_effects,
+                all_targets=effect_lists,
+            )
+        for participant in participants:
+            profile = self.service.get_profile(participant.user_id, participant.display_name)
+            stats = self.service._stats_with_effects(
+                self.service.profile_stats(profile),
+                participant.player_effects,
+                participant.player_stack_effects,
+            )
+            participant.max_hp = stats.final_hp
+            participant.hp = stats.final_hp
+
+    def _initial_boss_stack_effects(self, boss: BossTemplate) -> list[ActiveStackEffect]:
+        effects: list[ActiveStackEffect] = []
+        for stack_effect in boss.stack_effects:
+            effects.append(
+                ActiveStackEffect(
+                    stack_effect.stack_effect_id,
+                    stack_effect.initial_stacks,
+                    persistent=True,
+                )
+            )
+        return effects
+
+    def _reset_boss_ability_uses(self, participant: BossParticipant, profile: PlayerProfile) -> None:
+        participant.ability_cooldowns = {}
+        participant.ability_uses_left = {
+            skill.id: skill.uses
+            for skill in self.service.equipped_skills(profile)
+            if skill.uses > 0
+        }
+
+    def _ability_uses_left(self, participant: BossParticipant, skill: SkillTemplate) -> int | None:
+        if skill.uses <= 0:
+            return None
+        return participant.ability_uses_left.get(skill.id, skill.uses)
+
+    def _ability_used_out(self, participant: BossParticipant, skill: SkillTemplate) -> bool:
+        uses_left = self._ability_uses_left(participant, skill)
+        return uses_left is not None and uses_left <= 0
+
+    def _mark_boss_ability_used(self, participant: BossParticipant, skill: SkillTemplate) -> None:
+        uses_left = self._ability_uses_left(participant, skill)
+        if uses_left is not None:
+            participant.ability_uses_left[skill.id] = max(0, uses_left - 1)
+        if skill.cooldown > 0:
+            participant.ability_cooldowns[skill.id] = skill.cooldown
 
     def _boss_use_ability(self, session: BossSession, user_id: int, display_name: str, skill_id: str) -> tuple[bool, str]:
         participant = session.participants.get(user_id)
@@ -501,52 +694,103 @@ class RPGCog(commands.Cog):
         skill = next((owned for owned in self.service.equipped_skills(profile) if owned.id == skill_id), None)
         if skill is None:
             return False, "장착 중인 어빌리티가 아닙니다."
+        if self._ability_used_out(participant, skill):
+            return False, "이미 이번 보스전에서 사용한 어빌리티입니다."
 
         had_warning = participant.pending_warning is not None
-        self._prepare_visible_warning(session, participant, profile)
         player_base = self.service.profile_stats(profile)
-        player_stats = self.service._stats_with_effects(player_base, participant.player_effects)
+        player_stats = self.service._stats_with_effects(player_base, participant.player_effects, participant.player_stack_effects)
         boss_base = self.service._enemy_stats(session.boss.stats)
-        boss_stats = self.service._stats_with_effects(boss_base, session.boss_effects)
-        damage, heal = self.service._use_player_skill(
+        boss_stats = self.service._stats_with_effects(boss_base, participant.boss_effects, participant.boss_stack_effects)
+        boss_effect_lists = self._boss_effect_lists(session)
+        boss_stack_lists = self._boss_stack_lists(session)
+        boss_effects_before = self._effect_snapshot(participant.boss_effects)
+        player_stack_lists = [
+            ally.player_stack_effects
+            for ally in session.participants.values()
+            if ally.alive
+        ]
+        skill_result = self.service._use_player_skill(
             skill,
             player_stats,
             boss_stats,
             participant.hp,
             session.boss_hp,
             participant.player_effects,
-            session.boss_effects,
+            participant.boss_effects,
+            ally_effects=[
+                ally.player_effects
+                for ally in session.participants.values()
+                if ally.alive
+            ],
+            opponent_effects=boss_effect_lists,
+            player_stack_effects=participant.player_stack_effects,
+            enemy_stack_effects=participant.boss_stack_effects,
+            ally_stack_effects=player_stack_lists,
+            opponent_stack_effects=boss_stack_lists,
         )
-        if heal > 0:
-            participant.hp = min(participant.max_hp, participant.hp + heal)
-        if damage > 0:
-            session.boss_hp = max(0, session.boss_hp - damage)
-        self._add_warning_progress(participant, "damage", damage)
-        self._add_warning_progress(participant, "hits", skill.hits if damage > 0 else 0)
-        self._add_warning_progress(participant, "debuff", 1 if skill.enemy_mods else 0)
-        cleared_ct_warning = self._clear_ready_ct_warning(session, participant)
-        if skill.cooldown > 0:
-            participant.ability_cooldowns[skill.id] = skill.cooldown
+        self._sync_shared_effect_changes(participant.boss_effects, boss_effect_lists, boss_effects_before)
+        life_steal_heal = 0
+        if skill_result.damage > 0:
+            dealt_damage = min(session.boss_hp, skill_result.damage)
+            session.boss_hp = max(0, session.boss_hp - skill_result.damage)
+            life_steal_heal = self._apply_participant_life_steal(
+                participant,
+                player_stats,
+                dealt_damage,
+        )
+        skill_heal = self._apply_boss_skill_heal(session, participant, skill, skill_result.raw_heal)
+        debuff_count = self._debuff_effect_count(skill)
+        self._add_warning_progress(participant, "damage", skill_result.damage)
+        self._add_warning_progress(participant, "ability_damage", skill_result.damage)
+        self._add_warning_hit_progress(participant, skill_result.hit_damages)
+        self._add_warning_progress(participant, "debuff", debuff_count)
+        self._add_warning_progress(participant, "dispel", skill_result.dispels)
+        self._add_warning_progress(participant, "clear_all", skill_result.clear_alls)
+        self._add_warning_progress(participant, "ability", 1)
+        self._apply_player_stack_event(participant, "damage", skill_result.damage)
+        self._apply_player_stack_event(participant, "ability_damage", skill_result.damage)
+        self._apply_player_stack_event(participant, "hits", hit_damages=skill_result.hit_damages)
+        self._apply_player_stack_event(participant, "debuff", debuff_count)
+        self._apply_player_stack_event(participant, "dispel", skill_result.dispels)
+        self._apply_player_stack_event(participant, "clear_all", skill_result.clear_alls)
+        self._apply_player_stack_event(participant, "ability", 1)
+        cleared_warning = self._clear_ready_warning(session, participant, defer_next_warning=True)
+        self._mark_boss_ability_used(participant, skill)
         bits = []
-        if damage > 0:
-            bits.append(f"{damage} 피해")
-        if skill.hits > 0:
+        if skill_result.damage > 0:
+            bits.append(f"{skill_result.damage} 피해")
+        if skill_result.damage > 0 and skill.hits > 0:
             bits.append(f"{skill.hits}타")
-        if skill.enemy_mods:
-            bits.append("디버프 1회")
-        if heal > 0:
-            bits.append(f"{heal} 회복")
+        if debuff_count:
+            bits.append(f"디버프 {debuff_count}회")
+        if skill_result.dispels:
+            bits.append(f"디스펠 {skill_result.dispels}회")
+        if skill_result.clear_alls:
+            bits.append(f"클리어 올 {skill_result.clear_alls}회")
+        if skill_heal > 0:
+            bits.append(f"{skill_heal} 회복")
+        if life_steal_heal > 0:
+            bits.append(f"{life_steal_heal} 흡수")
         if not bits:
             bits.append("효과 발동")
+        if skill_result.damage > 0:
+            self._set_boss_damage_detail(
+                participant,
+                action=skill.name,
+                target=session.boss.name,
+                summary=", ".join(bits),
+                total_damage=skill_result.damage,
+                hit_damages=skill_result.hit_damages,
+                detail_lines=skill_result.detail_lines,
+            )
         session.log.append(f"{participant.display_name}: {skill.name} · {', '.join(bits)}")
         if session.boss_hp <= 0:
             session.completed = True
             self._grant_boss_session_rewards(session)
             return True, "어빌리티로 보스를 클리어했습니다."
-        self._queue_due_hp_warnings(session, participant, profile)
-        self._queue_ct_warning(session, participant, profile)
-        if cleared_ct_warning:
-            return True, f"{skill.name} 사용: {', '.join(bits)} · CT 전조 해제"
+        if cleared_warning:
+            return True, f"{skill.name} 사용: {', '.join(bits)} · 전조 해제"
         if not had_warning and participant.pending_warning is not None:
             return True, f"전조가 발생했습니다. {skill.name} 사용: {', '.join(bits)}"
         return True, f"{skill.name} 사용: {', '.join(bits)}"
@@ -564,87 +808,109 @@ class RPGCog(commands.Cog):
         if not participant.alive:
             return False, "전투 불능 상태입니다."
 
-        had_warning = participant.pending_warning is not None
         profile = self.service.get_profile(user_id, display_name)
-        self._prepare_visible_warning(session, participant, profile)
-        if participant.pending_warning is not None and not had_warning:
-            return True, "전조가 발생했습니다. 어빌리티로 조건을 채운 뒤 공격하세요."
         player_base = self.service.profile_stats(profile)
-        player_stats = self.service._stats_with_effects(player_base, participant.player_effects)
+        player_stats = self.service._stats_with_effects(player_base, participant.player_effects, participant.player_stack_effects)
         boss_base = self.service._enemy_stats(session.boss.stats)
-        boss_stats = self.service._stats_with_effects(boss_base, session.boss_effects)
+        boss_stats = self.service._stats_with_effects(boss_base, participant.boss_effects, participant.boss_stack_effects)
 
-        damage = self.service._actual_damage(
+        attack = self.service._basic_attack(
             player_stats,
             participant.hp,
             boss_stats,
             session.boss_hp,
+            self.service._effects_with_stacks(participant.player_effects, participant.player_stack_effects),
         )
-        session.boss_hp = max(0, session.boss_hp - damage)
-        self._add_warning_progress(participant, "damage", damage)
-        self._add_warning_progress(participant, "hits", 1)
-        session.log.append(f"{participant.display_name}: 공격 {damage} 피해")
+        dealt_segments = self.service._clamped_damage_segments(attack.life_steal_segments, session.boss_hp)
+        session.boss_hp = max(0, session.boss_hp - attack.damage)
+        attack.heal = self._apply_participant_life_steal(
+            participant,
+            player_stats,
+            sum(dealt_segments),
+            dealt_segments,
+        )
+        attack_summary = self.service._attack_log_text(attack)
+        self._set_boss_damage_detail(
+            participant,
+            action="공격",
+            target=session.boss.name,
+            summary=attack_summary,
+            total_damage=attack.damage,
+            hit_damages=attack.hit_damages,
+            ability_damage=attack.ability_damage,
+            detail_lines=attack.detail_lines,
+        )
+        self._add_warning_progress(participant, "damage", attack.damage)
+        self._add_warning_progress(participant, "ability_damage", attack.ability_damage)
+        self._add_warning_hit_progress(participant, attack.hit_damages)
+        self._add_warning_progress(participant, "triple_attack", attack.triple_attacks)
+        self._add_warning_progress(participant, "double_attack", attack.double_attacks)
+        self._apply_player_stack_event(participant, "damage", attack.damage)
+        self._apply_player_stack_event(participant, "ability_damage", attack.ability_damage)
+        self._apply_player_stack_event(participant, "hits", hit_damages=attack.hit_damages)
+        self._apply_player_stack_event(participant, "triple_attack", attack.triple_attacks)
+        self._apply_player_stack_event(participant, "double_attack", attack.double_attacks)
+        session.log.append(f"{participant.display_name}: 공격 {attack_summary}")
 
         if session.boss_hp <= 0:
             session.completed = True
             self._grant_boss_session_rewards(session)
             return True, "보스를 클리어했습니다."
 
-        pattern_replaced_counter = False
-        resolved_ct_warning = False
         if participant.pending_warning is not None:
-            warning = participant.pending_warning
-            resolved_ct_warning = warning.source == "ct"
-            if warning.progress >= warning.required:
-                session.log.append(f"{participant.display_name}: {warning.name} 전조 달성")
-            else:
-                boss_stats = self.service._stats_with_effects(boss_base, session.boss_effects)
-                player_stats = self.service._stats_with_effects(player_base, participant.player_effects)
-                pattern_damage = self.service._use_boss_pattern(
-                    warning.pattern,
-                    boss_stats,
-                    player_stats,
-                    session.boss_hp,
-                    participant.hp,
-                    participant.player_effects,
-                    session.boss_effects,
-                )
-                if pattern_damage > 0:
-                    participant.hp = max(0, participant.hp - pattern_damage)
-                    session.log.append(
-                        f"{participant.display_name}: {warning.name} 실패, {pattern_damage} 피해"
-                    )
-                else:
-                    session.log.append(f"{participant.display_name}: {warning.name} 실패, 특수 효과 발동")
-                pattern_replaced_counter = True
-                if participant.hp <= 0:
-                    participant.alive = False
-            participant.pending_warning = None
-            if resolved_ct_warning:
-                participant.ct = 0
-            if not participant.alive:
-                self._check_boss_party_failed(session)
-                return True, "전조 실패로 전투 불능이 되었습니다."
-
-        boss_stats = self.service._stats_with_effects(boss_base, session.boss_effects)
-        player_stats = self.service._stats_with_effects(player_base, participant.player_effects)
-        if not pattern_replaced_counter:
-            counter_damage = self.service._actual_damage(
-                boss_stats,
-                session.boss_hp,
+            return self._finish_pending_warning_turn(
+                session,
+                participant,
+                profile,
+                boss_base,
                 player_stats,
-                participant.hp,
-                0.48,
+                "공격",
             )
-            participant.hp = max(0, participant.hp - counter_damage)
-            session.log.append(f"{session.boss.name}: {participant.display_name}에게 {counter_damage} 반격")
-            if participant.hp <= 0:
-                participant.alive = False
-                session.log.append(f"{participant.display_name}: 전투 불능")
-                self._check_boss_party_failed(session)
-                return True, "전투 불능 상태가 되었습니다."
 
-        self._advance_ct(session, participant, resolved_ct_warning)
+        boss_stats = self.service._stats_with_effects(boss_base, participant.boss_effects, participant.boss_stack_effects)
+        player_stats = self.service._stats_with_effects(player_base, participant.player_effects, participant.player_stack_effects)
+        counter_attack = self.service._basic_attack(
+            boss_stats,
+            session.boss_hp,
+            player_stats,
+            participant.hp,
+            self.service._effects_with_stacks(participant.boss_effects, participant.boss_stack_effects),
+            0.48,
+        )
+        dealt_segments = self.service._clamped_damage_segments(counter_attack.life_steal_segments, participant.hp)
+        participant.hp = max(0, participant.hp - counter_attack.damage)
+        counter_attack.heal = self._apply_boss_life_steal(
+            session,
+            boss_stats,
+            self.service._effects_with_stacks(participant.boss_effects, participant.boss_stack_effects),
+            sum(dealt_segments),
+            dealt_segments,
+        )
+        self._apply_boss_stack_event(participant, "damage", counter_attack.damage)
+        self._apply_boss_stack_event(participant, "ability_damage", counter_attack.ability_damage)
+        self._apply_boss_stack_event(participant, "hits", hit_damages=counter_attack.hit_damages)
+        self._apply_boss_stack_event(participant, "triple_attack", counter_attack.triple_attacks)
+        self._apply_boss_stack_event(participant, "double_attack", counter_attack.double_attacks)
+        self._add_boss_received_damage_detail(
+            participant,
+            action="공격",
+            source=session.boss.name,
+            summary=f"{self.service._attack_log_text(counter_attack)} 반격",
+            total_damage=counter_attack.damage,
+            hit_damages=counter_attack.hit_damages,
+            detail_lines=counter_attack.detail_lines,
+        )
+        session.log.append(
+            f"{session.boss.name}: {participant.display_name}에게 "
+            f"{self.service._attack_log_text(counter_attack)} 반격"
+        )
+        if participant.hp <= 0:
+            participant.alive = False
+            session.log.append(f"{participant.display_name}: 전투 불능")
+            self._check_boss_party_failed(session)
+            return True, "전투 불능 상태가 되었습니다."
+
+        self._advance_ct(session, participant, False)
         self._finish_boss_turn(session, participant, profile)
         self._check_boss_party_failed(session)
         return True, "턴을 진행했습니다."
@@ -662,80 +928,334 @@ class RPGCog(commands.Cog):
         if not participant.alive:
             return False, "전투 불능 상태입니다."
 
-        had_warning = participant.pending_warning is not None
         profile = self.service.get_profile(user_id, display_name)
-        self._prepare_visible_warning(session, participant, profile)
-        if participant.pending_warning is not None and not had_warning:
-            return True, "전조가 발생했습니다. 어빌리티로 조건을 채운 뒤 가드할 수 있습니다."
 
         player_base = self.service.profile_stats(profile)
         boss_base = self.service._enemy_stats(session.boss.stats)
-        boss_stats = self.service._stats_with_effects(boss_base, session.boss_effects)
-        guard_stats = self.service._stats_with_effects(player_base, participant.player_effects)
+        boss_stats = self.service._stats_with_effects(boss_base, participant.boss_effects, participant.boss_stack_effects)
+        guard_stats = self.service._stats_with_effects(player_base, participant.player_effects, participant.player_stack_effects)
         self.service._apply_stat(guard_stats, "defense", 10.0)
         session.log.append(f"{participant.display_name}: 가드")
 
-        pattern_replaced_counter = False
-        resolved_ct_warning = False
         if participant.pending_warning is not None:
-            warning = participant.pending_warning
-            resolved_ct_warning = warning.source == "ct"
-            if warning.progress >= warning.required:
-                session.log.append(f"{participant.display_name}: {warning.name} 전조 달성")
-            else:
-                pattern_damage = self.service._use_boss_pattern(
-                    warning.pattern,
-                    boss_stats,
-                    guard_stats,
-                    session.boss_hp,
-                    participant.hp,
-                    participant.player_effects,
-                    session.boss_effects,
-                )
-                if pattern_damage > 0:
-                    participant.hp = max(0, participant.hp - pattern_damage)
-                    session.log.append(
-                        f"{participant.display_name}: {warning.name} 실패, 가드 중 {pattern_damage} 피해"
-                    )
-                else:
-                    session.log.append(f"{participant.display_name}: {warning.name} 실패, 특수 효과 발동")
-                pattern_replaced_counter = True
-                if participant.hp <= 0:
-                    participant.alive = False
-            participant.pending_warning = None
-            if resolved_ct_warning:
-                participant.ct = 0
-            if not participant.alive:
-                self._check_boss_party_failed(session)
-                return True, "전조 실패로 전투 불능이 되었습니다."
-
-        if not pattern_replaced_counter:
-            counter_damage = self.service._actual_damage(
-                boss_stats,
-                session.boss_hp,
+            return self._finish_pending_warning_turn(
+                session,
+                participant,
+                profile,
+                boss_base,
                 guard_stats,
-                participant.hp,
-                0.48,
+                "가드",
             )
-            participant.hp = max(0, participant.hp - counter_damage)
-            session.log.append(f"{session.boss.name}: 가드 중 {participant.display_name}에게 {counter_damage} 피해")
-            if participant.hp <= 0:
-                participant.alive = False
-                session.log.append(f"{participant.display_name}: 전투 불능")
-                self._check_boss_party_failed(session)
-                return True, "전투 불능 상태가 되었습니다."
 
-        self._advance_ct(session, participant, resolved_ct_warning)
+        counter_attack = self.service._basic_attack(
+            boss_stats,
+            session.boss_hp,
+            guard_stats,
+            participant.hp,
+            self.service._effects_with_stacks(participant.boss_effects, participant.boss_stack_effects),
+            0.48,
+        )
+        dealt_segments = self.service._clamped_damage_segments(counter_attack.life_steal_segments, participant.hp)
+        participant.hp = max(0, participant.hp - counter_attack.damage)
+        counter_attack.heal = self._apply_boss_life_steal(
+            session,
+            boss_stats,
+            self.service._effects_with_stacks(participant.boss_effects, participant.boss_stack_effects),
+            sum(dealt_segments),
+            dealt_segments,
+        )
+        self._apply_boss_stack_event(participant, "damage", counter_attack.damage)
+        self._apply_boss_stack_event(participant, "ability_damage", counter_attack.ability_damage)
+        self._apply_boss_stack_event(participant, "hits", hit_damages=counter_attack.hit_damages)
+        self._apply_boss_stack_event(participant, "triple_attack", counter_attack.triple_attacks)
+        self._apply_boss_stack_event(participant, "double_attack", counter_attack.double_attacks)
+        self._add_boss_received_damage_detail(
+            participant,
+            action="가드",
+            source=session.boss.name,
+            summary=f"가드 중 {self.service._attack_log_text(counter_attack)}",
+            total_damage=counter_attack.damage,
+            hit_damages=counter_attack.hit_damages,
+            detail_lines=counter_attack.detail_lines,
+        )
+        session.log.append(
+            f"{session.boss.name}: 가드 중 {participant.display_name}에게 "
+            f"{self.service._attack_log_text(counter_attack)}"
+        )
+        if participant.hp <= 0:
+            participant.alive = False
+            session.log.append(f"{participant.display_name}: 전투 불능")
+            self._check_boss_party_failed(session)
+            return True, "전투 불능 상태가 되었습니다."
+
+        self._advance_ct(session, participant, False)
         self._finish_boss_turn(session, participant, profile)
         self._check_boss_party_failed(session)
         return True, "가드로 턴을 넘겼습니다."
 
+    def _finish_pending_warning_turn(
+        self,
+        session: BossSession,
+        participant: BossParticipant,
+        profile: PlayerProfile,
+        boss_base,
+        defender_stats,
+        action_name: str,
+    ) -> tuple[bool, str]:
+        warning = participant.pending_warning
+        if warning is None:
+            return True, "전조 없음"
+
+        resolved_ct_warning = warning.source == "ct"
+        if self._warning_complete(warning):
+            session.log.append(f"{participant.display_name}: {warning.name} 전조 달성")
+            self._apply_warning_stack_event(participant, "warning_success")
+            participant.pending_warning = None
+            if action_name == "공격":
+                if resolved_ct_warning:
+                    participant.ct = 0
+                boss_stats = self.service._stats_with_effects(boss_base, participant.boss_effects, participant.boss_stack_effects)
+                counter_attack = self.service._basic_attack(
+                    boss_stats,
+                    session.boss_hp,
+                    defender_stats,
+                    participant.hp,
+                    self.service._effects_with_stacks(participant.boss_effects, participant.boss_stack_effects),
+                    0.48,
+                )
+                dealt_segments = self.service._clamped_damage_segments(counter_attack.life_steal_segments, participant.hp)
+                participant.hp = max(0, participant.hp - counter_attack.damage)
+                counter_attack.heal = self._apply_boss_life_steal(
+                    session,
+                    boss_stats,
+                    self.service._effects_with_stacks(participant.boss_effects, participant.boss_stack_effects),
+                    sum(dealt_segments),
+                    dealt_segments,
+                )
+                self._apply_boss_stack_event(participant, "damage", counter_attack.damage)
+                self._apply_boss_stack_event(participant, "ability_damage", counter_attack.ability_damage)
+                self._apply_boss_stack_event(participant, "hits", hit_damages=counter_attack.hit_damages)
+                self._apply_boss_stack_event(participant, "triple_attack", counter_attack.triple_attacks)
+                self._apply_boss_stack_event(participant, "double_attack", counter_attack.double_attacks)
+                self._add_boss_received_damage_detail(
+                    participant,
+                    action=action_name,
+                    source=session.boss.name,
+                    summary=f"{self.service._attack_log_text(counter_attack)} 반격",
+                    total_damage=counter_attack.damage,
+                    hit_damages=counter_attack.hit_damages,
+                    detail_lines=counter_attack.detail_lines,
+                )
+                session.log.append(
+                    f"{session.boss.name}: {participant.display_name}에게 "
+                    f"{self.service._attack_log_text(counter_attack)} 반격"
+                )
+                if participant.hp <= 0:
+                    participant.alive = False
+                    session.log.append(f"{participant.display_name}: 전투 불능")
+                    self._check_boss_party_failed(session)
+                    return True, f"{warning.name} 전조를 해제했지만 전투 불능 상태가 되었습니다."
+                self._advance_ct(session, participant, False)
+            else:
+                self._advance_ct(session, participant, resolved_ct_warning)
+            self._finish_boss_turn(session, participant, profile)
+            self._check_boss_party_failed(session)
+            return True, f"{warning.name} 전조를 해제했습니다."
+
+        warning.remaining_turns -= 1
+        if warning.remaining_turns > 0:
+            session.log.append(
+                f"{participant.display_name}: {warning.name} 전조 진행 중 "
+                f"({warning.remaining_turns}턴 남음)"
+            )
+            self._advance_ct(session, participant, False)
+            self._finish_boss_turn(session, participant, profile)
+            self._check_boss_party_failed(session)
+            return True, f"{action_name}: 전조 진행 중입니다. {warning.remaining_turns}턴 남았습니다."
+
+        boss_stats = self.service._stats_with_effects(boss_base, participant.boss_effects, participant.boss_stack_effects)
+        boss_effect_lists = self._boss_effect_lists(session)
+        boss_stack_lists = self._boss_stack_lists(session)
+        boss_effects_before = self._effect_snapshot(participant.boss_effects)
+        pattern_hit_damages: list[int] = []
+        player_effect_lists = [
+            member.player_effects
+            for member in session.participants.values()
+            if member.alive
+        ]
+        player_stack_lists = [
+            member.player_stack_effects
+            for member in session.participants.values()
+            if member.alive
+        ]
+        self._apply_warning_stack_event(participant, "warning_failure")
+        failure_pattern = self._warning_failure_pattern(warning, participant)
+        failure_effect_name = failure_pattern.name or warning.name
+        pattern_damage = self.service._use_boss_pattern(
+            failure_pattern,
+            boss_stats,
+            defender_stats,
+            session.boss_hp,
+            participant.hp,
+            participant.player_effects,
+            participant.boss_effects,
+            ally_effects=boss_effect_lists,
+            opponent_effects=player_effect_lists,
+            boss_stack_effects=participant.boss_stack_effects,
+            player_stack_effects=participant.player_stack_effects,
+            ally_stack_effects=boss_stack_lists,
+            opponent_stack_effects=player_stack_lists,
+            damage_details=pattern_hit_damages,
+        )
+        for effects in [*boss_effect_lists, *player_effect_lists]:
+            self._dedupe_effects_by_key(effects)
+        self._sync_shared_effect_changes(participant.boss_effects, boss_effect_lists, boss_effects_before)
+        if pattern_damage > 0:
+            dealt_damage = min(participant.hp, pattern_damage)
+            participant.hp = max(0, participant.hp - pattern_damage)
+            pattern_heal = self._apply_boss_life_steal(
+                session,
+                boss_stats,
+                self.service._effects_with_stacks(participant.boss_effects, participant.boss_stack_effects),
+                dealt_damage,
+            )
+            self._apply_boss_stack_event(participant, "damage", pattern_damage)
+            self._apply_boss_stack_event(participant, "hits", hit_damages=pattern_hit_damages)
+            heal_text = f", {pattern_heal} 흡수" if pattern_heal > 0 else ""
+            self._add_boss_received_damage_detail(
+                participant,
+                action=action_name,
+                source=failure_pattern.name,
+                summary=f"{warning.name} 실패, {failure_effect_name} {pattern_damage} 피해{heal_text}",
+                total_damage=pattern_damage,
+                hit_damages=pattern_hit_damages or [pattern_damage],
+                detail_lines=self._boss_pattern_damage_detail_lines(failure_pattern, pattern_hit_damages, pattern_damage),
+            )
+            session.log.append(
+                f"{participant.display_name}: {warning.name} 실패, "
+                f"{failure_effect_name} {pattern_damage} 피해{heal_text}"
+            )
+        else:
+            session.log.append(f"{participant.display_name}: {warning.name} 실패, {failure_effect_name} 발동")
+        participant.pending_warning = None
+        self._advance_ct(session, participant, resolved_ct_warning)
+        if participant.hp <= 0:
+            participant.alive = False
+            self._check_boss_party_failed(session)
+            return True, "전조 실패로 전투 불능이 되었습니다."
+        self._finish_boss_turn(session, participant, profile)
+        self._check_boss_party_failed(session)
+        return True, f"{warning.name} 전조 실패 효과가 발동했습니다."
+
     def _prepare_visible_warning(self, session: BossSession, participant: BossParticipant, profile: PlayerProfile | None = None) -> None:
         if participant.pending_warning is not None or session.completed or session.failed:
             return
+        if participant.suppress_warning_activation:
+            return
+        if self._trigger_due_hp_effect(session, participant, profile):
+            self._check_boss_party_failed(session)
+            if participant.hp <= 0 or session.failed:
+                return
         self._queue_due_hp_warnings(session, participant, profile)
         self._queue_ct_warning(session, participant, profile)
         self._activate_next_warning(session, participant)
+
+    def _trigger_due_hp_effect(
+        self,
+        session: BossSession,
+        participant: BossParticipant,
+        profile: PlayerProfile | None = None,
+    ) -> bool:
+        if not session.boss.hp_effects or session.completed or session.failed or not participant.alive:
+            return False
+        ratio = self._boss_hp_ratio(session)
+        due = [
+            (idx, effect)
+            for idx, effect in enumerate(session.boss.hp_effects)
+            if idx not in participant.triggered_hp_effects and ratio <= effect.threshold
+        ]
+        if not due:
+            return False
+        _selected_idx, selected = min(due, key=lambda row: (row[1].threshold, row[0]))
+        for idx, _effect in due:
+            participant.triggered_hp_effects.add(idx)
+        self._apply_hp_instant_effect(session, participant, profile, selected.pattern)
+        return True
+
+    def _apply_hp_instant_effect(
+        self,
+        session: BossSession,
+        participant: BossParticipant,
+        profile: PlayerProfile | None,
+        pattern: BossPattern,
+    ) -> None:
+        if profile is None:
+            profile = self.service.get_profile(participant.user_id, participant.display_name)
+        boss_base = self.service._enemy_stats(session.boss.stats)
+        player_base = self.service.profile_stats(profile)
+        boss_stats = self.service._stats_with_effects(boss_base, participant.boss_effects, participant.boss_stack_effects)
+        player_stats = self.service._stats_with_effects(player_base, participant.player_effects, participant.player_stack_effects)
+        boss_effect_lists = self._boss_effect_lists(session)
+        boss_stack_lists = self._boss_stack_lists(session)
+        boss_effects_before = self._effect_snapshot(participant.boss_effects)
+        player_effect_lists = [
+            member.player_effects
+            for member in session.participants.values()
+            if member.alive
+        ]
+        player_stack_lists = [
+            member.player_stack_effects
+            for member in session.participants.values()
+            if member.alive
+        ]
+        hit_damages: list[int] = []
+        damage = self.service._use_boss_pattern(
+            pattern,
+            boss_stats,
+            player_stats,
+            session.boss_hp,
+            participant.hp,
+            participant.player_effects,
+            participant.boss_effects,
+            ally_effects=boss_effect_lists,
+            opponent_effects=player_effect_lists,
+            boss_stack_effects=participant.boss_stack_effects,
+            player_stack_effects=participant.player_stack_effects,
+            ally_stack_effects=boss_stack_lists,
+            opponent_stack_effects=player_stack_lists,
+            damage_details=hit_damages,
+        )
+        for effects in [*boss_effect_lists, *player_effect_lists]:
+            self._dedupe_effects_by_key(effects)
+        self._sync_shared_effect_changes(participant.boss_effects, boss_effect_lists, boss_effects_before)
+        effect_name = pattern.name or "HP 즉시 효과"
+        if damage > 0:
+            dealt_damage = min(participant.hp, damage)
+            participant.hp = max(0, participant.hp - damage)
+            pattern_heal = self._apply_boss_life_steal(
+                session,
+                boss_stats,
+                self.service._effects_with_stacks(participant.boss_effects, participant.boss_stack_effects),
+                dealt_damage,
+            )
+            self._apply_boss_stack_event(participant, "damage", damage)
+            self._apply_boss_stack_event(participant, "hits", hit_damages=hit_damages)
+            heal_text = f", {pattern_heal} 흡수" if pattern_heal > 0 else ""
+            self._add_boss_received_damage_detail(
+                participant,
+                action="HP 즉시 효과",
+                source=effect_name,
+                summary=f"{effect_name} {damage} 피해{heal_text}",
+                total_damage=damage,
+                hit_damages=hit_damages or [damage],
+                detail_lines=self._boss_pattern_damage_detail_lines(pattern, hit_damages, damage),
+            )
+            session.log.append(f"{participant.display_name}: {effect_name} 즉시 발동, {damage} 피해{heal_text}")
+        else:
+            session.log.append(f"{participant.display_name}: {effect_name} 즉시 발동")
+        if participant.hp <= 0:
+            participant.alive = False
+            session.log.append(f"{participant.display_name}: 전투 불능")
 
     def _queue_due_hp_warnings(self, session: BossSession, participant: BossParticipant, profile: PlayerProfile | None = None) -> None:
         if session.completed or session.failed:
@@ -774,40 +1294,73 @@ class RPGCog(commands.Cog):
 
     def _finish_boss_turn(self, session: BossSession, participant: BossParticipant, profile: PlayerProfile) -> None:
         participant.player_effects = self.service._tick_effects(participant.player_effects)
+        participant.boss_effects = self.service._tick_effects(participant.boss_effects)
         self._tick_ability_cooldowns(participant)
-        self._tick_shared_boss_effects(session)
+        participant.suppress_warning_activation = False
+        if self._trigger_due_hp_effect(session, participant, profile):
+            self._check_boss_party_failed(session)
+            if participant.hp <= 0 or session.failed:
+                return
         self._queue_due_hp_warnings(session, participant, profile)
         self._queue_ct_warning(session, participant, profile)
         self._activate_next_warning(session, participant)
 
     def _hp_warning(self, session: BossSession, idx: int, rule) -> BossWarning:
-        pattern = rule.pattern or self._pattern_for_warning(session, rule.pattern_id)
+        template = rule.warning or self._warning_for_trigger(session, rule.warning_id)
+        pattern = template.pattern or self._pattern_for_warning(session, template.pattern_id)
         return BossWarning(
             source=f"hp:{idx}",
-            name=f"{pattern.name} ({rule.threshold * 100:.0f}%)",
+            name=f"{template.name} ({rule.threshold * 100:.0f}%)",
             pattern=pattern,
-            objective=rule.objective,
-            required=rule.required,
+            objectives=self._warning_objective_progress(template),
             threshold=rule.threshold,
+            remaining_turns=max(1, int(getattr(template, "turns", 1))),
+            failure_variants=list(getattr(template, "failure_variants", [])),
         )
 
     def _ct_warning(self, session: BossSession, profile: PlayerProfile | None = None) -> BossWarning:
         rule = self._current_ct_warning(session)
         if rule is None:
             pattern = session.boss.patterns[0] if session.boss.patterns else BossPattern(0.0, f"{session.boss.name} CT")
-            objective = "hits"
-            required = 1
+            name = pattern.name
+            objectives = [BossWarningObjectiveProgress("hits", 1)]
         else:
-            pattern = rule.pattern or self._pattern_for_warning(session, rule.pattern_id)
-            objective = rule.objective
-            required = rule.required
+            template = rule.warning or self._warning_for_trigger(session, rule.warning_id)
+            pattern = template.pattern or self._pattern_for_warning(session, template.pattern_id)
+            name = template.name
+            objectives = self._warning_objective_progress(template)
         return BossWarning(
             source="ct",
-            name=pattern.name,
+            name=name,
             pattern=pattern,
-            objective=objective,
-            required=required,
+            objectives=objectives,
+            remaining_turns=max(1, int(getattr(template, "turns", 1))) if rule is not None else 1,
+            failure_variants=list(getattr(template, "failure_variants", [])) if rule is not None else [],
         )
+
+    def _warning_for_trigger(self, session: BossSession, warning_id: str):
+        warning = session.boss.warning_by_id.get(warning_id)
+        if warning is not None:
+            return warning
+        pattern = self._pattern_for_warning(session, warning_id)
+        return BossWarningTemplate(
+            id=warning_id,
+            name=pattern.name,
+            pattern_id=pattern.id or warning_id,
+            pattern=pattern,
+            objectives=[],
+        )
+
+    def _warning_objective_progress(self, template) -> list[BossWarningObjectiveProgress]:
+        objectives = getattr(template, "objectives", []) or []
+        return [
+            BossWarningObjectiveProgress(
+                objective=str(objective.objective),
+                required=max(1, int(objective.required)),
+                min_damage=max(0, int(getattr(objective, "min_damage", 0))),
+            )
+            for objective in objectives
+        ] or [BossWarningObjectiveProgress("hits", 1)]
 
     def _pattern_for_warning(self, session: BossSession, pattern_id: str) -> BossPattern:
         pattern = session.boss.pattern_by_id.get(pattern_id)
@@ -832,10 +1385,15 @@ class RPGCog(commands.Cog):
 
     def _current_ct_warning(self, session: BossSession):
         ratio = self._boss_hp_ratio(session)
-        for rule in session.boss.ct_warnings:
-            if ratio >= rule.above:
-                return rule
-        return session.boss.ct_warnings[-1] if session.boss.ct_warnings else None
+        if not session.boss.ct_warnings:
+            return None
+        candidates = [
+            rule for rule in session.boss.ct_warnings
+            if ratio <= rule.above
+        ]
+        if candidates:
+            return min(candidates, key=lambda rule: rule.above)
+        return max(session.boss.ct_warnings, key=lambda rule: rule.above)
 
     def _has_ct_warning(self, participant: BossParticipant) -> bool:
         if participant.pending_warning is not None and participant.pending_warning.source == "ct":
@@ -848,21 +1406,374 @@ class RPGCog(commands.Cog):
             return
         participant.ct = min(self._current_ct_max(session), participant.ct + 1)
 
-    def _clear_ready_ct_warning(self, session: BossSession, participant: BossParticipant) -> bool:
+    def _debuff_effect_count(self, skill: SkillTemplate) -> int:
+        count = sum(
+            1
+            for effect in skill.enemy_stat_effects
+            if float(effect.value) < 0
+        )
+        return count if count > 0 else (1 if any(value < 0 for value in skill.enemy_mods.values()) else 0)
+
+    def _apply_participant_life_steal(
+        self,
+        participant: BossParticipant,
+        stats,
+        dealt_damage: int,
+        damage_segments: list[int] | None = None,
+    ) -> int:
+        segments = damage_segments if damage_segments is not None else ([dealt_damage] if dealt_damage > 0 else [])
+        heal = self.service._life_steal_heal_segments(
+            stats,
+            self.service._effects_with_stacks(participant.player_effects, participant.player_stack_effects),
+            segments,
+            stats.final_hp,
+        )
+        if heal > 0:
+            participant.hp = min(stats.final_hp, participant.hp + heal)
+        return heal
+
+    def _apply_boss_skill_heal(
+        self,
+        session: BossSession,
+        participant: BossParticipant,
+        skill: SkillTemplate,
+        raw_heal: int,
+    ) -> int:
+        if skill.heal_power <= 0 or raw_heal <= 0:
+            return 0
+        targets = [
+            ally for ally in session.participants.values()
+            if ally.alive
+        ] if skill.heal_target == "allies" else [participant]
+        total_heal = 0
+        for target in targets:
+            profile = self.service.get_profile(target.user_id, target.display_name)
+            stats = self.service._stats_with_effects(
+                self.service.profile_stats(profile),
+                target.player_effects,
+                target.player_stack_effects,
+            )
+            heal = self.service._apply_heal_cap(raw_heal, skill.heal_cap, stats.final_hp)
+            if heal <= 0:
+                continue
+            before = target.hp
+            target.hp = min(stats.final_hp, target.hp + heal)
+            total_heal += max(0, target.hp - before)
+        return total_heal
+
+    def _apply_boss_life_steal(
+        self,
+        session: BossSession,
+        stats,
+        effects: list[ActiveEffect],
+        dealt_damage: int,
+        damage_segments: list[int] | None = None,
+    ) -> int:
+        segments = damage_segments if damage_segments is not None else ([dealt_damage] if dealt_damage > 0 else [])
+        heal = self.service._life_steal_heal_segments(
+            stats,
+            effects,
+            segments,
+            stats.final_hp,
+        )
+        if heal > 0:
+            session.boss_hp = min(stats.final_hp, session.boss_hp + heal)
+        return heal
+
+    def _clear_ready_warning(
+        self,
+        session: BossSession,
+        participant: BossParticipant,
+        *,
+        defer_next_warning: bool = False,
+    ) -> bool:
         warning = participant.pending_warning
-        if warning is None or warning.source != "ct" or warning.progress < warning.required:
+        if warning is None or not self._warning_complete(warning):
             return False
-        session.log.append(f"{participant.display_name}: {warning.name} CT 전조 해제")
+        session.log.append(f"{participant.display_name}: {warning.name} 전조 해제")
+        self._apply_warning_stack_event(participant, "warning_success")
         participant.pending_warning = None
-        participant.ct = 0
-        self._activate_next_warning(session, participant)
+        if warning.source == "ct":
+            participant.ct = 0
+        if defer_next_warning:
+            participant.suppress_warning_activation = True
+        else:
+            self._activate_next_warning(session, participant)
         return True
 
     def _add_warning_progress(self, participant: BossParticipant, objective: str, amount: int) -> None:
         warning = participant.pending_warning
-        if warning is None or warning.objective != objective or amount <= 0:
+        if warning is None or amount <= 0:
             return
-        warning.progress = min(warning.required, warning.progress + amount)
+        for progress in warning.objectives:
+            if progress.objective == objective:
+                progress.progress = min(progress.required, progress.progress + amount)
+
+    def _add_warning_hit_progress(self, participant: BossParticipant, hit_damages: list[int]) -> None:
+        warning = participant.pending_warning
+        if warning is None or not hit_damages:
+            return
+        for progress in warning.objectives:
+            if progress.objective != "hits":
+                continue
+            amount = sum(1 for damage in hit_damages if damage >= progress.min_damage)
+            if amount > 0:
+                progress.progress = min(progress.required, progress.progress + amount)
+
+    def _warning_complete(self, warning: BossWarning) -> bool:
+        return all(progress.progress >= progress.required for progress in warning.objectives)
+
+    def _warning_failure_pattern(self, warning: BossWarning, participant: BossParticipant) -> BossPattern:
+        for variant in warning.failure_variants:
+            if self._warning_failure_variant_matches(variant, participant):
+                return variant.pattern
+        return warning.pattern
+
+    def _warning_failure_variant_matches(
+        self,
+        variant: BossWarningFailureVariant,
+        participant: BossParticipant,
+    ) -> bool:
+        if not variant.conditions:
+            return False
+        for condition in variant.conditions:
+            stacks = participant.player_stack_effects if condition.target == "player" else participant.boss_stack_effects
+            current = self._stack_count(stacks, condition.stack_effect_id)
+            if current < condition.min_stacks:
+                return False
+            if condition.max_stacks >= 0 and current > condition.max_stacks:
+                return False
+        return True
+
+    def _stack_count(self, stacks: list[ActiveStackEffect], template_id: str) -> int:
+        for stack in stacks:
+            if stack.template_id == template_id:
+                return max(0, stack.stacks)
+        return 0
+
+    def _boss_pattern_damage_detail_lines(
+        self,
+        pattern: BossPattern,
+        hit_damages: list[int],
+        total_damage: int,
+    ) -> list[str]:
+        lines: list[str] = []
+        if hit_damages:
+            lines.append(f"{pattern.name}: {', '.join(str(damage) for damage in hit_damages)}")
+        hit_total = sum(hit_damages)
+        plain_damage = max(0, total_damage - hit_total)
+        if plain_damage > 0:
+            lines.append(f"무속성 데미지: {plain_damage}")
+        return lines or [f"{pattern.name}: {total_damage}"]
+
+    def _warning_progress_text(self, warning: BossWarning) -> str:
+        if not warning.objectives:
+            return "조건 없음"
+        parts = []
+        for progress in warning.objectives:
+            label = OBJECTIVE_LABELS.get(progress.objective, progress.objective)
+            if progress.objective == "hits" and progress.min_damage > 0:
+                label = f"{progress.min_damage} 데미지 이상의 타수"
+            parts.append(f"{label} {progress.progress}/{progress.required}")
+        parts.append(f"남은 턴 {warning.remaining_turns}")
+        return " · ".join(parts)
+
+    def _warning_display_text(self, warning: BossWarning, participant: BossParticipant | None = None) -> str:
+        failure_pattern = self._warning_failure_pattern(warning, participant) if participant is not None else warning.pattern
+        failure = self._boss_pattern_effect_summary(failure_pattern)
+        variant_text = "" if participant is not None else (
+            f"\n스택 조건부 실패 효과: {len(warning.failure_variants)}개" if warning.failure_variants else ""
+        )
+        return (
+            f"{warning.name}\n"
+            f"조건: {self._warning_progress_text(warning)}\n"
+            f"실패 시: {failure}{variant_text}"
+        )
+
+    def _boss_pattern_effect_summary(self, pattern: BossPattern) -> str:
+        parts: list[str] = []
+        if pattern.damage_multiplier > 0 and pattern.hits > 0:
+            parts.append(f"{pattern.damage_multiplier * 100:.0f}% 데미지 x {pattern.hits}회")
+        plain_damage = getattr(pattern, "plain_damage", None)
+        if plain_damage is not None and plain_damage.has_damage:
+            if plain_damage.mode == "target_max_hp_ratio":
+                parts.append(f"최대 HP {plain_damage.value * 100:.1f}% 무속성 데미지")
+            else:
+                parts.append(f"무속성 데미지 {plain_damage.value:g}")
+        parts.extend(
+            self._pattern_stat_effect_parts(
+                pattern.player_stat_effects,
+                pattern.player_mods,
+                self_label="대상 유저",
+                allies_label="참전자 모두",
+            )
+        )
+        parts.extend(
+            self._pattern_stat_effect_parts(
+                pattern.boss_stat_effects,
+                pattern.boss_mods,
+                self_label="보스",
+                allies_label="보스(참전자 공유)",
+            )
+        )
+        parts.extend(self._pattern_special_effect_parts("대상 유저", "참전자 모두", pattern.player_effects))
+        parts.extend(self._pattern_special_effect_parts("보스", "보스(참전자 공유)", pattern.boss_effects))
+        action_summary = self._boss_pattern_action_summary(pattern.effect_actions)
+        if action_summary:
+            parts.append(action_summary)
+        return " · ".join(parts) if parts else "효과 없음"
+
+    def _pattern_stat_effect_parts(
+        self,
+        effects,
+        legacy_mods: dict[str, float],
+        *,
+        self_label: str,
+        allies_label: str,
+    ) -> list[str]:
+        if not effects:
+            return [f"{self_label} {self.service.format_stats(legacy_mods, signed=True)}"] if legacy_mods else []
+        parts: list[str] = []
+        for effect in effects:
+            if not effect.stat or not effect.value:
+                continue
+            target = allies_label if effect.target == "allies" else self_label
+            stat_text = self.service.format_stats({effect.stat: effect.value}, signed=True)
+            extras = [self._effect_duration_from_raw_text(effect.duration)]
+            cap_text = self.service._heal_cap_summary(effect.heal_cap)
+            if effect.stat == "life_steal" and cap_text:
+                extras.append(f"흡수 상한 {cap_text}")
+            if effect.undispellable:
+                extras.append("소거불가")
+            parts.append(f"{target} {stat_text} ({', '.join(extras)})")
+        return parts
+
+    def _pattern_special_effect_parts(self, self_label: str, allies_label: str, effects) -> list[str]:
+        parts: list[str] = []
+        if effects.flurry is not None:
+            parts.append(
+                self._pattern_special_effect_text(
+                    allies_label if effects.flurry.target == "allies" else self_label,
+                    f"난격 {effects.flurry.count}",
+                    effects.flurry.duration,
+                    effects.flurry.undispellable,
+                )
+            )
+        if effects.double_strike is not None:
+            parts.append(
+                self._pattern_special_effect_text(
+                    allies_label if effects.double_strike.target == "allies" else self_label,
+                    f"재행동 {effects.double_strike.count}회",
+                    effects.double_strike.duration,
+                    effects.double_strike.undispellable,
+                )
+            )
+        for bonus in effects.bonus_damage:
+            parts.append(
+                self._pattern_special_effect_text(
+                    allies_label if bonus.target == "allies" else self_label,
+                    f"추격 {bonus.ratio * 100:.0f}%",
+                    bonus.duration,
+                    bonus.undispellable,
+                )
+            )
+        for reinforce in effects.critical_reinforce:
+            parts.append(
+                self._pattern_special_effect_text(
+                    allies_label if reinforce.target == "allies" else self_label,
+                    f"크리 리인포스 {reinforce.ratio * 100:.0f}%",
+                    reinforce.duration,
+                    reinforce.undispellable,
+                )
+            )
+        for final_effect in effects.final_damage:
+            parts.append(
+                self._pattern_special_effect_text(
+                    allies_label if final_effect.target == "allies" else self_label,
+                    f"최종 데미지 {self.service._signed_effect_ratio_text(final_effect.ratio)}",
+                    final_effect.duration,
+                    final_effect.undispellable,
+                )
+            )
+        for post_attack in effects.post_attack_ability_damage:
+            parts.append(
+                self._pattern_special_effect_text(
+                    allies_label if post_attack.target == "allies" else self_label,
+                    f"공격 후 어빌 피해 {post_attack.ratio * 100:.0f}% {post_attack.count}타",
+                    post_attack.duration,
+                    post_attack.undispellable,
+                )
+            )
+        for guard in effects.dispel_guard:
+            parts.append(
+                self._pattern_guard_effect_text(
+                    allies_label if guard.target == "allies" else self_label,
+                    "디스펠 가드",
+                    guard.duration,
+                    guard.count,
+                    guard.undispellable,
+                )
+            )
+        for veil in effects.veil:
+            parts.append(
+                self._pattern_guard_effect_text(
+                    allies_label if veil.target == "allies" else self_label,
+                    "마운트",
+                    veil.duration,
+                    veil.count,
+                    veil.undispellable,
+                )
+            )
+        return parts
+
+    def _pattern_special_effect_text(self, target_label: str, text: str, duration: int, undispellable: bool) -> str:
+        extras = [self._effect_duration_from_raw_text(duration)]
+        if undispellable:
+            extras.append("소거불가")
+        return f"{target_label} {text} ({', '.join(extras)})"
+
+    def _pattern_guard_effect_text(self, target_label: str, text: str, duration: int, count: int, undispellable: bool) -> str:
+        extras = [f"{count}회" if count > 0 else self._effect_duration_from_raw_text(duration)]
+        if undispellable:
+            extras.append("소거불가")
+        return f"{target_label} {text} ({', '.join(extras)})"
+
+    def _effect_duration_from_raw_text(self, duration: int) -> str:
+        if duration < 0:
+            return "무한"
+        return f"{max(1, int(duration))}턴"
+
+    def _boss_pattern_action_summary(self, actions) -> str:
+        labels = {
+            "dispel": "디스펠",
+            "clear_all": "클리어 올",
+            "stack_increase": "스택 증가",
+            "stack_decrease": "스택 감소",
+            "stack_set": "스택 지정",
+            "stack_remove": "스택 제거",
+            "stack_max": "스택 최대",
+        }
+        targets = {
+            "self": "보스",
+            "me": "보스",
+            "enemy": "대상 유저",
+            "ally": "보스",
+            "allies": "보스(참전자 공유)",
+            "opponent": "대상 유저",
+            "opponents": "참전자 모두",
+            "enemies": "참전자 모두",
+        }
+        parts = []
+        for action in actions:
+            label = labels.get(action.action, action.action)
+            target = targets.get(action.target, action.target)
+            if action.action.startswith("stack_"):
+                value = "" if action.action in {"stack_remove", "stack_max"} else f" {action.value}"
+                parts.append(f"{label}({target}, {action.stack_effect_id}{value})")
+            else:
+                count = f" x{action.count}" if action.count > 1 else ""
+                parts.append(f"{label}({target}{count})")
+        return ", ".join(parts)
 
     def _tick_ability_cooldowns(self, participant: BossParticipant) -> None:
         participant.ability_cooldowns = {
@@ -870,6 +1781,20 @@ class RPGCog(commands.Cog):
             for skill_id, turns in participant.ability_cooldowns.items()
             if turns - 1 > 0
         }
+
+    def _ability_state_text(self, participant: BossParticipant, skill: SkillTemplate, *, cooldown_prefix: bool = False) -> str:
+        if self._ability_used_out(participant, skill):
+            return "사용 완료"
+        cooldown = participant.ability_cooldowns.get(skill.id, 0)
+        uses_left = self._ability_uses_left(participant, skill)
+        parts: list[str] = []
+        if cooldown > 0:
+            parts.append(f"쿨 {cooldown}턴" if cooldown_prefix else f"{cooldown}턴")
+        if uses_left is not None:
+            parts.append(f"{uses_left}회 남음")
+        if parts:
+            return " · ".join(parts)
+        return "사용 가능" if cooldown_prefix else "가능"
 
     def _grant_boss_session_rewards(self, session: BossSession) -> None:
         if session.rewards:
@@ -881,9 +1806,22 @@ class RPGCog(commands.Cog):
                 participant.user_id,
                 participant.display_name,
                 session.boss.id,
+                victory=True,
             )
+            self._add_session_reward_materials(session, reward.materials)
             session.rewards[participant.user_id] = self._reward_text(reward).replace("\n", ", ")
         session.log.append("보스 클리어 보상 지급")
+
+    def _grant_boss_session_failure_rewards(self, session: BossSession) -> None:
+        if session.rewards:
+            return
+        for participant in session.participants.values():
+            session.rewards[participant.user_id] = "보상 없음"
+        session.log.append("보스 패배: 보상 없음")
+
+    def _add_session_reward_materials(self, session: BossSession, materials: dict[str, int]) -> None:
+        for material_id, amount in materials.items():
+            session.reward_materials[material_id] = session.reward_materials.get(material_id, 0) + amount
 
     def _check_boss_party_failed(self, session: BossSession) -> None:
         if session.completed:
@@ -891,9 +1829,155 @@ class RPGCog(commands.Cog):
         if session.participants and not any(participant.alive for participant in session.participants.values()):
             session.failed = True
             session.log.append("파티 전멸")
+            self._grant_boss_session_failure_rewards(session)
 
-    def _tick_shared_boss_effects(self, session: BossSession) -> None:
-        session.boss_effects = self.service._tick_effects(session.boss_effects)
+    def _boss_effect_lists(self, session: BossSession) -> list[list[ActiveEffect]]:
+        return [participant.boss_effects for participant in session.participants.values()]
+
+    def _boss_stack_lists(self, session: BossSession) -> list[list[ActiveStackEffect]]:
+        return [participant.boss_stack_effects for participant in session.participants.values()]
+
+    def _apply_player_stack_event(
+        self,
+        participant: BossParticipant,
+        objective: str,
+        amount: int = 0,
+        *,
+        hit_damages: list[int] | None = None,
+    ) -> None:
+        self.service._apply_stack_conditions(
+            participant.player_stack_effects,
+            objective=objective,
+            amount=amount,
+            actor_is_holder=True,
+            hit_damages=hit_damages,
+        )
+        self.service._apply_stack_conditions(
+            participant.boss_stack_effects,
+            objective=objective,
+            amount=amount,
+            actor_is_holder=False,
+            hit_damages=hit_damages,
+        )
+
+    def _apply_boss_stack_event(
+        self,
+        participant: BossParticipant,
+        objective: str,
+        amount: int = 0,
+        *,
+        hit_damages: list[int] | None = None,
+    ) -> None:
+        self.service._apply_stack_conditions(
+            participant.boss_stack_effects,
+            objective=objective,
+            amount=amount,
+            actor_is_holder=True,
+            hit_damages=hit_damages,
+        )
+        self.service._apply_stack_conditions(
+            participant.player_stack_effects,
+            objective=objective,
+            amount=amount,
+            actor_is_holder=False,
+            hit_damages=hit_damages,
+        )
+
+    def _apply_warning_stack_event(self, participant: BossParticipant, objective: str) -> None:
+        self.service._apply_stack_conditions(
+            participant.player_stack_effects,
+            objective=objective,
+            amount=1,
+            actor_is_holder=True,
+        )
+        self.service._apply_stack_conditions(
+            participant.boss_stack_effects,
+            objective=objective,
+            amount=1,
+            actor_is_holder=True,
+        )
+
+    def _effect_snapshot(self, effects: list[ActiveEffect]) -> list[tuple[int, tuple]]:
+        return [(id(effect), self._effect_key(effect)) for effect in effects]
+
+    def _effect_key(self, effect: ActiveEffect) -> tuple:
+        return (
+            effect.source_id,
+            tuple(sorted(effect.mods.items())),
+            effect.special.flurry,
+            effect.special.double_strike,
+            tuple(effect.special.bonus_damage),
+            tuple(effect.special.critical_reinforce),
+            tuple(effect.special.final_damage),
+            tuple(effect.special.post_attack_ability_damage),
+            tuple(effect.special.dispel_guard),
+            tuple(effect.special.veil),
+            effect.undispellable,
+            effect.heal_cap,
+        )
+
+    def _copy_effect(self, effect: ActiveEffect) -> ActiveEffect:
+        return ActiveEffect(
+            effect.turns,
+            dict(effect.mods),
+            effect.source_id,
+            effect.special,
+            effect.undispellable,
+            effect.heal_cap,
+        )
+
+    def _sync_shared_effect_changes(
+        self,
+        source: list[ActiveEffect],
+        targets: list[list[ActiveEffect]],
+        before: list[tuple[int, tuple]],
+    ) -> None:
+        before_ids = {identity for identity, _key in before}
+        after_ids = {id(effect) for effect in source}
+        removed_keys = [key for identity, key in before if identity not in after_ids]
+        added_effects = [effect for effect in source if id(effect) not in before_ids]
+        for target in targets:
+            if target is source:
+                continue
+            for key in removed_keys:
+                self._remove_latest_effect_by_key(target, key)
+            for effect in added_effects:
+                if not any(self._effect_key(existing) == self._effect_key(effect) for existing in target):
+                    target.append(self._copy_effect(effect))
+            self._dedupe_effects_by_key(target)
+
+    def _dedupe_effects_by_key(self, effects: list[ActiveEffect]) -> None:
+        seen: dict[tuple, int] = {}
+        deduped: list[ActiveEffect] = []
+        for effect in effects:
+            key = self._effect_key(effect)
+            existing_index = seen.get(key)
+            if existing_index is None:
+                seen[key] = len(deduped)
+                deduped.append(effect)
+                continue
+            existing = deduped[existing_index]
+            turns = self._merged_effect_turns(existing.turns, effect.turns)
+            deduped[existing_index] = ActiveEffect(
+                turns,
+                dict(existing.mods),
+                existing.source_id,
+                existing.special,
+                existing.undispellable,
+                existing.heal_cap,
+            )
+        effects[:] = deduped
+
+    def _merged_effect_turns(self, left: int, right: int) -> int:
+        if left < 0 or right < 0:
+            return -1
+        return max(left, right)
+
+    def _remove_latest_effect_by_key(self, effects: list[ActiveEffect], key: tuple) -> None:
+        for index in range(len(effects) - 1, -1, -1):
+            if self._effect_key(effects[index]) == key:
+                effects.pop(index)
+                return
 
     def _profile_embed(self, profile: PlayerProfile) -> discord.Embed:
         progress, required = self.service.level_progress(profile)
@@ -909,7 +1993,7 @@ class RPGCog(commands.Cog):
             name="성장",
             value=(
                 f"Lv. **{profile.level}** · EXP **{progress}/{required}**\n"
-                f"총 EXP {profile.exp} · 골드 {profile.gold}G · 스탯 포인트 {profile.stat_points}"
+                f"총 EXP {profile.exp} · 골드 {profile.gold}G"
             ),
             inline=False,
         )
@@ -974,6 +2058,40 @@ class RPGCog(commands.Cog):
         )
         return embed
 
+    def _explore_batch_embed(self, result: ExploreBatchResult) -> discord.Embed:
+        if not result.ok:
+            embed = discord.Embed(title="일괄 탐색 실패", description=result.message, color=0xED4245)
+            embed.set_footer(text=f"탐색 제한 {self._explore_limit_text(result.profile)}")
+            return embed
+        assert result.dungeon is not None
+        wins = sum(1 for row in result.results if row.battle and row.battle.won)
+        losses = len(result.results) - wins
+        embed = discord.Embed(
+            title=f"{result.dungeon.name} 일괄 탐색",
+            description=f"{result.message}\n결과: **{wins}승 {losses}패**",
+            color=0x57F287 if losses == 0 else 0xFFB84D,
+        )
+        encounter_counts: dict[str, int] = {}
+        rare_count = 0
+        total_turns = 0
+        for row in result.results:
+            if row.enemy is not None:
+                encounter_counts[row.enemy.name] = encounter_counts.get(row.enemy.name, 0) + 1
+                if row.enemy.rare:
+                    rare_count += 1
+            if row.battle is not None:
+                total_turns += row.battle.turns
+        encounter_text = ", ".join(f"{name} x{amount}" for name, amount in encounter_counts.items()) or "없음"
+        embed.add_field(
+            name="전투",
+            value=f"{len(result.results)}회 · 총 {total_turns}턴 · 희귀 조우 {rare_count}회",
+            inline=False,
+        )
+        embed.add_field(name="조우", value=self._trim(encounter_text, 1024), inline=False)
+        embed.add_field(name="합산 보상", value=self._explore_batch_reward_text(result.results), inline=False)
+        embed.set_footer(text=f"탐색 제한 {self._explore_limit_text(result.profile)}")
+        return embed
+
     def _exploration_panel_embed(self, profile: PlayerProfile, selected_dungeon_id: str | None = None) -> discord.Embed:
         selected = next((dungeon for dungeon in self.service.dungeons() if dungeon.id == selected_dungeon_id), None)
         embed = discord.Embed(
@@ -995,7 +2113,7 @@ class RPGCog(commands.Cog):
         for enemy in selected.enemies:
             marker = "희귀" if enemy.rare else "일반"
             enemy_lines.append(
-                f"`{marker}` **{enemy.name}** · {self.service.reward_summary(enemy.rewards)}"
+                f"`{marker}` **{enemy.name}** · {self.service.reward_summary(enemy.rewards, base_gold=enemy.gold, base_exp=enemy.exp)}"
             )
         gate = "입장 가능" if profile.level >= selected.level_req else f"Lv.{selected.level_req} 필요"
         embed.add_field(
@@ -1008,7 +2126,7 @@ class RPGCog(commands.Cog):
             inline=False,
         )
         embed.add_field(name="출현 몬스터", value=self._trim("\n".join(enemy_lines), 1000), inline=False)
-        embed.set_footer(text="탐색 버튼을 누르면 이 메시지가 결과로 갱신됩니다.")
+        embed.set_footer(text="탐색 버튼을 누르면 이 메시지가 결과로 갱신됩니다. 7회 탐색은 남은 제한 안에서 진행됩니다.")
         return embed
 
     def _boss_embed(self, result: BossResult) -> discord.Embed:
@@ -1051,40 +2169,18 @@ class RPGCog(commands.Cog):
             ),
             inline=False,
         )
-        if self._has_visible_effects(session.boss_effects):
+        if session.participants:
+            participant_lines = [
+                self._participant_public_summary_text(participant, ct_max)
+                for participant in session.participants.values()
+            ]
             embed.add_field(
-                name="보스 버프/디버프",
-                value=self._effects_text(session.boss_effects, limit=900),
+                name=f"참가자 {len(session.participants)}명",
+                value=self._trim("\n".join(participant_lines), 1200),
                 inline=False,
             )
-        participant_lines = []
-        for participant in session.participants.values():
-            state = "전투 불능" if not participant.alive else f"HP {participant.hp}/{participant.max_hp}"
-            warning = "전조 없음"
-            if participant.pending_warning is not None:
-                remaining = max(0, participant.pending_warning.required - participant.pending_warning.progress)
-                warning = (
-                    f"{participant.pending_warning.name} · "
-                    f"{OBJECTIVE_LABELS[participant.pending_warning.objective]} "
-                    f"{participant.pending_warning.progress}/{participant.pending_warning.required}"
-                    f" · 남은 {remaining}"
-                )
-            cooldowns = ", ".join(f"{skill_id}:{turns}" for skill_id, turns in participant.ability_cooldowns.items()) or "없음"
-            queued = len(participant.queued_warnings)
-            participant_ct = min(participant.ct, ct_max)
-            effect_line = ""
-            if self._has_visible_effects(participant.player_effects):
-                effect_line = f"\n효과: {self._effects_text(participant.player_effects, limit=360, compact=True)}"
-            participant_lines.append(
-                f"**{participant.display_name}** · {state} · CT {participant_ct}/{ct_max}\n"
-                f"전조: {warning} · 대기 {queued} · 쿨: {cooldowns}"
-                f"{effect_line}"
-            )
-        embed.add_field(
-            name=f"참가자 {len(session.participants)}명",
-            value=self._trim("\n\n".join(participant_lines), 1800) if participant_lines else "없음",
-            inline=False,
-        )
+        else:
+            embed.add_field(name="참가자", value="없음", inline=False)
         if session.rewards:
             reward_lines = [
                 f"**{session.participants[user_id].display_name}**: {text}"
@@ -1094,8 +2190,95 @@ class RPGCog(commands.Cog):
             embed.add_field(name="보상", value=self._trim("\n".join(reward_lines), 1000), inline=False)
         if session.log:
             embed.add_field(name="로그", value=self._trim("\n".join(session.log[-8:]), 1200), inline=False)
-        embed.set_footer(text="어빌리티는 턴을 쓰지 않습니다. 공격/가드가 턴을 진행하고 전조를 판정합니다.")
+        embed.set_footer(text="공격/가드/어빌리티는 개인 패널에서 조작합니다.")
         return embed
+
+    def _participant_public_summary_text(self, participant: BossParticipant, ct_max: int) -> str:
+        state = "전투 불능" if not participant.alive else f"HP {participant.hp}/{participant.max_hp}"
+        participant_ct = min(participant.ct, ct_max)
+        if participant.pending_warning is not None:
+            warning = f"전조 {participant.pending_warning.name}"
+        elif participant.queued_warnings:
+            warning = f"전조 대기 {len(participant.queued_warnings)}"
+        else:
+            warning = "전조 없음"
+        return f"**{participant.display_name}** · {state} · CT {participant_ct}/{ct_max} · {warning}"
+
+    def _participant_status_text(
+        self,
+        participant: BossParticipant,
+        *,
+        include_cooldowns: bool = True,
+    ) -> str:
+        state = "전투 불능" if not participant.alive else f"HP {participant.hp}/{participant.max_hp}"
+        lines = [f"상태: {state}"]
+        if include_cooldowns:
+            cooldowns = self._participant_ability_cooldown_text(participant, multiline=True)
+            lines.append(f"어빌리티 쿨\n{cooldowns}")
+        if self._has_visible_effects(participant.player_effects):
+            lines.append(
+                "버프/디버프\n"
+                + self._effects_text(participant.player_effects, limit=520, compact=False)
+            )
+        player_stacks = self._stack_effects_text(participant.player_stack_effects)
+        if player_stacks:
+            lines.append("스택\n" + player_stacks)
+        return self._trim("\n\n".join(lines), 1000)
+
+    def _participant_boss_state_text(self, participant: BossParticipant, ct_max: int) -> str:
+        participant_ct = min(participant.ct, ct_max)
+        lines = [f"CT: {participant_ct}/{ct_max}"]
+        if participant.pending_warning is not None:
+            lines.append("전조\n" + self._warning_display_text(participant.pending_warning, participant))
+        else:
+            lines.append("전조: 없음")
+        if participant.queued_warnings:
+            lines.append(f"대기 전조: {len(participant.queued_warnings)}개")
+        boss_stacks = self._stack_effects_text(participant.boss_stack_effects)
+        if boss_stacks:
+            lines.append("보스 스택\n" + boss_stacks)
+        return "\n\n".join(lines)
+
+    def _stack_effects_text(self, stacks: list[ActiveStackEffect]) -> str:
+        parts = []
+        for stack in stacks:
+            template = STACK_EFFECT_BY_ID.get(stack.template_id)
+            if template is None:
+                continue
+            parts.append(f"{template.name} {stack.stacks}/{template.max_stacks}")
+        return ", ".join(parts)
+
+    def _boss_shared_effects_text(self, session: BossSession, *, limit: int) -> str:
+        participants = [participant for participant in session.participants.values() if participant.alive]
+        if not participants:
+            participants = list(session.participants.values())
+        visible = [
+            (
+                participant.display_name,
+                self._effects_text(participant.boss_effects, limit=420, compact=False),
+            )
+            for participant in participants
+            if self._has_visible_effects(participant.boss_effects)
+        ]
+        if not visible:
+            return "없음"
+        unique_texts = {text for _, text in visible}
+        if len(unique_texts) == 1:
+            return self._trim(next(iter(unique_texts)), limit)
+        lines = [f"**{name} 기준**\n{text}" for name, text in visible]
+        return self._trim("\n\n".join(lines), limit)
+
+    def _participant_ability_cooldown_text(self, participant: BossParticipant, *, multiline: bool = False) -> str:
+        profile = self.service.get_profile(participant.user_id, participant.display_name)
+        skills = self.service.equipped_skills(profile)
+        if not skills:
+            return "없음"
+        parts = []
+        for skill in skills[:MAX_EQUIPPED_SKILLS]:
+            state = self._ability_state_text(participant, skill)
+            prefix = "- " if multiline else ""
+            parts.append(f"{prefix}{skill.name}: {state}")
+        return "\n".join(parts) if multiline else ", ".join(parts)
 
     def _hp_bar(self, current: int, maximum: int, *, width: int = 18) -> str:
         maximum = max(1, maximum)
@@ -1110,44 +2293,285 @@ class RPGCog(commands.Cog):
         message: str | None = None,
     ) -> discord.Embed:
         embed = discord.Embed(
-            title=f"{session.boss.name} 어빌리티",
-            description=message or "사용할 어빌리티를 누르세요. 어빌리티는 턴을 소모하지 않습니다.",
+            title=f"{session.boss.name} 개인 전투 패널",
+            description=message or "내 상태를 확인하고 어빌리티를 사용할 수 있습니다. 어빌리티는 턴을 소모하지 않습니다.",
             color=0xB56BFF,
         )
-        if participant.pending_warning is not None:
-            warning = participant.pending_warning
+        ct_max = self._current_ct_max(session)
+        embed.add_field(
+            name="보스",
+            value=self._trim(
+                "\n\n".join(
+                    [
+                        f"{self._hp_bar(session.boss_hp, session.boss_max_hp)}\n"
+                        f"**{session.boss_hp}/{session.boss_max_hp}**",
+                        self._participant_boss_state_text(participant, ct_max),
+                        "버프/디버프\n" + self._boss_shared_effects_text(session, limit=520),
+                    ]
+                ),
+                1000,
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name="내 상태",
+            value=self._participant_status_text(
+                participant,
+                include_cooldowns=False,
+            ),
+            inline=False,
+        )
+        lines = []
+        for skill in skills:
+            state = self._ability_state_text(participant, skill, cooldown_prefix=True)
+            lines.append(f"**{skill.name}** · {state}\n{self.service.skill_summary(skill)}")
+        embed.add_field(
+            name="장착 어빌리티",
+            value=self._trim("\n\n".join(lines), 1200) if lines else "없음",
+            inline=False,
+        )
+        return embed
+
+    def _boss_damage_detail_embed(
+        self,
+        session: BossSession,
+        participant: BossParticipant | None,
+    ) -> discord.Embed:
+        embed = discord.Embed(
+            title=f"{session.boss.name} 딜 상세",
+            color=0xFEE75C,
+        )
+        if participant is None:
+            embed.description = "이 보스전에 참가하지 않았습니다."
+            return embed
+        detail = participant.last_damage_detail
+        if detail is None:
+            embed.description = "아직 표시할 피해 기록이 없습니다. 공격하거나 피해 어빌리티를 사용하면 여기에 갱신됩니다."
+            return embed
+        embed.description = f"최근 행동: **{detail.action}**"
+        if detail.total_damage > 0:
             embed.add_field(
-                name="개인 전조",
-                value=(
-                    f"**{warning.name}**\n"
-                    f"{OBJECTIVE_LABELS[warning.objective]} {warning.progress}/{warning.required} · "
-                    f"남은 {max(0, warning.required - warning.progress)}"
+                name=f"준 피해 → {detail.target}",
+                value=self._damage_summary_text(
+                    detail.total_damage,
+                    detail.hit_damages,
+                    ability_damage=detail.ability_damage,
                 ),
                 inline=False,
             )
-        else:
-            embed.add_field(name="개인 전조", value="없음", inline=False)
-        if participant.queued_warnings:
-            embed.add_field(name="대기 전조", value=f"{len(participant.queued_warnings)}개", inline=True)
-        if self._has_visible_effects(participant.player_effects):
+            embed.add_field(name="준 피해 로그", value=detail.summary, inline=False)
             embed.add_field(
-                name="내 버프/디버프",
-                value=self._effects_text(participant.player_effects, limit=900),
+                name="준 피해 상세",
+                value=self._damage_catalog_text(detail.detail_lines, detail.hit_damages, limit=950),
                 inline=False,
             )
-        if self._has_visible_effects(session.boss_effects):
+        if detail.received_damage > 0:
+            source = detail.received_source or "상대"
             embed.add_field(
-                name="보스 버프/디버프",
-                value=self._effects_text(session.boss_effects, limit=900),
+                name=f"받은 피해 ← {source}",
+                value=self._damage_summary_text(detail.received_damage, detail.received_hit_damages),
                 inline=False,
             )
-        lines = []
-        for skill in skills:
-            cooldown = participant.ability_cooldowns.get(skill.id, 0)
-            state = f"쿨 {cooldown}턴" if cooldown > 0 else "사용 가능"
-            lines.append(f"**{skill.name}** · {state}\n{self.service.skill_summary(skill)}")
-        embed.add_field(name="장착 어빌리티", value=self._trim("\n\n".join(lines), 1200), inline=False)
+            if detail.received_summary:
+                embed.add_field(name="받은 피해 로그", value=detail.received_summary, inline=False)
+            embed.add_field(
+                name="받은 피해 상세",
+                value=self._damage_catalog_text(detail.received_detail_lines, detail.received_hit_damages, limit=950),
+                inline=False,
+            )
         return embed
+
+    def _damage_summary_text(
+        self,
+        total_damage: int,
+        damages: list[int],
+        *,
+        ability_damage: int = 0,
+    ) -> str:
+        hits = len(damages)
+        average = total_damage / max(1, hits)
+        summary = [
+            f"총 피해 **{total_damage}**",
+            f"타수 **{hits}**",
+            f"평균 **{average:.1f}**",
+        ]
+        if damages:
+            summary.append(f"최대 **{max(damages)}**")
+            summary.append(f"최소 **{min(damages)}**")
+        if ability_damage:
+            summary.append(f"추가 어빌 피해 **{ability_damage}**")
+        return " · ".join(summary)
+
+    def _damage_catalog_text(self, lines: list[str], damages: list[int], *, limit: int) -> str:
+        if not lines:
+            return self._damage_hits_text(damages, limit=limit)
+        output: list[str] = []
+        for index, line in enumerate(lines):
+            next_text = "\n".join([*output, line])
+            if len(next_text) > limit:
+                output.append(f"... 외 {len(lines) - index}줄")
+                break
+            output.append(line)
+        return "\n".join(output) if output else "피해 타격 없음"
+
+    def _damage_hits_text(self, damages: list[int], *, limit: int) -> str:
+        if not damages:
+            return "피해 타격 없음"
+        lines = []
+        for start in range(0, len(damages), 10):
+            chunk = damages[start:start + 10]
+            line = f"{start + 1:02d}-{start + len(chunk):02d}: " + ", ".join(str(damage) for damage in chunk)
+            next_text = "\n".join([*lines, line])
+            if len(next_text) > limit:
+                lines.append(f"... 외 {len(damages) - start}타")
+                break
+            lines.append(line)
+        return "\n".join(lines)
+
+    def _set_boss_damage_detail(
+        self,
+        participant: BossParticipant,
+        *,
+        action: str,
+        target: str,
+        summary: str,
+        total_damage: int,
+        hit_damages: list[int],
+        ability_damage: int = 0,
+        detail_lines: list[str] | None = None,
+    ) -> None:
+        if total_damage <= 0 or not hit_damages:
+            return
+        participant.last_damage_detail = BossDamageDetail(
+            action=action,
+            target=target,
+            summary=summary,
+            total_damage=total_damage,
+            hit_damages=list(hit_damages),
+            ability_damage=ability_damage,
+            detail_lines=list(detail_lines or []),
+        )
+
+    def _add_boss_received_damage_detail(
+        self,
+        participant: BossParticipant,
+        *,
+        action: str,
+        source: str,
+        summary: str,
+        total_damage: int,
+        hit_damages: list[int],
+        detail_lines: list[str] | None = None,
+    ) -> None:
+        if total_damage <= 0 or not hit_damages:
+            return
+        detail = participant.last_damage_detail
+        if detail is None or detail.action != action:
+            detail = BossDamageDetail(
+                action=action,
+                target="",
+                summary="",
+                total_damage=0,
+                hit_damages=[],
+            )
+            participant.last_damage_detail = detail
+        detail.received_damage = total_damage
+        detail.received_hit_damages = list(hit_damages)
+        detail.received_detail_lines = list(detail_lines or [])
+        detail.received_summary = summary
+        detail.received_source = source
+
+    async def _refresh_boss_damage_detail_message(self, session: BossSession, user_id: int) -> None:
+        message = self._boss_damage_detail_messages.get((session.id, user_id))
+        if message is None:
+            return
+        participant = session.participants.get(user_id)
+        try:
+            await message.edit(embed=self._boss_damage_detail_embed(session, participant))
+        except discord.HTTPException:
+            self._boss_damage_detail_messages.pop((session.id, user_id), None)
+
+    async def _refresh_boss_public_message(self, session: BossSession) -> None:
+        if session.message is None:
+            return
+        try:
+            await session.message.edit(
+                embed=self._boss_session_embed(session),
+                view=BossSessionView(self, session),
+            )
+            await self._sync_material_reactions(session.message, session.reward_materials, session.message.guild)
+        except discord.HTTPException:
+            session.message = None
+
+    async def _sync_material_reactions(
+        self,
+        message: discord.Message,
+        materials: dict[str, int],
+        guild: discord.Guild | None,
+    ) -> None:
+        configured = self._material_reaction_emojis(
+            {
+                material.id: 1
+                for material in MATERIALS
+                if material.emoji
+            },
+            guild,
+        )
+        desired = self._material_reaction_emojis(materials, guild)
+        bot_user = self.bot.user
+        if bot_user is None:
+            return
+        for emoji in configured:
+            try:
+                await message.remove_reaction(emoji, bot_user)
+            except (discord.HTTPException, TypeError, ValueError):
+                pass
+        for emoji in desired:
+            try:
+                await message.add_reaction(emoji)
+            except (discord.HTTPException, TypeError, ValueError):
+                pass
+
+    def _material_reaction_emojis(
+        self,
+        materials: dict[str, int],
+        guild: discord.Guild | None,
+    ) -> list[str | discord.Emoji | discord.PartialEmoji]:
+        emojis: list[str | discord.Emoji | discord.PartialEmoji] = []
+        seen: set[str] = set()
+        for material_id, amount in materials.items():
+            if amount <= 0:
+                continue
+            material = MATERIAL_BY_ID.get(material_id)
+            emoji = self._resolve_material_emoji(material.emoji if material is not None else "", guild)
+            if emoji is None:
+                continue
+            key = str(emoji)
+            if key in seen:
+                continue
+            seen.add(key)
+            emojis.append(emoji)
+        return emojis
+
+    def _resolve_material_emoji(
+        self,
+        raw_emoji: str,
+        guild: discord.Guild | None,
+    ) -> str | discord.Emoji | discord.PartialEmoji | None:
+        raw_emoji = raw_emoji.strip()
+        if not raw_emoji:
+            return None
+        if raw_emoji.startswith("<") and raw_emoji.endswith(">"):
+            try:
+                return discord.PartialEmoji.from_str(raw_emoji)
+            except (TypeError, ValueError):
+                return None
+        if raw_emoji.startswith(":") and raw_emoji.endswith(":") and len(raw_emoji) > 2:
+            name = raw_emoji.strip(":")
+            if guild is None:
+                return None
+            return discord.utils.get(guild.emojis, name=name)
+        return raw_emoji
 
     def _battle_result_embed(
         self,
@@ -1183,18 +2607,13 @@ class RPGCog(commands.Cog):
         selected_uids: list[int] | None = None,
         result: EquipmentResult | None = None,
     ) -> discord.Embed:
-        description = result.message if result is not None else "아래 메뉴에서 장비를 고른 뒤 장착/해제하세요."
+        description = result.message if result is not None else "아래 메뉴에서 장비를 선택하면 바로 장착 상태가 저장됩니다."
         equipped = self.service.equipped_items(profile)
         equipped_ids = {item.uid for item in equipped}
-        selected_uids = selected_uids if selected_uids is not None else list(profile.equipped_item_uids)
-        selected_item_pool = [
-            item for item in profile.inventory
-            if item.uid in set(selected_uids) and not item.destroyed and item.template_id in ITEM_BY_ID
-        ]
         embed = discord.Embed(
             title="장비 장착",
             description=description,
-            color=self._items_embed_color(selected_item_pool or equipped),
+            color=self._items_embed_color(equipped),
         )
         slot_lines = []
         for idx in range(MAX_EQUIPPED_ITEMS):
@@ -1209,22 +2628,14 @@ class RPGCog(commands.Cog):
             inline=False,
         )
 
-        selected_items = selected_item_pool
-        if selected_items:
-            lines = [
-                f"{self._item_display_title(item)}\n{self.service.item_stats_text(item)}"
-                for item in selected_items
-            ]
-            embed.add_field(name=f"적용 대기 {len(selected_items)}/{MAX_EQUIPPED_ITEMS}", value=self._trim("\n\n".join(lines), 1600), inline=False)
-        else:
-            display_items = self._equipment_display_items(profile)
-            lines = []
-            for item in display_items[:10]:
-                marker = "장착" if item.uid in equipped_ids else "보유"
-                if item.destroyed:
-                    marker = "파괴"
-                lines.append(f"`{marker}` {self._item_display_title(item)}")
-            embed.add_field(name="보유 장비", value="\n".join(lines) if lines else "장비 없음", inline=False)
+        display_items = self._equipment_display_items(profile)
+        lines = []
+        for item in display_items[:10]:
+            marker = "장착" if item.uid in equipped_ids else "보유"
+            if item.destroyed:
+                marker = "파괴"
+            lines.append(f"`{marker}` {self._item_display_title(item)}")
+        embed.add_field(name="보유 장비", value="\n".join(lines) if lines else "장비 없음", inline=False)
 
         embed.add_field(
             name="현재 전투 스탯",
@@ -1275,7 +2686,57 @@ class RPGCog(commands.Cog):
             color=0xA0A7B4,
         )
         embed.add_field(name="현재 설정", value=", ".join(selected) if selected else "없음", inline=False)
+        candidates = self._auto_sell_candidate_items(profile)
+        if candidates:
+            gold = sum(self.service.item_sell_price(item) for item in candidates)
+            embed.add_field(name="현재 판매 대상", value=f"{len(candidates)}개 · {gold}G", inline=False)
+        else:
+            embed.add_field(name="현재 판매 대상", value="없음", inline=False)
         embed.set_footer(text="자동판매된 장비는 보상 로그에 판매가로 표시됩니다.")
+        return embed
+
+    def _job_advance_embed(
+        self,
+        profile: PlayerProfile,
+        result: JobResult | None = None,
+        *,
+        free_mode: bool = False,
+    ) -> discord.Embed:
+        color = 0x57F287 if result is not None and result.ok else 0xB56BFF
+        if result is not None and not result.ok:
+            color = 0xED4245
+        default_description = "같은 티어의 다른 직업으로 자유전직할 수 있습니다." if free_mode else "전직 가능한 직업을 선택하세요."
+        embed = discord.Embed(
+            title="자유전직" if free_mode else "전직",
+            description=result.message if result is not None else default_description,
+            color=color,
+        )
+        current_job = self.service.current_job(profile)
+        embed.add_field(name="현재 직업", value=f"{current_job.name} · T{current_job.tier}", inline=True)
+        available = self.service.free_advance_jobs(profile) if free_mode else self.service.available_jobs(profile)
+        if available:
+            lines = [
+                f"**{job.name}** · Lv.{job.level_req}+ · {self.service.format_stats(job.stats, signed=True)}"
+                for job in available
+            ]
+            embed.add_field(name="자유전직 가능" if free_mode else "전직 가능", value=self._trim("\n".join(lines), 1000), inline=False)
+        elif free_mode:
+            embed.add_field(name="자유전직 가능", value="같은 티어에서 전직 가능한 다른 직업이 없습니다.", inline=False)
+        else:
+            next_jobs = self.service.next_jobs(profile)
+            if next_jobs:
+                lines = [f"**{job.name}** · Lv.{job.level_req} 필요" for job in next_jobs]
+                embed.add_field(name="다음 전직", value="\n".join(lines), inline=False)
+            else:
+                embed.add_field(name="전직 가능", value="없음", inline=False)
+        embed.add_field(name="전투 스탯", value=self.service.format_stats(self.service.profile_stats(profile)), inline=False)
+        skills = self.service.unlocked_skills(profile)
+        if skills:
+            embed.add_field(
+                name="사용 가능한 스킬",
+                value=self._trim("\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in skills), 1000),
+                inline=False,
+            )
         return embed
 
     def _ability_embed(
@@ -1293,11 +2754,11 @@ class RPGCog(commands.Cog):
         )
         embed = discord.Embed(
             title="어빌리티 장착",
-            description=result.message if result is not None else "사용할 어빌리티를 최대 3개까지 선택하세요.",
+            description=result.message if result is not None else "사용할 어빌리티를 선택하면 바로 저장됩니다.",
             color=0xB56BFF,
         )
         embed.add_field(
-            name=f"장착 어빌리티 {len(equipped)}/3",
+            name=f"장착 어빌리티 {len(equipped)}/{MAX_EQUIPPED_SKILLS}",
             value="\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in equipped) if equipped else "없음",
             inline=False,
         )
@@ -1353,17 +2814,19 @@ class RPGCog(commands.Cog):
             description=result.message if result is not None else f"보유 골드 {profile.gold}G",
             color=0xFFB84D,
         )
-        craftable = [recipe for recipe in recipes if self.service.can_craft(profile, recipe)]
-        if craftable:
-            lines = [
-                f"**{recipe.name}** · {self.service.recipe_status_text(profile, recipe)}\n"
-                f"{self.service.recipe_result_text(recipe)}\n"
-                f"비용 {recipe.gold}G · {self.service.material_cost_text(profile, recipe.materials)}"
-                for recipe in craftable[:5]
-            ]
-            embed.add_field(name=f"제작 가능 {len(craftable)}개", value=self._trim("\n\n".join(lines), 2200), inline=False)
+        if recipes:
+            lines = []
+            for recipe in recipes[:20]:
+                template = ITEM_BY_ID.get(recipe.result_item_id)
+                rarity = RARITY_LABELS.get(template.rarity, template.rarity) if template is not None else "오류"
+                status = "가능" if self.service.can_craft(profile, recipe) else "부족"
+                marker = "▶ " if recipe.id == selected_recipe_id else ""
+                lines.append(f"{marker}`{status}` [{rarity}] {recipe.name}")
+            if len(recipes) > 20:
+                lines.append(f"외 {len(recipes) - 20}개")
+            embed.add_field(name=f"제작 목록 {len(recipes)}개", value="\n".join(lines), inline=False)
         else:
-            embed.add_field(name="제작 가능", value="현재 제작 가능한 장비가 없습니다.", inline=False)
+            embed.add_field(name="제작 목록", value="제작법이 없습니다.", inline=False)
 
         if result is not None and result.item is not None:
             embed.add_field(
@@ -1389,18 +2852,109 @@ class RPGCog(commands.Cog):
                 value=self.service.material_cost_text(profile, selected.materials),
                 inline=False,
             )
-        elif recipes:
-            embed.add_field(name="선택 제작", value="제작법을 선택하세요.", inline=False)
-
         material_summary = self._material_summary(profile, limit=8)
         embed.add_field(name="보유 재료", value=material_summary or "보유 재료 없음", inline=False)
         return embed
 
+    def _gacha_embed(self, result: GachaResult) -> discord.Embed:
+        color = 0x57F287 if result.ok else 0xED4245
+        if result.items:
+            color = self._items_embed_color(result.items)
+        title = result.pool.name if result.pool is not None else "가챠"
+        embed = discord.Embed(title=title, description=result.message, color=color)
+        if result.spent_material_id:
+            remaining = result.profile.materials.get(result.spent_material_id, 0)
+            embed.add_field(
+                name="사용 재료",
+                value=f"{self.service.material_name(result.spent_material_id)} x{result.spent_material_amount}",
+                inline=True,
+            )
+            embed.add_field(
+                name="보유 재료",
+                value=f"{self.service.material_name(result.spent_material_id)} x{remaining}",
+                inline=True,
+            )
+        if result.items:
+            lines = [
+                f"{self._item_display_title(item)} · {self.service.item_stats_text(item)}"
+                for item in result.items
+            ]
+            embed.add_field(name=f"획득 장비 {len(result.items)}개", value=self._trim("\n".join(lines), 1800), inline=False)
+        if result.auto_sold_items:
+            embed.add_field(
+                name=f"자동판매 {len(result.auto_sold_items)}개",
+                value=f"{result.auto_sold_gold}G",
+                inline=True,
+            )
+        if result.materials:
+            material_lines = [
+                f"{self.service.material_name(material_id)} x{amount}"
+                for material_id, amount in result.materials.items()
+            ]
+            embed.add_field(name="획득 재료", value=", ".join(material_lines), inline=False)
+        if result.ok:
+            embed.set_footer(text="자동판매 대상 장비는 즉시 판매되고 골드로 지급됩니다.")
+        return embed
+
+    def _gacha_panel_embed(self, profile: PlayerProfile, selected_pool_id: str | None = None) -> discord.Embed:
+        pool = self._gacha_selected_pool(selected_pool_id)
+        if pool is None:
+            return discord.Embed(
+                title="가챠",
+                description="사용할 수 있는 가챠 풀이 없습니다.",
+                color=0xED4245,
+        )
+        owned = profile.materials.get(pool.cost_material_id, 0)
+        default_cost = self.service.gacha_cost(pool, pool.draws)
+        affordable = any(
+            owned >= self.service.gacha_cost(pool, count)
+            for count in self._gacha_draw_options(pool)
+        )
+        embed = discord.Embed(
+            title=pool.name,
+            description=pool.description or "가챠 풀을 선택하고 버튼으로 계속 뽑을 수 있습니다.",
+            color=0x57F287 if affordable else 0xFFB84D,
+        )
+        embed.add_field(
+            name="기본 소모",
+            value=f"{pool.draws}회 · {self.service.material_name(pool.cost_material_id)} x{default_cost}",
+            inline=True,
+        )
+        embed.add_field(
+            name="보유 재료",
+            value=f"{self.service.material_name(pool.cost_material_id)} x{owned}",
+            inline=True,
+        )
+        costs = [
+            f"{count}회 {self.service.gacha_cost(pool, count)}"
+            for count in self._gacha_draw_options(pool)
+        ]
+        embed.add_field(name="버튼별 소모", value=" · ".join(costs), inline=False)
+        if not affordable:
+            embed.set_footer(text="재료가 부족하면 버튼이 비활성화됩니다.")
+        else:
+            embed.set_footer(text="버튼을 누르면 같은 패널에서 결과가 갱신됩니다.")
+        return embed
+
+    def _gacha_draw_options(self, pool) -> list[int]:
+        return list(dict.fromkeys([1, int(pool.draws), 50, 100]))
+
+    def _gacha_selected_pool(self, selected_pool_id: str | None = None):
+        pools = self.service.gacha_pools()
+        pool_id = selected_pool_id or GACHA_DEFAULT_POOL_ID
+        if pool_id:
+            selected = next((pool for pool in pools if pool.id == pool_id), None)
+            if selected is not None:
+                return selected
+        return pools[0] if pools else None
+
     def _enhancement_picker_embed(self, profile: PlayerProfile) -> discord.Embed:
         display_items = self._enhancement_display_items(profile)
+        enhance_count = len([item for item in profile.inventory if not item.destroyed and item.template_id in ITEM_BY_ID])
+        trace_count = len([item for item in profile.inventory if item.destroyed and item.template_id in ITEM_BY_ID])
         embed = discord.Embed(
             title="장비 강화",
-            description="아래 선택 메뉴에서 강화할 장비를 고르세요. 선택하면 비용, 확률, 증가 스탯이 표시됩니다.",
+            description="아래 선택 메뉴에서 강화할 장비를 고르세요.",
             color=self._items_embed_color(display_items),
         )
         equipped_ids = {item.uid for item in self.service.equipped_items(profile)}
@@ -1408,9 +2962,11 @@ class RPGCog(commands.Cog):
         for item in display_items:
             marker = "장착" if item.uid in equipped_ids else "보유"
             lines.append(f"`{marker}` {self._item_display_title(item)}")
-        embed.add_field(name="장비", value="\n".join(lines), inline=False)
+        embed.add_field(name="장비", value="\n".join(lines) if lines else "강화할 장비 없음", inline=False)
+        if trace_count:
+            embed.add_field(name="파괴 흔적", value=f"{trace_count}개 · 아래 `흔적 복구` 버튼에서 복구할 수 있습니다.", inline=False)
         footer = f"보유 골드 {profile.gold}G"
-        if len(profile.inventory) > len(display_items):
+        if enhance_count > len(display_items):
             footer += " · 선택 UI는 높은 등급과 전투력 기준 25개만 표시"
         embed.set_footer(text=footer)
         return embed
@@ -1424,6 +2980,9 @@ class RPGCog(commands.Cog):
             return embed
         embed.add_field(name="장비", value=self._item_display_title(preview.item), inline=False)
         embed.add_field(name="현재 스탯", value=self.service.format_stats(preview.before_stats, signed=True), inline=False)
+        effect_text = self.service.item_template_effects_text(preview.item.template_id)
+        if effect_text:
+            embed.add_field(name="영속 효과", value=self._trim(effect_text, 1024), inline=False)
         if preview.ok:
             success, fail, destroy = preview.odds
             embed.add_field(name="증가 스탯", value=self.service.format_stats(preview.delta_stats, signed=True), inline=False)
@@ -1437,16 +2996,80 @@ class RPGCog(commands.Cog):
         embed.set_footer(text=f"보유 골드 {preview.profile.gold}G")
         return embed
 
-    def _enhance_result_embed(self, result: EnhancementResult) -> discord.Embed:
+    def _restore_preview_embed(self, preview: EnhancementPreview) -> discord.Embed:
+        color = 0xFFB84D
+        if preview.item is not None and preview.item.template_id in ITEM_BY_ID:
+            color = RARITY_COLORS[ITEM_BY_ID[preview.item.template_id].rarity]
+        embed = discord.Embed(title="장비 복구", description=preview.message, color=color)
+        if preview.item is None:
+            return embed
+        embed.add_field(name="복구 대상", value=self._item_display_title(preview.item), inline=False)
+        embed.add_field(
+            name="복구 성급",
+            value=f"+{preview.before_stars} 흔적 → +{preview.after_stars}",
+            inline=True,
+        )
+        embed.add_field(name="복구 비용", value=f"{preview.cost}G", inline=True)
+        if preview.spare_item is not None:
+            embed.add_field(name="소모 스페어", value=self._item_display_title(preview.spare_item), inline=True)
+        else:
+            embed.add_field(name="소모 스페어", value="같은 장비 1개 필요", inline=True)
+        if preview.after_stats:
+            embed.add_field(name="복구 후 스탯", value=self.service.format_stats(preview.after_stats, signed=True), inline=False)
+        effect_text = self.service.item_template_effects_text(preview.item.template_id)
+        if effect_text:
+            embed.add_field(name="영속 효과", value=self._trim(effect_text, 1024), inline=False)
+        embed.set_footer(text=f"보유 골드 {preview.profile.gold}G")
+        return embed
+
+    def _restore_panel_embed(
+        self,
+        user_id: int,
+        display_name: str,
+        selected_trace_uid: int | None = None,
+        selected_spare_uid: int | None = None,
+        result: EnhancementResult | None = None,
+    ) -> discord.Embed:
+        profile = self.service.get_profile(user_id, display_name)
+        if result is not None:
+            embed = self._enhance_result_embed(result)
+            embed.title = "장비 복구"
+            return embed
+        trace = self._profile_item(profile, selected_trace_uid)
+        if trace is not None and trace.destroyed:
+            return self._restore_preview_embed(
+                self.service.restore_preview(user_id, display_name, trace.uid, selected_spare_uid)
+            )
+        traces = self._restore_trace_display_items(profile)
+        embed = discord.Embed(
+            title="장비 복구",
+            description="복구할 파괴 흔적을 선택하세요. 다음 단계에서 소모할 같은 장비 스페어를 고를 수 있습니다.",
+            color=self._items_embed_color(traces),
+        )
+        lines = [f"`흔적` {self._item_display_title(item)}" for item in traces[:10]]
+        embed.add_field(name="파괴 흔적", value="\n".join(lines) if lines else "복구할 흔적 없음", inline=False)
+        embed.set_footer(text=f"보유 골드 {profile.gold}G")
+        return embed
+
+    def _enhance_result_embed(
+        self,
+        result: EnhancementResult,
+        next_preview: EnhancementPreview | None = None,
+    ) -> discord.Embed:
         color = 0x57F287 if result.ok else 0xED4245
         if result.item is not None and result.item.template_id in ITEM_BY_ID:
             color = RARITY_COLORS[ITEM_BY_ID[result.item.template_id].rarity]
         embed = discord.Embed(title="장비 강화", description=result.message, color=color)
         if result.item is not None:
             embed.add_field(name="장비", value=self._item_display_title(result.item), inline=False)
-            embed.add_field(name="스탯", value=self.service.item_stats_text(result.item), inline=False)
+            if result.item.destroyed:
+                embed.add_field(name="흔적 정보", value=f"파괴 당시 +{result.item.stars}", inline=False)
+            else:
+                embed.add_field(name="스탯", value=self.service.item_stats_text(result.item), inline=False)
         if result.cost:
             embed.add_field(name="비용", value=f"{result.cost}G", inline=True)
+        if result.spare_item is not None:
+            embed.add_field(name="소모 스페어", value=self._item_display_title(result.spare_item), inline=True)
         if result.outcome:
             outcome_text = {
                 "success": "성공",
@@ -1454,8 +3077,15 @@ class RPGCog(commands.Cog):
                 "destroyed": "파괴",
                 "restored": "복구",
                 "no_gold": "골드 부족",
+                "no_spare": "스페어 부족",
             }.get(result.outcome, result.outcome)
-            embed.add_field(name="결과", value=f"{outcome_text} · +{result.before_stars} → +{result.after_stars}", inline=True)
+            if result.outcome == "destroyed":
+                result_text = f"{outcome_text} · +{result.before_stars} 흔적 생성"
+            elif result.outcome == "restored":
+                result_text = f"{outcome_text} · +{result.before_stars} 흔적 → +{result.after_stars}"
+            else:
+                result_text = f"{outcome_text} · +{result.before_stars} → +{result.after_stars}"
+            embed.add_field(name="결과", value=result_text, inline=True)
         if result.odds != (0.0, 0.0, 0.0):
             success, fail, destroy = result.odds
             embed.add_field(
@@ -1463,6 +3093,24 @@ class RPGCog(commands.Cog):
                 value=f"성공 {success * 100:.1f}% · 실패 {fail * 100:.1f}% · 파괴 {destroy * 100:.1f}%",
                 inline=False,
             )
+        if next_preview is not None and next_preview.item is not None:
+            if next_preview.ok:
+                success, fail, destroy = next_preview.odds
+                embed.add_field(
+                    name="다음 강화",
+                    value=(
+                        f"비용 {next_preview.cost}G\n"
+                        f"성공 {success * 100:.1f}% · 실패 {fail * 100:.1f}% · 파괴 {destroy * 100:.1f}%"
+                    ),
+                    inline=False,
+                )
+                embed.add_field(
+                    name="다음 증가 스탯",
+                    value=self.service.format_stats(next_preview.delta_stats, signed=True),
+                    inline=False,
+                )
+            else:
+                embed.add_field(name="다음 강화", value=next_preview.message, inline=False)
         embed.set_footer(text=f"보유 골드 {result.profile.gold}G")
         return embed
 
@@ -1476,8 +3124,6 @@ class RPGCog(commands.Cog):
             parts.append(f"{reward.gold}G")
         if reward.exp:
             parts.append(f"{reward.exp}EXP")
-        if reward.stat_points:
-            parts.append(f"스탯 포인트 {reward.stat_points}")
         if reward.levels_gained:
             parts.append(f"레벨업 +{reward.levels_gained}")
         dropped_items = getattr(reward, "dropped_items", [])
@@ -1500,38 +3146,107 @@ class RPGCog(commands.Cog):
             return "보상 없음"
         return "\n".join(parts)
 
+    def _explore_batch_reward_text(self, results: list[ExploreResult]) -> str:
+        gold = 0
+        exp = 0
+        levels = 0
+        dropped_items = []
+        auto_sold_items = []
+        auto_sold_gold = 0
+        materials: dict[str, int] = {}
+        consolation_count = 0
+        for result in results:
+            reward = result.reward
+            if reward is None:
+                continue
+            if reward.consolation:
+                consolation_count += 1
+            gold += reward.gold
+            exp += reward.exp
+            levels += reward.levels_gained
+            dropped_items.extend(getattr(reward, "dropped_items", []))
+            auto_sold_items.extend(getattr(reward, "auto_sold_items", []))
+            auto_sold_gold += reward.auto_sold_gold
+            for material_id, amount in getattr(reward, "materials", {}).items():
+                materials[material_id] = materials.get(material_id, 0) + amount
+
+        parts = []
+        if consolation_count:
+            parts.append(f"패배 보상 {consolation_count}회")
+        if gold:
+            parts.append(f"{gold}G")
+        if exp:
+            parts.append(f"{exp}EXP")
+        if levels:
+            parts.append(f"레벨업 +{levels}")
+        if materials:
+            parts.append(
+                "재료: "
+                + ", ".join(
+                    f"{self.service.material_name(material_id)} x{amount}"
+                    for material_id, amount in materials.items()
+                )
+            )
+        if dropped_items:
+            preview = ", ".join(self.service.item_title(item) for item in dropped_items[:6])
+            suffix = f" 외 {len(dropped_items) - 6}개" if len(dropped_items) > 6 else ""
+            parts.append(f"드랍 {len(dropped_items)}개: {preview}{suffix}")
+        if auto_sold_items:
+            parts.append(f"자동판매 {len(auto_sold_items)}개 · {auto_sold_gold}G")
+        return self._trim("\n".join(parts), 1024) if parts else "보상 없음"
+
     def _has_visible_effects(self, effects: list[ActiveEffect]) -> bool:
-        return any(effect.turns > 0 and effect.mods for effect in effects)
+        return any(self.service._effect_active(effect) and (effect.mods or effect.special.has_any) for effect in effects)
 
     def _effects_text(self, effects: list[ActiveEffect], *, limit: int, compact: bool = False) -> str:
-        active = [effect for effect in effects if effect.turns > 0 and effect.mods]
+        active = [
+            effect for effect in effects
+            if self.service._effect_active(effect) and (effect.mods or effect.special.has_any)
+        ]
         if not active:
             return "없음"
         lines = []
         for effect in active:
-            kind = self._effect_kind(effect)
-            source = self._effect_source_name(effect)
-            stats = self.service.format_stats(effect.mods, signed=True)
+            stats = self._effect_value_text(effect)
+            turns = self._effect_turns_text(effect)
             if compact:
-                lines.append(f"{kind} {source}({stats}, {effect.turns}턴)")
+                lines.append(f"{stats}({turns})")
             else:
-                lines.append(f"`{kind}` **{source}** · {stats} · 남은 {effect.turns}턴")
+                lines.append(f"{stats} · 남은 {turns}")
         separator = " / " if compact else "\n"
         return self._trim(separator.join(lines), limit)
 
-    def _effect_kind(self, effect: ActiveEffect) -> str:
-        values = [value for value in effect.mods.values() if value]
-        if values and all(value >= 0 for value in values):
-            return "버프"
-        if values and all(value <= 0 for value in values):
-            return "디버프"
-        return "혼합"
+    def _effect_value_text(self, effect: ActiveEffect) -> str:
+        parts = []
+        if effect.mods:
+            parts.append(self.service.format_stats(effect.mods, signed=True))
+            cap_text = self.service._heal_cap_summary(effect.heal_cap)
+            if "life_steal" in effect.mods and cap_text:
+                parts.append(f"회복 상한 {cap_text}")
+        if effect.special.flurry is not None:
+            parts.append(f"난격 {effect.special.flurry.count}")
+        if effect.special.double_strike is not None:
+            parts.append(f"재행동 {effect.special.double_strike.count}회")
+        for bonus in effect.special.bonus_damage:
+            parts.append(f"추격 {bonus.ratio * 100:.0f}%")
+        for reinforce in effect.special.critical_reinforce:
+            parts.append(f"크리 리인포스 {reinforce.ratio * 100:.0f}%")
+        for final_effect in effect.special.final_damage:
+            parts.append(f"최종 데미지 {self.service._signed_effect_ratio_text(final_effect.ratio)}")
+        for post_attack in effect.special.post_attack_ability_damage:
+            parts.append(f"공격 후 어빌 피해 {post_attack.ratio * 100:.0f}% {post_attack.count}타")
+        for guard in effect.special.dispel_guard:
+            suffix = f" {guard.count}회" if guard.count > 0 else ""
+            parts.append(f"디스펠 가드{suffix}")
+        for veil in effect.special.veil:
+            suffix = f" {veil.count}회" if veil.count > 0 else ""
+            parts.append(f"마운트{suffix}")
+        if effect.undispellable:
+            parts.append("소거불가")
+        return ", ".join(parts) if parts else "효과"
 
-    def _effect_source_name(self, effect: ActiveEffect) -> str:
-        if effect.source_id.startswith("boss:"):
-            return effect.source_id.removeprefix("boss:")
-        skill = next((candidate for candidate in SKILLS if candidate.id == effect.source_id), None)
-        return skill.name if skill is not None else effect.source_id
+    def _effect_turns_text(self, effect: ActiveEffect) -> str:
+        return "무한" if effect.turns < 0 else f"{effect.turns}턴"
 
     def _rarity_emoji(self, rarity: str) -> str:
         return RARITY_EMOJIS.get(rarity, "▫️")
@@ -1552,14 +3267,18 @@ class RPGCog(commands.Cog):
         template = ITEM_BY_ID[item.template_id]
         label = RARITY_LABELS.get(template.rarity, template.rarity)
         marker = self._rarity_emoji(template.rarity)
-        destroyed = " 파괴됨" if item.destroyed else ""
-        return f"{marker} [{label}] #{item.uid} {template.name} +{item.stars}{destroyed}"
+        destroyed = " 흔적" if item.destroyed else ""
+        return f"{marker} [{label}] {template.name} +{item.stars}{destroyed}"
 
     def _item_select_label(self, item) -> str:
         template = ITEM_BY_ID[item.template_id]
         label = RARITY_LABELS.get(template.rarity, template.rarity)
-        destroyed = " 파괴" if item.destroyed else ""
-        return f"[{label}] #{item.uid} {template.name} +{item.stars}{destroyed}"[:100]
+        destroyed = " 흔적" if item.destroyed else ""
+        return f"[{label}] {template.name} +{item.stars}{destroyed}"[:100]
+
+    def _item_option_description(self, marker: str, item, *extra: str) -> str:
+        bits = [marker, *extra, self.service.item_stats_text(item)]
+        return " · ".join(bit.replace("\n", " · ") for bit in bits if bit)[:100]
 
     def _items_embed_color(self, items) -> int:
         valid_items = [item for item in items if item.template_id in ITEM_BY_ID]
@@ -1650,12 +3369,33 @@ class RPGCog(commands.Cog):
             ),
         )[:25]
 
+    def _auto_sell_candidate_items(self, profile: PlayerProfile):
+        if not profile.auto_sell_rarities:
+            return []
+        equipped_ids = set(profile.equipped_item_uids)
+        selected = set(profile.auto_sell_rarities)
+        return sorted(
+            [
+                item for item in profile.inventory
+                if item.uid not in equipped_ids
+                and item.template_id in ITEM_BY_ID
+                and ITEM_BY_ID[item.template_id].rarity in selected
+            ],
+            key=lambda item: (
+                RARITIES.index(ITEM_BY_ID[item.template_id].rarity),
+                -self.service.item_score(item),
+                item.uid,
+            ),
+        )
+
     def _enhancement_display_items(self, profile: PlayerProfile):
         equipped_ids = set(profile.equipped_item_uids)
         return sorted(
-            profile.inventory,
+            [
+                item for item in profile.inventory
+                if not item.destroyed and item.template_id in ITEM_BY_ID
+            ],
             key=lambda item: (
-                item.destroyed,
                 -self._item_rarity_rank(item),
                 item.uid not in equipped_ids,
                 -item.stars,
@@ -1663,6 +3403,213 @@ class RPGCog(commands.Cog):
                 item.uid,
             ),
         )[:25]
+
+    def _restore_trace_display_items(self, profile: PlayerProfile):
+        return sorted(
+            [
+                item for item in profile.inventory
+                if item.destroyed and item.template_id in ITEM_BY_ID
+            ],
+            key=lambda item: (
+                -self._item_rarity_rank(item),
+                -item.stars,
+                -self.service.item_score(item),
+                item.uid,
+            ),
+        )[:25]
+
+    def _restore_spare_display_items(self, profile: PlayerProfile, trace):
+        return self.service._restore_spare_candidates(profile, trace)[:25]
+
+
+class JobAdvanceView(discord.ui.View):
+    def __init__(self, cog: RPGCog, user_id: int, display_name: str, *, free_mode: bool = False) -> None:
+        super().__init__(timeout=180)
+        self.cog = cog
+        self.user_id = user_id
+        self.display_name = display_name
+        self.free_mode = free_mode
+        profile = self.cog.service.get_profile(user_id, display_name)
+        jobs = self.cog.service.free_advance_jobs(profile) if free_mode else self.cog.service.available_jobs(profile)
+        options = [
+            discord.SelectOption(
+                label=job.name[:100],
+                value=job.id,
+                description=f"Lv.{job.level_req}+ · {self.cog.service.format_stats(job.stats, signed=True)}"[:100],
+            )
+            for job in jobs[:25]
+        ]
+        if options:
+            self.add_item(JobAdvanceSelect(options))
+        self.add_item(JobAdvanceModeButton(free_mode))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.user_id:
+            return True
+        await interaction.response.send_message("이 전직 UI는 명령을 실행한 사람만 사용할 수 있습니다.", ephemeral=True)
+        return False
+
+
+class JobAdvanceSelect(discord.ui.Select):
+    def __init__(self, options: list[discord.SelectOption]) -> None:
+        super().__init__(
+            placeholder="전직할 직업 선택",
+            min_values=1,
+            max_values=1,
+            options=options,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, JobAdvanceView)
+        result = (
+            self.view.cog.service.free_advance_job(
+                self.view.user_id,
+                self.view.display_name,
+                self.values[0],
+            )
+            if self.view.free_mode
+            else self.view.cog.service.advance_job(
+                self.view.user_id,
+                self.view.display_name,
+                self.values[0],
+            )
+        )
+        next_view = JobAdvanceView(
+            self.view.cog,
+            self.view.user_id,
+            self.view.display_name,
+            free_mode=self.view.free_mode,
+        )
+        await interaction.response.edit_message(
+            embed=self.view.cog._job_advance_embed(result.profile, result, free_mode=self.view.free_mode),
+            view=next_view if next_view.children else None,
+        )
+
+
+class JobAdvanceModeButton(discord.ui.Button):
+    def __init__(self, free_mode: bool) -> None:
+        super().__init__(
+            label="돌아가기" if free_mode else "자유전직",
+            style=discord.ButtonStyle.secondary,
+        )
+        self.next_free_mode = not free_mode
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, JobAdvanceView)
+        profile = self.view.cog.service.get_profile(self.view.user_id, self.view.display_name)
+        next_view = JobAdvanceView(
+            self.view.cog,
+            self.view.user_id,
+            self.view.display_name,
+            free_mode=self.next_free_mode,
+        )
+        await interaction.response.edit_message(
+            embed=self.view.cog._job_advance_embed(profile, free_mode=self.next_free_mode),
+            view=next_view if next_view.children else None,
+        )
+
+
+class GachaView(discord.ui.View):
+    def __init__(
+        self,
+        cog: RPGCog,
+        user_id: int,
+        display_name: str,
+        selected_pool_id: str | None = None,
+    ) -> None:
+        super().__init__(timeout=180)
+        self.cog = cog
+        self.user_id = user_id
+        self.display_name = display_name
+        selected_pool = self.cog._gacha_selected_pool(selected_pool_id)
+        self.selected_pool_id = selected_pool.id if selected_pool is not None else selected_pool_id
+        profile = self.cog.service.get_profile(user_id, display_name)
+        pools = self.cog.service.gacha_pools()[:25]
+        if len(pools) > 1:
+            options = []
+            for pool in pools:
+                owned = profile.materials.get(pool.cost_material_id, 0)
+                options.append(
+                    discord.SelectOption(
+                        label=pool.name[:100],
+                        value=pool.id,
+                        description=(
+                            f"{pool.draws}회 · "
+                            f"{self.cog.service.material_name(pool.cost_material_id)} {owned}/{pool.cost_material_amount}"
+                        )[:100],
+                        default=pool.id == self.selected_pool_id,
+                    )
+                )
+            self.add_item(GachaPoolSelect(options))
+        if selected_pool is not None:
+            for count in self.cog._gacha_draw_options(selected_pool):
+                self.add_item(
+                    GachaRollButton(
+                        selected_pool,
+                        count,
+                        disabled=self._roll_disabled(profile, selected_pool, count),
+                    )
+                )
+        else:
+            self.add_item(GachaRollButton(None, 0, disabled=True))
+
+    def _roll_disabled(self, profile: PlayerProfile, pool, draws: int) -> bool:
+        if pool is None:
+            return True
+        known_material_ids = {material.id for material in self.cog.service.materials()}
+        if pool.cost_material_id not in known_material_ids:
+            return False
+        return profile.materials.get(pool.cost_material_id, 0) < self.cog.service.gacha_cost(pool, draws)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.user_id:
+            return True
+        await interaction.response.send_message("이 가챠 UI는 명령을 실행한 사람만 사용할 수 있습니다.", ephemeral=True)
+        return False
+
+
+class GachaPoolSelect(discord.ui.Select):
+    def __init__(self, options: list[discord.SelectOption]) -> None:
+        super().__init__(
+            placeholder="가챠 풀 선택",
+            min_values=1,
+            max_values=1,
+            options=options,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, GachaView)
+        pool_id = self.values[0]
+        profile = self.view.cog.service.get_profile(self.view.user_id, self.view.display_name)
+        await interaction.response.edit_message(
+            embed=self.view.cog._gacha_panel_embed(profile, pool_id),
+            view=GachaView(self.view.cog, self.view.user_id, self.view.display_name, pool_id),
+        )
+        if interaction.message is not None:
+            await self.view.cog._sync_material_reactions(interaction.message, {}, interaction.guild)
+
+
+class GachaRollButton(discord.ui.Button):
+    def __init__(self, pool, draws: int, *, disabled: bool = False) -> None:
+        self.draws = draws
+        label = f"{draws}회 돌리기" if pool is not None else "가챠"
+        super().__init__(label=label, style=discord.ButtonStyle.primary, disabled=disabled)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, GachaView)
+        result = self.view.cog.service.roll_gacha(
+            self.view.user_id,
+            self.view.display_name,
+            self.view.selected_pool_id,
+            self.draws,
+        )
+        selected_pool_id = result.pool.id if result.pool is not None else self.view.selected_pool_id
+        await interaction.response.edit_message(
+            embed=self.view.cog._gacha_embed(result),
+            view=GachaView(self.view.cog, self.view.user_id, self.view.display_name, selected_pool_id),
+        )
+        if interaction.message is not None:
+            await self.view.cog._sync_material_reactions(interaction.message, result.materials, interaction.guild)
 
 
 class ExplorationView(discord.ui.View):
@@ -1701,6 +3648,7 @@ class ExplorationView(discord.ui.View):
             or (self.cog.service.explore_limit_enabled() and remaining <= 0)
         )
         self.add_item(ExplorationRunButton(disabled=disabled))
+        self.add_item(ExplorationRunManyButton(7, disabled=disabled))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id == self.user_id:
@@ -1759,6 +3707,38 @@ class ExplorationRunButton(discord.ui.Button):
         )
 
 
+class ExplorationRunManyButton(discord.ui.Button):
+    def __init__(self, count: int, *, disabled: bool = False) -> None:
+        self.count = count
+        super().__init__(
+            label=f"{count}회 탐색",
+            style=discord.ButtonStyle.secondary,
+            disabled=disabled,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, ExplorationView)
+        if self.view.selected_dungeon_id is None:
+            await interaction.response.send_message("먼저 던전을 선택하세요.", ephemeral=True)
+            return
+        result = self.view.cog.service.explore_many(
+            self.view.user_id,
+            self.view.display_name,
+            self.view.selected_dungeon_id,
+            self.count,
+        )
+        view = ExplorationView(
+            self.view.cog,
+            self.view.user_id,
+            self.view.display_name,
+            self.view.selected_dungeon_id,
+        )
+        await interaction.response.edit_message(
+            embed=self.view.cog._explore_batch_embed(result),
+            view=view,
+        )
+
+
 class CraftingView(discord.ui.View):
     def __init__(
         self,
@@ -1773,7 +3753,7 @@ class CraftingView(discord.ui.View):
         self.display_name = display_name
         profile = self.cog.service.get_profile(user_id, display_name)
         recipes = self.cog._crafting_display_recipes(profile)
-        self.selected_recipe_id = selected_recipe_id or (recipes[0].id if recipes else None)
+        self.selected_recipe_id = selected_recipe_id
 
         options = []
         for recipe in recipes:
@@ -1850,8 +3830,6 @@ class BossSessionView(discord.ui.View):
             self.add_item(BossJoinButton())
             self.add_item(BossStartButton())
             return
-        self.add_item(BossAttackButton())
-        self.add_item(BossGuardButton())
         self.add_item(BossAbilityMenuButton())
 
     async def _edit(self, interaction: discord.Interaction) -> None:
@@ -1859,6 +3837,12 @@ class BossSessionView(discord.ui.View):
             embed=self.cog._boss_session_embed(self.session),
             view=BossSessionView(self.cog, self.session),
         )
+        if interaction.message is not None:
+            await self.cog._sync_material_reactions(
+                interaction.message,
+                self.session.reward_materials,
+                interaction.guild,
+            )
 
 
 class BossJoinButton(discord.ui.Button):
@@ -1873,9 +3857,13 @@ class BossJoinButton(discord.ui.Button):
             interaction.user.display_name,
         )
         if not ok:
+            if isinstance(self.view, BossAbilityView):
+                await self.view._edit(interaction, message)
+                return
             await interaction.response.send_message(message, ephemeral=True)
             return
         await self.view._edit(interaction)
+        await self.view.cog._refresh_boss_damage_detail_message(self.view.session, interaction.user.id)
 
 
 class BossStartButton(discord.ui.Button):
@@ -1889,45 +3877,78 @@ class BossStartButton(discord.ui.Button):
             await interaction.response.send_message(message, ephemeral=True)
             return
         await self.view._edit(interaction)
+        participant = self.view.session.participants.get(interaction.user.id)
+        if participant is not None:
+            profile = self.view.cog.service.get_profile(interaction.user.id, interaction.user.display_name)
+            skills = self.view.cog.service.equipped_skills(profile)
+            await interaction.followup.send(
+                embed=self.view.cog._boss_ability_embed(self.view.session, participant, skills),
+                view=BossAbilityView(
+                    self.view.cog,
+                    self.view.session,
+                    interaction.user.id,
+                    interaction.user.display_name,
+                    skills,
+                ),
+                ephemeral=True,
+                wait=True,
+            )
 
 
 class BossAttackButton(discord.ui.Button):
-    def __init__(self) -> None:
-        super().__init__(label="공격", style=discord.ButtonStyle.danger)
+    def __init__(self, *, disabled: bool = False, row: int | None = None) -> None:
+        super().__init__(label="공격", style=discord.ButtonStyle.danger, disabled=disabled, row=row)
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        assert isinstance(self.view, BossSessionView)
+        assert isinstance(self.view, BossSessionView | BossAbilityView)
+        user_id = self.view.user_id if isinstance(self.view, BossAbilityView) else interaction.user.id
+        display_name = self.view.display_name if isinstance(self.view, BossAbilityView) else interaction.user.display_name
         ok, message = self.view.cog._boss_attack(
             self.view.session,
-            interaction.user.id,
-            interaction.user.display_name,
+            user_id,
+            display_name,
         )
         if not ok:
+            if isinstance(self.view, BossAbilityView):
+                await self.view._edit(interaction, message)
+                return
             await interaction.response.send_message(message, ephemeral=True)
             return
-        await self.view._edit(interaction)
+        if isinstance(self.view, BossAbilityView):
+            await self.view.cog._refresh_boss_public_message(self.view.session)
+            await self.view._edit(interaction, message)
+        else:
+            await self.view._edit(interaction)
+        await self.view.cog._refresh_boss_damage_detail_message(self.view.session, user_id)
 
 
 class BossGuardButton(discord.ui.Button):
-    def __init__(self) -> None:
-        super().__init__(label="가드", style=discord.ButtonStyle.primary)
+    def __init__(self, *, disabled: bool = False, row: int | None = None) -> None:
+        super().__init__(label="가드", style=discord.ButtonStyle.primary, disabled=disabled, row=row)
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        assert isinstance(self.view, BossSessionView)
+        assert isinstance(self.view, BossSessionView | BossAbilityView)
+        user_id = self.view.user_id if isinstance(self.view, BossAbilityView) else interaction.user.id
+        display_name = self.view.display_name if isinstance(self.view, BossAbilityView) else interaction.user.display_name
         ok, message = self.view.cog._boss_guard(
             self.view.session,
-            interaction.user.id,
-            interaction.user.display_name,
+            user_id,
+            display_name,
         )
         if not ok:
             await interaction.response.send_message(message, ephemeral=True)
             return
-        await self.view._edit(interaction)
+        if isinstance(self.view, BossAbilityView):
+            await self.view.cog._refresh_boss_public_message(self.view.session)
+            await self.view._edit(interaction, message)
+        else:
+            await self.view._edit(interaction)
+        await self.view.cog._refresh_boss_damage_detail_message(self.view.session, user_id)
 
 
 class BossAbilityMenuButton(discord.ui.Button):
     def __init__(self) -> None:
-        super().__init__(label="어빌리티", style=discord.ButtonStyle.secondary)
+        super().__init__(label="개인 패널", style=discord.ButtonStyle.secondary)
 
     async def callback(self, interaction: discord.Interaction) -> None:
         assert isinstance(self.view, BossSessionView)
@@ -1940,11 +3961,7 @@ class BossAbilityMenuButton(discord.ui.Button):
             return
         self.view.session.message = interaction.message
         profile = self.view.cog.service.get_profile(interaction.user.id, interaction.user.display_name)
-        self.view.cog._prepare_visible_warning(self.view.session, participant, profile)
         skills = self.view.cog.service.equipped_skills(profile)
-        if not skills:
-            await interaction.response.send_message("장착한 어빌리티가 없습니다. `/rpg 어빌리티`에서 먼저 장착하세요.", ephemeral=True)
-            return
         await interaction.message.edit(
             embed=self.view.cog._boss_session_embed(self.view.session),
             view=BossSessionView(self.view.cog, self.view.session),
@@ -1953,6 +3970,26 @@ class BossAbilityMenuButton(discord.ui.Button):
             embed=self.view.cog._boss_ability_embed(self.view.session, participant, skills),
             view=BossAbilityView(self.view.cog, self.view.session, interaction.user.id, interaction.user.display_name, skills),
             ephemeral=True,
+        )
+
+
+class BossDamageDetailButton(discord.ui.Button):
+    def __init__(self, *, disabled: bool = False, row: int | None = None) -> None:
+        super().__init__(label="딜 상세", style=discord.ButtonStyle.secondary, disabled=disabled, row=row)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, BossSessionView | BossAbilityView)
+        user_id = self.view.user_id if isinstance(self.view, BossAbilityView) else interaction.user.id
+        participant = self.view.session.participants.get(user_id)
+        if participant is None:
+            await interaction.response.send_message("이 보스전에 참가하지 않았습니다.", ephemeral=True)
+            return
+        await interaction.response.send_message(
+            embed=self.view.cog._boss_damage_detail_embed(self.view.session, participant),
+            ephemeral=True,
+        )
+        self.view.cog._boss_damage_detail_messages[(self.view.session.id, user_id)] = (
+            await interaction.original_response()
         )
 
 
@@ -1970,20 +4007,59 @@ class BossAbilityView(discord.ui.View):
         self.session = session
         self.user_id = user_id
         self.display_name = display_name
-        for skill in skills[:3]:
-            cooldown = session.participants[user_id].ability_cooldowns.get(skill.id, 0)
-            self.add_item(BossAbilityButton(skill, disabled=cooldown > 0))
+        participant = session.participants.get(user_id)
+        controls_disabled = (
+            participant is None
+            or not participant.alive
+            or not session.started
+            or session.completed
+            or session.failed
+        )
+        self.add_item(BossAttackButton(disabled=controls_disabled, row=0))
+        self.add_item(BossGuardButton(disabled=controls_disabled, row=0))
+        self.add_item(BossDamageDetailButton(disabled=participant is None, row=0))
+        for skill in skills[:MAX_EQUIPPED_SKILLS]:
+            cooldown = participant.ability_cooldowns.get(skill.id, 0) if participant is not None else 0
+            used_out = participant is not None and self.cog._ability_used_out(participant, skill)
+            self.add_item(BossAbilityButton(skill, disabled=controls_disabled or cooldown > 0 or used_out, row=1))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id == self.user_id:
             return True
-        await interaction.response.send_message("이 어빌리티 메뉴는 본인만 사용할 수 있습니다.", ephemeral=True)
+        await interaction.response.send_message("이 개인 패널은 본인만 사용할 수 있습니다.", ephemeral=True)
         return False
+
+    async def _edit(self, interaction: discord.Interaction, message: str | None = None) -> None:
+        participant = self.session.participants.get(self.user_id)
+        if participant is None:
+            await interaction.response.edit_message(
+                embed=discord.Embed(
+                    title="개인 전투 패널",
+                    description="이 보스전에 참가하지 않았습니다.",
+                    color=0xED4245,
+                ),
+                view=None,
+            )
+            return
+        profile = self.cog.service.get_profile(self.user_id, self.display_name)
+        skills = self.cog.service.equipped_skills(profile)
+        view = None
+        if self.session.started and not self.session.completed and not self.session.failed and participant.alive:
+            view = BossAbilityView(self.cog, self.session, self.user_id, self.display_name, skills)
+        await interaction.response.edit_message(
+            embed=self.cog._boss_ability_embed(self.session, participant, skills, message),
+            view=view,
+        )
 
 
 class BossAbilityButton(discord.ui.Button):
-    def __init__(self, skill: SkillTemplate, *, disabled: bool = False) -> None:
-        super().__init__(label=skill.name[:80], style=discord.ButtonStyle.secondary, disabled=disabled)
+    def __init__(self, skill: SkillTemplate, *, disabled: bool = False, row: int | None = None) -> None:
+        super().__init__(
+            label=skill.name[:80],
+            style=discord.ButtonStyle.secondary,
+            disabled=disabled,
+            row=row,
+        )
         self.skill = skill
 
     async def callback(self, interaction: discord.Interaction) -> None:
@@ -1994,18 +4070,9 @@ class BossAbilityButton(discord.ui.Button):
             self.view.display_name,
             self.skill.id,
         )
-        profile = self.view.cog.service.get_profile(self.view.user_id, self.view.display_name)
-        skills = self.view.cog.service.equipped_skills(profile)
-        participant = self.view.session.participants[self.view.user_id]
-        if self.view.session.message is not None:
-            await self.view.session.message.edit(
-                embed=self.view.cog._boss_session_embed(self.view.session),
-                view=BossSessionView(self.view.cog, self.view.session),
-            )
-        await interaction.response.edit_message(
-            embed=self.view.cog._boss_ability_embed(self.view.session, participant, skills, message),
-            view=BossAbilityView(self.view.cog, self.view.session, self.view.user_id, self.view.display_name, skills),
-        )
+        await self.view.cog._refresh_boss_public_message(self.view.session)
+        await self.view._edit(interaction, message)
+        await self.view.cog._refresh_boss_damage_detail_message(self.view.session, self.view.user_id)
 
 
 class EquipmentView(discord.ui.View):
@@ -2014,14 +4081,12 @@ class EquipmentView(discord.ui.View):
         cog: RPGCog,
         user_id: int,
         display_name: str,
-        selected_uids: list[int] | None = None,
     ) -> None:
         super().__init__(timeout=180)
         self.cog = cog
         self.user_id = user_id
         self.display_name = display_name
         profile = self.cog.service.get_profile(user_id, display_name)
-        self.selected_uids = selected_uids if selected_uids is not None else list(profile.equipped_item_uids)
 
         options = []
         equipped_ids = {item.uid for item in self.cog.service.equipped_items(profile)}
@@ -2036,14 +4101,13 @@ class EquipmentView(discord.ui.View):
                 discord.SelectOption(
                     label=self.cog._item_select_label(item),
                     value=str(item.uid),
-                    description=f"{marker} · {self.cog.service.item_stats_text(item)}"[:100],
+                    description=self.cog._item_option_description(marker, item),
                     emoji=self.cog._rarity_emoji(template.rarity),
-                    default=item.uid in self.selected_uids,
+                    default=item.uid in profile.equipped_item_uids,
                 )
             )
         if options:
             self.add_item(EquipmentSelect(options))
-        self.add_item(EquipmentApplyButton(disabled=not options))
         self.add_item(EquipmentBestButton(disabled=not options))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -2065,33 +4129,14 @@ class EquipmentSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction) -> None:
         assert isinstance(self.view, EquipmentView)
         uids = [int(value) for value in self.values]
-        profile = self.view.cog.service.get_profile(self.view.user_id, self.view.display_name)
-        view = EquipmentView(self.view.cog, self.view.user_id, self.view.display_name, uids)
-        await interaction.response.edit_message(
-            embed=self.view.cog._equipment_embed(profile, uids),
-            view=view,
-        )
-
-
-class EquipmentApplyButton(discord.ui.Button):
-    def __init__(self, *, disabled: bool = False) -> None:
-        super().__init__(
-            label="장착 적용",
-            style=discord.ButtonStyle.primary,
-            disabled=disabled,
-        )
-
-    async def callback(self, interaction: discord.Interaction) -> None:
-        assert isinstance(self.view, EquipmentView)
         result = self.view.cog.service.set_equipped_items(
             self.view.user_id,
             self.view.display_name,
-            self.view.selected_uids,
+            uids,
         )
-        view = EquipmentView(self.view.cog, self.view.user_id, self.view.display_name, list(result.profile.equipped_item_uids))
         await interaction.response.edit_message(
-            embed=self.view.cog._equipment_embed(result.profile, list(result.profile.equipped_item_uids), result),
-            view=view,
+            embed=self.view.cog._equipment_embed(result.profile, result=result),
+            view=EquipmentView(self.view.cog, self.view.user_id, self.view.display_name),
         )
 
 
@@ -2109,10 +4154,9 @@ class EquipmentBestButton(discord.ui.Button):
             self.view.user_id,
             self.view.display_name,
         )
-        view = EquipmentView(self.view.cog, self.view.user_id, self.view.display_name, list(result.profile.equipped_item_uids))
         await interaction.response.edit_message(
-            embed=self.view.cog._equipment_embed(result.profile, list(result.profile.equipped_item_uids), result),
-            view=view,
+            embed=self.view.cog._equipment_embed(result.profile, result=result),
+            view=EquipmentView(self.view.cog, self.view.user_id, self.view.display_name),
         )
 
 
@@ -2137,7 +4181,7 @@ class SellView(discord.ui.View):
                 continue
             options.append(
                 discord.SelectOption(
-                    label=f"#{item.uid} {template.name} +{item.stars}",
+                    label=f"{template.name} +{item.stars}"[:100],
                     value=str(item.uid),
                     description=f"{RARITY_LABELS[template.rarity]} · {self.cog.service.item_sell_price(item)}G"[:100],
                     default=item.uid in self.selected_uids,
@@ -2209,6 +4253,7 @@ class AutoSellView(discord.ui.View):
             for rarity in RARITIES
         ]
         self.add_item(AutoSellSelect(options))
+        self.add_item(AutoSellBulkButton(disabled=not self.cog._auto_sell_candidate_items(profile)))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id == self.user_id:
@@ -2239,13 +4284,32 @@ class AutoSellSelect(discord.ui.Select):
         )
 
 
+class AutoSellBulkButton(discord.ui.Button):
+    def __init__(self, *, disabled: bool = False) -> None:
+        super().__init__(
+            label="현재 장비 일괄 판매",
+            style=discord.ButtonStyle.danger,
+            disabled=disabled,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, AutoSellView)
+        result = self.view.cog.service.sell_auto_sell_items(
+            self.view.user_id,
+            self.view.display_name,
+        )
+        await interaction.response.edit_message(
+            embed=self.view.cog._auto_sell_embed(result.profile, result),
+            view=AutoSellView(self.view.cog, self.view.user_id, self.view.display_name),
+        )
+
+
 class AbilityEquipView(discord.ui.View):
     def __init__(
         self,
         cog: RPGCog,
         user_id: int,
         display_name: str,
-        selected_skill_ids: list[str] | None = None,
     ) -> None:
         super().__init__(timeout=180)
         self.cog = cog
@@ -2253,19 +4317,17 @@ class AbilityEquipView(discord.ui.View):
         self.display_name = display_name
         profile = self.cog.service.get_profile(user_id, display_name)
         equipped = [skill.id for skill in self.cog.service.equipped_skills(profile)]
-        self.selected_skill_ids = selected_skill_ids if selected_skill_ids is not None else equipped
         options = [
             discord.SelectOption(
                 label=skill.name,
                 value=skill.id,
                 description=self.cog.service.skill_summary(skill)[:100],
-                default=skill.id in self.selected_skill_ids,
+                default=skill.id in equipped,
             )
             for skill in self.cog.service.unlocked_skills(profile)
         ]
         if options:
             self.add_item(AbilityEquipSelect(options))
-        self.add_item(AbilityApplyButton(disabled=not options))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id == self.user_id:
@@ -2279,31 +4341,24 @@ class AbilityEquipSelect(discord.ui.Select):
         super().__init__(
             placeholder="장착할 어빌리티 선택",
             min_values=0,
-            max_values=min(3, len(options)),
+            max_values=min(MAX_EQUIPPED_SKILLS, len(options)),
             options=options,
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
         assert isinstance(self.view, AbilityEquipView)
-        profile = self.view.cog.service.get_profile(self.view.user_id, self.view.display_name)
+        active_session = self.view.cog._active_boss_session_for_user(self.view.user_id, started_only=True)
+        if active_session is not None:
+            await interaction.response.send_message(
+                f"{active_session.boss.name} 보스전 진행 중에는 어빌리티 장착을 바꿀 수 없습니다.",
+                ephemeral=True,
+            )
+            return
         selected = list(self.values)
-        view = AbilityEquipView(self.view.cog, self.view.user_id, self.view.display_name, selected)
-        await interaction.response.edit_message(
-            embed=self.view.cog._ability_embed(profile, selected_skill_ids=selected),
-            view=view,
-        )
-
-
-class AbilityApplyButton(discord.ui.Button):
-    def __init__(self, *, disabled: bool = False) -> None:
-        super().__init__(label="어빌리티 적용", style=discord.ButtonStyle.primary, disabled=disabled)
-
-    async def callback(self, interaction: discord.Interaction) -> None:
-        assert isinstance(self.view, AbilityEquipView)
         result = self.view.cog.service.set_equipped_skills(
             self.view.user_id,
             self.view.display_name,
-            self.view.selected_skill_ids,
+            selected,
         )
         await interaction.response.edit_message(
             embed=self.view.cog._ability_embed(result.profile, result),
@@ -2325,6 +4380,10 @@ class EnhancementView(discord.ui.View):
         self.display_name = display_name
         self.selected_uid = selected_uid
         profile = self.cog.service.get_profile(user_id, display_name)
+        selected_item = self.cog._profile_item(profile, selected_uid)
+        if selected_item is not None and selected_item.destroyed:
+            selected_item = None
+            self.selected_uid = None
         options = []
         equipped_ids = {item.uid for item in self.cog.service.equipped_items(profile)}
         for item in self.cog._enhancement_display_items(profile):
@@ -2332,19 +4391,19 @@ class EnhancementView(discord.ui.View):
             if template is None:
                 continue
             marker = "장착" if item.uid in equipped_ids else "보유"
-            status = "파괴됨" if item.destroyed else self.cog.service.item_stats_text(item)
             options.append(
                 discord.SelectOption(
                     label=self.cog._item_select_label(item),
                     value=str(item.uid),
-                    description=f"{marker} · {status}"[:100],
+                    description=self.cog._item_option_description(marker, item),
                     emoji=self.cog._rarity_emoji(template.rarity),
-                    default=item.uid == selected_uid,
+                    default=item.uid == self.selected_uid,
                 )
             )
         if options:
             self.add_item(EnhancementSelect(options))
-        self.add_item(EnhancementConfirmButton(disabled=selected_uid is None))
+        self.add_item(EnhancementConfirmButton(disabled=selected_item is None))
+        self.add_item(OpenRestoreViewButton(disabled=not self.cog._restore_trace_display_items(profile)))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id == self.user_id:
@@ -2366,13 +4425,10 @@ class EnhancementSelect(discord.ui.Select):
         assert isinstance(self.view, EnhancementView)
         uid = int(self.values[0])
         view = EnhancementView(self.view.cog, self.view.user_id, self.view.display_name, uid)
-        preview = self.view.cog.service.enhancement_preview(
-            self.view.user_id,
-            self.view.display_name,
-            uid,
-        )
         await interaction.response.edit_message(
-            embed=self.view.cog._enhancement_preview_embed(preview),
+            embed=self.view.cog._enhancement_preview_embed(
+                self.view.cog.service.enhancement_preview(self.view.user_id, self.view.display_name, uid)
+            ),
             view=view,
         )
 
@@ -2397,9 +4453,210 @@ class EnhancementConfirmButton(discord.ui.Button):
         )
         selected_uid = result.item.uid if result.item is not None and not result.item.destroyed else None
         view = EnhancementView(self.view.cog, self.view.user_id, self.view.display_name, selected_uid)
+        next_preview = (
+            self.view.cog.service.enhancement_preview(
+                self.view.user_id,
+                self.view.display_name,
+                selected_uid,
+            )
+            if selected_uid is not None
+            else None
+        )
         await interaction.response.edit_message(
-            embed=self.view.cog._enhance_result_embed(result),
+            embed=self.view.cog._enhance_result_embed(result, next_preview),
             view=view,
+        )
+
+
+class OpenRestoreViewButton(discord.ui.Button):
+    def __init__(self, *, disabled: bool = False) -> None:
+        super().__init__(label="흔적 복구", style=discord.ButtonStyle.secondary, disabled=disabled)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, EnhancementView)
+        view = RestoreView(self.view.cog, self.view.user_id, self.view.display_name)
+        await interaction.response.edit_message(
+            embed=self.view.cog._restore_panel_embed(
+                self.view.user_id,
+                self.view.display_name,
+                view.selected_trace_uid,
+                view.selected_spare_uid,
+            ),
+            view=view,
+        )
+
+
+class RestoreView(discord.ui.View):
+    def __init__(
+        self,
+        cog: RPGCog,
+        user_id: int,
+        display_name: str,
+        selected_trace_uid: int | None = None,
+        selected_spare_uid: int | None = None,
+    ) -> None:
+        super().__init__(timeout=180)
+        self.cog = cog
+        self.user_id = user_id
+        self.display_name = display_name
+        profile = self.cog.service.get_profile(user_id, display_name)
+        selected_trace = self.cog._profile_item(profile, selected_trace_uid)
+        if selected_trace is None or not selected_trace.destroyed:
+            selected_trace = None
+        self.selected_trace_uid = selected_trace.uid if selected_trace is not None else None
+
+        trace_items = self.cog._restore_trace_display_items(profile)
+        if selected_trace is not None and all(item.uid != selected_trace.uid for item in trace_items):
+            trace_items = [selected_trace, *trace_items[:24]]
+        trace_options = []
+        for item in trace_items:
+            template = ITEM_BY_ID.get(item.template_id)
+            if template is None:
+                continue
+            trace_options.append(
+                discord.SelectOption(
+                    label=self.cog._item_select_label(item),
+                    value=str(item.uid),
+                    description=f"흔적 · 복구 비용 확인"[:100],
+                    emoji=self.cog._rarity_emoji(template.rarity),
+                    default=item.uid == self.selected_trace_uid,
+                )
+            )
+        if trace_options:
+            self.add_item(RestoreTraceSelect(trace_options))
+
+        spare_items = self.cog._restore_spare_display_items(profile, selected_trace) if selected_trace is not None else []
+        if selected_spare_uid is not None and all(item.uid != selected_spare_uid for item in spare_items):
+            selected_spare_uid = None
+        if selected_spare_uid is None and spare_items:
+            selected_spare_uid = spare_items[0].uid
+        self.selected_spare_uid = selected_spare_uid
+        spare_options = []
+        equipped_ids = set(profile.equipped_item_uids)
+        for item in spare_items:
+            template = ITEM_BY_ID.get(item.template_id)
+            if template is None:
+                continue
+            marker = "장착" if item.uid in equipped_ids else "보유"
+            spare_options.append(
+                discord.SelectOption(
+                    label=self.cog._item_select_label(item),
+                    value=str(item.uid),
+                    description=self.cog._item_option_description(marker, item, "소모됨"),
+                    emoji=self.cog._rarity_emoji(template.rarity),
+                    default=item.uid == self.selected_spare_uid,
+                )
+            )
+        if spare_options:
+            self.add_item(RestoreSpareSelect(spare_options))
+
+        preview = (
+            self.cog.service.restore_preview(user_id, display_name, self.selected_trace_uid, self.selected_spare_uid)
+            if self.selected_trace_uid is not None
+            else None
+        )
+        self.add_item(RestoreConfirmButton(disabled=preview is None or not preview.ok))
+        self.add_item(BackToEnhancementButton())
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.user_id:
+            return True
+        await interaction.response.send_message("이 복구 UI는 명령을 실행한 사람만 사용할 수 있습니다.", ephemeral=True)
+        return False
+
+
+class RestoreTraceSelect(discord.ui.Select):
+    def __init__(self, options: list[discord.SelectOption]) -> None:
+        super().__init__(
+            placeholder="복구할 흔적 선택",
+            min_values=1,
+            max_values=1,
+            options=options,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, RestoreView)
+        trace_uid = int(self.values[0])
+        view = RestoreView(self.view.cog, self.view.user_id, self.view.display_name, trace_uid)
+        await interaction.response.edit_message(
+            embed=self.view.cog._restore_panel_embed(
+                self.view.user_id,
+                self.view.display_name,
+                view.selected_trace_uid,
+                view.selected_spare_uid,
+            ),
+            view=view,
+        )
+
+
+class RestoreSpareSelect(discord.ui.Select):
+    def __init__(self, options: list[discord.SelectOption]) -> None:
+        super().__init__(
+            placeholder="소모할 스페어 선택",
+            min_values=1,
+            max_values=1,
+            options=options,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, RestoreView)
+        spare_uid = int(self.values[0])
+        view = RestoreView(
+            self.view.cog,
+            self.view.user_id,
+            self.view.display_name,
+            self.view.selected_trace_uid,
+            spare_uid,
+        )
+        await interaction.response.edit_message(
+            embed=self.view.cog._restore_panel_embed(
+                self.view.user_id,
+                self.view.display_name,
+                view.selected_trace_uid,
+                view.selected_spare_uid,
+            ),
+            view=view,
+        )
+
+
+class RestoreConfirmButton(discord.ui.Button):
+    def __init__(self, *, disabled: bool = False) -> None:
+        super().__init__(label="복구", style=discord.ButtonStyle.primary, disabled=disabled)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, RestoreView)
+        if self.view.selected_trace_uid is None or self.view.selected_spare_uid is None:
+            await interaction.response.send_message("복구할 흔적과 소모할 스페어를 선택하세요.", ephemeral=True)
+            return
+        result = self.view.cog.service.restore(
+            self.view.user_id,
+            self.view.display_name,
+            self.view.selected_trace_uid,
+            self.view.selected_spare_uid,
+        )
+        view = RestoreView(self.view.cog, self.view.user_id, self.view.display_name)
+        await interaction.response.edit_message(
+            embed=self.view.cog._restore_panel_embed(
+                self.view.user_id,
+                self.view.display_name,
+                view.selected_trace_uid,
+                view.selected_spare_uid,
+                result,
+            ),
+            view=view,
+        )
+
+
+class BackToEnhancementButton(discord.ui.Button):
+    def __init__(self) -> None:
+        super().__init__(label="강화로 돌아가기", style=discord.ButtonStyle.secondary)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, RestoreView)
+        profile = self.view.cog.service.get_profile(self.view.user_id, self.view.display_name)
+        await interaction.response.edit_message(
+            embed=self.view.cog._enhancement_picker_embed(profile),
+            view=EnhancementView(self.view.cog, self.view.user_id, self.view.display_name),
         )
 
 

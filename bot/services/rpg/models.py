@@ -39,17 +39,28 @@ class PlayerProfile:
     base_atk_points: int = 0
     max_hp_points: int = 0
     defense_points: int = 0
+    dmg_supplement_points: int = 0
     base_atk: int = 12
     max_hp: int = 120
     atk: float = 0.0
     defense: float = 0.08
+    defense_ignore: float = 0.0
     garrison: float = 0.0
     strength: float = 0.0
     enmity: float = 0.0
     damage_cut: float = 0.0
     dmg_mitigation: float = 0.0
     dmg_amplification: float = 0.0
+    dmg_supplement: int = 0
+    skill_damage: float = 0.0
+    skill_dmg_supplement: int = 0
     hp_bonus: float = 0.0
+    critical_rate: float = 0.0
+    critical_damage: float = 0.0
+    double_attack_rate: float = 0.0
+    triple_attack_rate: float = 0.0
+    life_steal: float = 0.0
+    life_steal_cap: float = 0.01
     daily_date: str = ""
     daily_explores_used: int = 0
     weekly_boss_clears: dict[str, str] = field(default_factory=dict)
@@ -118,6 +129,11 @@ class PlayerProfile:
         profile.exp = max(0, int(profile.exp))
         profile.gold = max(0, int(profile.gold))
         profile.stat_points = max(0, int(profile.stat_points))
+        profile.dmg_supplement = max(0, min(100, int(profile.dmg_supplement)))
+        profile.skill_dmg_supplement = max(0, min(200, int(profile.skill_dmg_supplement)))
+        profile.defense_ignore = max(0.0, float(profile.defense_ignore))
+        profile.life_steal = max(0.0, float(profile.life_steal))
+        profile.life_steal_cap = max(0.0, float(profile.life_steal_cap))
         profile.daily_explores_used = max(0, int(profile.daily_explores_used))
         profile.equipment_initialized = bool(data.get("equipment_initialized", has_equipment_field))
         profile.equipped_item_uids = list(dict.fromkeys(
@@ -147,12 +163,22 @@ class CombatStats:
     hp_bonus: float = 0.0
     atk: float = 0.0
     defense: float = 0.0
+    defense_ignore: float = 0.0
     garrison: float = 0.0
     strength: float = 0.0
     enmity: float = 0.0
     damage_cut: float = 0.0
     dmg_mitigation: float = 0.0
     dmg_amplification: float = 0.0
+    dmg_supplement: float = 0.0
+    skill_damage: float = 0.0
+    skill_dmg_supplement: float = 0.0
+    critical_rate: float = 0.0
+    critical_damage: float = 0.0
+    double_attack_rate: float = 0.0
+    triple_attack_rate: float = 0.0
+    life_steal: float = 0.0
+    life_steal_cap: float = 0.01
 
     @property
     def final_hp(self) -> int:

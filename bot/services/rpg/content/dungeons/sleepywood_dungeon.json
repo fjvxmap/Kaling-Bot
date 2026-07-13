@@ -1,0 +1,114 @@
+{
+  "id": "sleepywood_dungeon",
+  "name": "슬리피우드 깊은 숲",
+  "level_req": 12,
+  "enemies": [
+    {
+      "id": "evil_eye",
+      "name": "이블아이",
+      "weight": 50,
+      "stats": {
+        "base_atk": 28,
+        "max_hp": 360,
+        "critical_rate": 0.1
+      },
+      "gold": 390,
+      "exp": 330,
+      "description": "동굴 벽 사이에서 기어 나오는 커다란 눈. 이름부터 이미 대화가 통하지 않는다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.6,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 162,
+            "max": 238
+          }
+        ]
+      }
+    },
+    {
+      "id": "curse_eye",
+      "name": "커즈아이",
+      "weight": 35,
+      "stats": {
+        "base_atk": 31,
+        "max_hp": 420,
+        "atk": 0.08,
+        "defense_ignore": 0.05
+      },
+      "gold": 470,
+      "exp": 390,
+      "description": "저주받은 눈. 쳐다보고 있으면 괜히 내가 잘못한 것 같은 기분이 든다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.65,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 0.9,
+            "min": 2,
+            "max": 3
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 190,
+            "max": 262
+          }
+        ]
+      }
+    },
+    {
+      "id": "cold_eye",
+      "name": "콜드아이",
+      "weight": 15,
+      "stats": {
+        "base_atk": 30,
+        "max_hp": 560,
+        "defense": 0.4,
+        "dmg_mitigation": 4
+      },
+      "gold": 650,
+      "exp": 520,
+      "description": "찬 기운을 품은 이블아이. 맞으면 몸보다 기분이 먼저 식는다.",
+      "rare": true,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.22,
+            "rarity": "epic"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1,
+            "min": 3,
+            "max": 5
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 250,
+            "max": 350
+          }
+        ]
+      }
+    }
+  ],
+  "description": "슬리피우드 안쪽으로 이어지는 어두운 숲. 눈 달린 몬스터들이 길목마다 모험가를 노려본다.",
+  "sort_order": 24,
+  "stats": {}
+}

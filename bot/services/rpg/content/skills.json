@@ -1,19 +1,2370 @@
 [
   {
-    "id": "three_snails",
-    "name": "달팽이 세마리",
-    "unlock_level": 1,
-    "uses": 3,
-    "cooldown": 0,
+    "id": "arrow_blow",
+    "name": "애로우 블로우",
+    "unlock_level": 3,
+    "uses": 0,
+    "cooldown": 3,
     "role": "attack",
     "damage_multiplier": 0.6,
+    "hits": 3,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "archer"
+    ],
+    "note": "적을 향해 화살을 연속 발사한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "critical_shot",
+    "name": "크리티컬 샷",
+    "unlock_level": 3,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "critical_rate",
+        "target": "self",
+        "value": 0.4,
+        "duration": 1,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "archer"
+    ],
+    "note": "1턴 간 크리티컬 확률이 증가한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "wind_arrow",
+    "name": "바람의 시",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "attack",
+    "damage_multiplier": 0.8,
+    "hits": 3,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "hunter"
+    ],
+    "note": "수 발의 화살을 바람처럼 빠르게 난사한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "covering_fire",
+    "name": "리트리트 샷",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "attack",
+    "damage_multiplier": 0.5,
     "hits": 1,
     "player_mods": {},
     "enemy_mods": {},
-    "duration": 0,
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "crossbowman",
+      "hunter"
+    ],
+    "note": "뒤로 점프하며 적들에게 화살을 발사한다.",
+    "player_stat_effects": [
+      {
+        "stat": "atk",
+        "target": "self",
+        "value": 0.1,
+        "duration": 2,
+        "undispellable": false
+      }
+    ],
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "bow_acceleration",
+    "name": "보우 액셀러레이션",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "triple_attack_rate",
+        "target": "self",
+        "value": 0.25,
+        "duration": 1,
+        "undispellable": false
+      },
+      {
+        "stat": "double_attack_rate",
+        "target": "self",
+        "value": 0.25,
+        "duration": 1,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "hunter"
+    ],
+    "note": "일시적으로 민첩성이 증가한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "pheonix",
+    "name": "피닉스",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "atk",
+        "target": "self",
+        "value": 0.25,
+        "duration": 4,
+        "undispellable": false
+      },
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": 0.5,
+        "duration": 4,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "ranger"
+    ],
+    "note": "일정 시간 동안 불 속성을 지닌 피닉스를 소환한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "speed_mirage",
+    "name": "플레시 미라주",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "triple_attack_rate",
+        "target": "self",
+        "value": 0.2,
+        "duration": 3,
+        "undispellable": false
+      },
+      {
+        "stat": "double_attack_rate",
+        "target": "self",
+        "value": 0.2,
+        "duration": 3,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "ranger"
+    ],
+    "note": "잔영이 남을 정도로 빠른 궁술을 구사한다.",
+    "player_effects": {
+      "bonus_damage": [
+        {
+          "ratio": 0.3,
+          "duration": 3,
+          "undispellable": false,
+          "target": "self"
+        }
+      ]
+    },
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "arrow_blaster",
+    "name": "애로우 플래터",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "ranger"
+    ],
+    "note": "자신의 위치에 애로우 플래터를 설치하여 지속적으로 화살을 발사한다.",
+    "player_effects": {
+      "bonus_damage": [
+        {
+          "ratio": 0.5,
+          "duration": 2,
+          "undispellable": false,
+          "target": "self"
+        }
+      ]
+    },
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "hurricane",
+    "name": "폭풍의 시",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "attack",
+    "damage_multiplier": 0.45,
+    "hits": 12,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "bowmaster"
+    ],
+    "note": "폭풍우가 몰아치듯 빠른 속도로 화살을 발사한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "sharp_eyes",
+    "name": "샤프 아이즈",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 6,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "critical_rate",
+        "target": "self",
+        "value": 0.4,
+        "duration": 2,
+        "undispellable": false
+      },
+      {
+        "stat": "critical_damage",
+        "target": "self",
+        "value": 0.15,
+        "duration": 2,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "bowmaster",
+      "marksman"
+    ],
+    "note": "일정 시간 동안 자신에게 적의 약점을 찾아 치명상을 입힐 수 있는 능력을 부여한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "bow_expert",
+    "name": "보우 엑스퍼트",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "atk",
+        "target": "self",
+        "value": 0.3,
+        "duration": 2,
+        "undispellable": false
+      },
+      {
+        "stat": "critical_damage",
+        "target": "self",
+        "value": 0.15,
+        "duration": 2,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "bowmaster"
+    ],
+    "note": "일시적으로 공격력, 크리티컬 데미지를 증가시킨다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "miserable_mist",
+    "name": "미제라블 미스트",
+    "unlock_level": 1,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "debuff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "enemy_stat_effects": [
+      {
+        "stat": "atk",
+        "target": "self",
+        "value": -0.25,
+        "duration": 7,
+        "undispellable": false
+      },
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.25,
+        "duration": 7,
+        "undispellable": false
+      }
+    ],
     "heal_power": 0,
     "damage_cut": 0,
     "job_ids": [],
-    "note": "달팽이의 껍질을 던져 원거리의 적을 공격한다."
+    "note": "",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "piercing_arrow",
+    "name": "피어싱",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "attack",
+    "damage_multiplier": 1.2,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "crossbowman"
+    ],
+    "note": "적을 꿰뚫을 때마다 데미지가 증폭되는 관통 화살을 발사한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "crossbow_acceleration",
+    "name": "크로스보우 액셀러레이션",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "triple_attack_rate",
+        "target": "self",
+        "value": 0.25,
+        "duration": 1,
+        "undispellable": false
+      },
+      {
+        "stat": "double_attack_rate",
+        "target": "self",
+        "value": 0.25,
+        "duration": 1,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "crossbowman"
+    ],
+    "note": "일시적으로 민첩성이 증가한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "enhance_piercing",
+    "name": "인핸스 피어싱",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "attack",
+    "damage_multiplier": 0.85,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "sniper"
+    ],
+    "note": "\t\n강화된 관통 화살을 발사해 적을 꿰뚫어 공격한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "frostprey",
+    "name": "프리져",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "atk",
+        "target": "self",
+        "value": 0.25,
+        "duration": 4,
+        "undispellable": false
+      }
+    ],
+    "enemy_stat_effects": [
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.25,
+        "duration": 4,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "sniper"
+    ],
+    "note": "일정 시간 동안 냉기 속성을 지닌 프리져를 소환한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "bolt_burst",
+    "name": "볼트 스위프트",
+    "unlock_level": 25,
+    "uses": 3,
+    "cooldown": 1,
+    "role": "attack",
+    "damage_multiplier": 0.85,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "sniper"
+    ],
+    "note": "화살을 사방으로 발사해 주변에 있는 다수의 적을 공격한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "piercing_arrow_ii",
+    "name": "피어싱 II",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "attack",
+    "damage_multiplier": 0.7,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "enemy_stat_effects": [
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.1,
+        "duration": 1,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "marksman"
+    ],
+    "note": "피어싱이 강화된다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "snipe",
+    "name": "스나이핑",
+    "unlock_level": 50,
+    "uses": 1,
+    "cooldown": 0,
+    "role": "attack",
+    "damage_multiplier": 0.9,
+    "hits": 5,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "atk",
+        "target": "self",
+        "value": 0.25,
+        "duration": 3,
+        "undispellable": false
+      }
+    ],
+    "enemy_stat_effects": [
+      {
+        "stat": "damage_cut",
+        "target": "self",
+        "value": -0.1,
+        "duration": 3,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "marksman"
+    ],
+    "note": "몬스터의 급소를 정확히 노려 치명적인 공격을 가한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "slash_blast",
+    "name": "슬래시 블러스트",
+    "unlock_level": 3,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "attack",
+    "damage_multiplier": 1.8,
+    "hits": 1,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "swordman"
+    ],
+    "note": "주위의 적을 공격한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "iron_body",
+    "name": "아이언 바디",
+    "unlock_level": 3,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "hp_bonus",
+        "target": "self",
+        "value": 0.2,
+        "duration": 1,
+        "undispellable": false
+      },
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": 0.5,
+        "duration": 1,
+        "undispellable": false
+      },
+      {
+        "stat": "damage_cut",
+        "target": "self",
+        "value": 0.1,
+        "duration": 1,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "swordman"
+    ],
+    "note": "자신의 방어력과 최대 HP를 일정 비율 증가시키고, 적에게 피격 시 받는 데미지가 감소한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "brandish",
+    "name": "브랜디쉬",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "attack",
+    "damage_multiplier": 1.2,
+    "hits": 2,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "fighter"
+    ],
+    "note": "눈 앞의 적을 두 번 연속 공격한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "combo_attack",
+    "name": "콤보 어택",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "base_atk",
+        "target": "self",
+        "value": 50.0,
+        "duration": 3,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "fighter"
+    ],
+    "note": "콤보 카운트를 누적시켜 공격력을 증가시킨다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "spirit_blade",
+    "name": "스피릿 블레이드",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "fighter"
+    ],
+    "note": "검과 영혼이 일체가 되어 일정 시간 동안 자신을 포함한 파티원의 공격력을 증가시키고 자신이 받는 데미지를 감소시킨다.",
+    "stats": {},
+    "player_stat_effects": [
+      {
+        "stat": "base_atk",
+        "target": "allies",
+        "value": 30.0,
+        "duration": 2,
+        "undispellable": false
+      },
+      {
+        "stat": "damage_cut",
+        "target": "self",
+        "value": 0.3,
+        "duration": 2,
+        "undispellable": false
+      }
+    ],
+    "heal_target": "self"
+  },
+  {
+    "id": "intrepid_slash",
+    "name": "브레이브 슬래시",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "attack",
+    "damage_multiplier": 1.4,
+    "hits": 3,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "crusader"
+    ],
+    "note": "전방의 적을 세 번 연속 공격한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "scarring_sword",
+    "name": "스카링 소드",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 6,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "enemy_stat_effects": [
+      {
+        "stat": "atk",
+        "target": "self",
+        "value": -0.3,
+        "duration": 3,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "crusader"
+    ],
+    "note": "검에 예기가 더해져 적에게 지워지지 않는 흉터를 남긴다.",
+    "player_effects": {
+      "bonus_damage": [
+        {
+          "ratio": 0.3,
+          "duration": 3,
+          "undispellable": false,
+          "target": "self"
+        }
+      ]
+    },
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "combo_synergy",
+    "name": "콤보 시너지",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "base_atk",
+        "target": "self",
+        "value": 50.0,
+        "duration": 1,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "crusader"
+    ],
+    "note": "콤보 어택이 강화되어 최종 데미지가 증가한다.",
+    "stats": {},
+    "player_effects": {
+      "final_damage": [
+        {
+          "ratio": 0.15,
+          "duration": 3,
+          "undispellable": false,
+          "target": "self"
+        }
+      ]
+    },
+    "heal_target": "self"
+  },
+  {
+    "id": "raging_blow",
+    "name": "레이징 블로우",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "attack",
+    "damage_multiplier": 1.3,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "critical_rate",
+        "target": "self",
+        "value": 1.0,
+        "duration": 1,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "hero"
+    ],
+    "note": "전방의 적을 순식간에 여러 번 베어낸다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "magic_crash",
+    "name": "매직 크래쉬",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "debuff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "enemy_stat_effects": [
+      {
+        "stat": "atk",
+        "target": "self",
+        "value": -0.5,
+        "duration": 1,
+        "undispellable": false
+      },
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.5,
+        "duration": 1,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "effect_actions": [
+      {
+        "action": "dispel",
+        "target": "enemy",
+        "count": 2
+      }
+    ],
+    "job_ids": [
+      "paladin",
+      "hero"
+    ],
+    "note": "주변 적들에게 적용된 버프를 2개 해제하고, 공격력과 방어력을 감소시킨다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "rising_rage",
+    "name": "인레이지",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "critical_damage",
+        "target": "self",
+        "value": 0.2,
+        "duration": 3,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "hero"
+    ],
+    "note": "충전된 콤보 카운터의 힘을 폭발시켜 적을 강력하게 공격할 수 있게 된다.",
+    "stats": {},
+    "player_effects": {
+      "final_damage": [
+        {
+          "ratio": 0.25,
+          "duration": 3,
+          "undispellable": false,
+          "target": "self"
+        }
+      ]
+    },
+    "heal_target": "self"
+  },
+  {
+    "id": "divine_swing",
+    "name": "디바인 스윙",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "attack",
+    "damage_multiplier": 0.9,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "page"
+    ],
+    "note": "신성한 망치를 크게 휘둘러 주변의 적을 공격한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "holy_charge",
+    "name": "홀리 차지",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "base_atk",
+        "target": "self",
+        "value": 40.0,
+        "duration": 2,
+        "undispellable": false
+      },
+      {
+        "stat": "damage_cut",
+        "target": "self",
+        "value": 0.1,
+        "duration": 2,
+        "undispellable": false
+      },
+      {
+        "stat": "life_steal",
+        "target": "self",
+        "value": 0.1,
+        "duration": 2,
+        "undispellable": false
+      },
+      {
+        "stat": "life_steal_cap",
+        "target": "self",
+        "value": 0.09,
+        "duration": 2,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "page"
+    ],
+    "note": "신성한 빛의 힘을 충전하여 자신을 강화한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "page_order",
+    "name": "페이지 오더",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "attack",
+    "damage_multiplier": 0.4,
+    "hits": 2,
+    "player_mods": {},
+    "enemy_mods": {},
+    "enemy_stat_effects": [
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.1,
+        "duration": 3,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "page"
+    ],
+    "note": "좌우의 적들을 성스러운 망치로 당겨 나를 향해 오게 하며 데미지를 입히며 약화시킨다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "divine_charge",
+    "name": "디바인 차지",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "attack",
+    "damage_multiplier": 1.1,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "enemy_stat_effects": [
+      {
+        "stat": "atk",
+        "target": "self",
+        "value": -0.3,
+        "duration": 2,
+        "undispellable": false
+      },
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.3,
+        "duration": 2,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "white_knight"
+    ],
+    "note": "순간적으로 신성한 망치를 소환하여 적들에게 내리찍어 데미지를 입히고 약화시킨다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "hp_recovery",
+    "name": "리스토네이션",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "heal",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 2.5,
+    "damage_cut": 0,
+    "job_ids": [
+      "white_knight"
+    ],
+    "note": "",
+    "heal_cap": {
+      "mode": "max_hp_ratio",
+      "value": 0.5
+    },
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "parashock_guard",
+    "name": "파라쇼크 가드",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "base_atk",
+        "target": "self",
+        "value": 20.0,
+        "duration": 3,
+        "undispellable": false
+      },
+      {
+        "stat": "damage_cut",
+        "target": "allies",
+        "value": 0.2,
+        "duration": 3,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "white_knight"
+    ],
+    "note": "주위 파티원들의 피격 시 데미지를 감소시키고 자신의 공격력을 증가시킨다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "blast",
+    "name": "블래스트",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 9,
+    "role": "attack",
+    "damage_multiplier": 1,
+    "hits": 10,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "paladin"
+    ],
+    "note": "성스러운 빛의 기사와 하나가 되어 적들을 강력하게 공격한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "divine_blessing",
+    "name": "디바인 블레싱",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "paladin"
+    ],
+    "note": "신성한 축복을 받아 일정 시간 동안 최종 데미지가 증가한다.",
+    "stats": {},
+    "player_effects": {
+      "final_damage": [
+        {
+          "ratio": 0.3,
+          "target": "allies",
+          "duration": 3,
+          "undispellable": false
+        }
+      ]
+    },
+    "heal_target": "self"
+  },
+  {
+    "id": "energy_bolt",
+    "name": "에너지 볼트",
+    "unlock_level": 3,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "attack",
+    "damage_multiplier": 0.25,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "magician"
+    ],
+    "note": "적에게 닿으면 폭발하는 에너지 응집체를 발사한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "magic_guard",
+    "name": "매직 가드",
+    "unlock_level": 3,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "damage_cut",
+        "target": "self",
+        "value": 0.85,
+        "duration": 1,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "magician"
+    ],
+    "note": "마법의 힘으로 받는 데미지를 감소시킨다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "flame_orb",
+    "name": "플레임 오브",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "attack",
+    "damage_multiplier": 1.4,
+    "hits": 2,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "wizard_fp"
+    ],
+    "note": "마법의 힘으로 불타는 오브를 만들어 다수의 적을 향해 발사한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "poison_breath",
+    "name": "포이즌 브레스",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 6,
+    "role": "attack",
+    "damage_multiplier": 0.7,
+    "hits": 6,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "wizard_fp"
+    ],
+    "note": "주변의 대기를 맹독성으로 바꿔 적에게 치명적인 피해를 입힌다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "cold_beam",
+    "name": "콜드 빔",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "attack",
+    "damage_multiplier": 0.7,
+    "hits": 3,
+    "player_mods": {},
+    "enemy_mods": {},
+    "enemy_stat_effects": [
+      {
+        "stat": "triple_attack_rate",
+        "target": "self",
+        "value": -0.15,
+        "duration": 1,
+        "undispellable": false
+      },
+      {
+        "stat": "double_attack_rate",
+        "target": "self",
+        "value": -0.15,
+        "duration": 1,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "wizard_il"
+    ],
+    "note": "전방에 날카로운 얼음 수정을 자라나게 한다. 명중한 적은 빙결 상태가 되어 연속 공격 확률이 감소한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "thunderbolt",
+    "name": "썬더 볼트",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "attack",
+    "damage_multiplier": 0.85,
+    "hits": 3,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "wizard_il"
+    ],
+    "note": "자신의 주변에 강력한 자기장을 생성하여 적에게 번개를 떨어뜨린다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "meditation",
+    "name": "메디테이션",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "base_atk",
+        "target": "allies",
+        "value": 30.0,
+        "duration": 2,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "wizard_fp",
+      "wizard_il"
+    ],
+    "note": "잠시 동안의 명상을 통해 내면의 집중력을 활성화시켜 모든 파티원의 공격력을 일시적으로 증가시킨다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "ice_strike",
+    "name": "아이스 스트라이크",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "attack",
+    "damage_multiplier": 0.75,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "enemy_stat_effects": [
+      {
+        "stat": "triple_attack_rate",
+        "target": "self",
+        "value": -0.25,
+        "duration": 1,
+        "undispellable": false
+      },
+      {
+        "stat": "double_attack_rate",
+        "target": "self",
+        "value": -0.25,
+        "duration": 1,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "mage_il"
+    ],
+    "note": "자신의 주변에 얼음 폭풍을 일으켜 공격한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "thunder_sphere",
+    "name": "썬더 스피어",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "mage_il"
+    ],
+    "note": "번개가 응집된 구체를 소환한다. 구체는 고압의 전류를 뿜어 난격을 부여하고, 공격 후 추가타를 발생시킨다.",
+    "player_effects": {
+      "flurry": {
+        "count": 3,
+        "duration": 2,
+        "undispellable": false,
+        "target": "self"
+      },
+      "post_attack_ability_damage": [
+        {
+          "ratio": 0.3,
+          "count": 6,
+          "duration": 2,
+          "undispellable": false,
+          "target": "self"
+        }
+      ]
+    },
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "elemental_adaptation",
+    "name": "엘리멘탈 어뎁팅",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "damage_cut",
+        "target": "self",
+        "value": 0.25,
+        "duration": 2,
+        "undispellable": false
+      },
+      {
+        "stat": "dmg_mitigation",
+        "target": "self",
+        "value": 10.0,
+        "duration": 2,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "mage_fp",
+      "mage_il"
+    ],
+    "note": "얼음과 번개의 보호막을 펼친다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "chain_lightning",
+    "name": "체인 라이트닝",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "attack",
+    "damage_multiplier": 0.3,
+    "hits": 10,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "critical_rate",
+        "target": "self",
+        "value": 0.25,
+        "duration": 1,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "archmage_il"
+    ],
+    "note": "대상에게 고압의 전류를 발사한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "freezing_breath",
+    "name": "프리징 브레스",
+    "unlock_level": 50,
+    "uses": 1,
+    "cooldown": 0,
+    "role": "attack",
+    "damage_multiplier": 0.3,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "damage_cut",
+        "target": "self",
+        "value": 1.0,
+        "duration": 1,
+        "undispellable": false
+      }
+    ],
+    "enemy_stat_effects": [
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.5,
+        "duration": 5,
+        "undispellable": false
+      },
+      {
+        "stat": "triple_attack_rate",
+        "target": "self",
+        "value": -1.0,
+        "duration": 5,
+        "undispellable": false
+      },
+      {
+        "stat": "double_attack_rate",
+        "target": "self",
+        "value": -1.0,
+        "duration": 5,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "archmage_il"
+    ],
+    "note": "강력한 냉기로 적들과 자신을 얼려 연속 공격 확률과 방어력을 감소시킨다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "blizzard",
+    "name": "블리자드",
+    "unlock_level": 50,
+    "uses": 1,
+    "cooldown": 0,
+    "role": "attack",
+    "damage_multiplier": 0.35,
+    "hits": 12,
+    "player_mods": {},
+    "enemy_mods": {},
+    "enemy_stat_effects": [
+      {
+        "stat": "atk",
+        "target": "self",
+        "value": -0.1,
+        "duration": 5,
+        "undispellable": false
+      },
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.1,
+        "duration": 5,
+        "undispellable": false
+      },
+      {
+        "stat": "dmg_mitigation",
+        "target": "self",
+        "value": -5.0,
+        "duration": 5,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "archmage_il"
+    ],
+    "note": "하늘로부터 얼음의 창을 떨어뜨려 적에게 강력한 얼음 속성 공격을 가해 빙결시킨다. 또한 영구히 공격 시 적에게 블리자드가 떨어져 피해를 입힌다.",
+    "player_effects": {
+      "post_attack_ability_damage": [
+        {
+          "ratio": 0.25,
+          "count": 1,
+          "duration": -1,
+          "undispellable": true,
+          "target": "self"
+        }
+      ]
+    },
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "explosion",
+    "name": "익스플로젼",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "attack",
+    "damage_multiplier": 2.3,
+    "hits": 2,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "mage_fp"
+    ],
+    "note": "자신의 주변에 화염 폭발을 일으켜 다수의 적을 동시에 공격한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "poison_mist",
+    "name": "포이즌 미스트",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "attack",
+    "damage_multiplier": 0.18,
+    "hits": 12,
+    "player_mods": {},
+    "enemy_mods": {},
+    "enemy_stat_effects": [
+      {
+        "stat": "atk",
+        "target": "self",
+        "value": -0.25,
+        "duration": 3,
+        "undispellable": false
+      },
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.25,
+        "duration": 3,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "mage_fp"
+    ],
+    "note": "자신의 주변에 치명적인 독 안개를 생성하여 모든 적들을 중독시켜 독 속성으로 공격한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "flame_sweep",
+    "name": "플레임 스윕",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "attack",
+    "damage_multiplier": 1.15,
+    "hits": 6,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "archmage_fp"
+    ],
+    "note": "전방을 강력한 화염으로 휩쓴다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "mist_eruption",
+    "name": "미스트 이럽션",
+    "unlock_level": 50,
+    "uses": 1,
+    "cooldown": 0,
+    "role": "attack",
+    "damage_multiplier": 0.8,
+    "hits": 14,
+    "player_mods": {},
+    "enemy_mods": {},
+    "enemy_stat_effects": [
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.4,
+        "duration": 5,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "archmage_fp"
+    ],
+    "note": "주변에 설치된 포이즌 미스트들을 폭발시켜 적에게 치명적인 독 속성 데미지를 준다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "meteor_shower",
+    "name": "메테오",
+    "unlock_level": 50,
+    "uses": 1,
+    "cooldown": 0,
+    "role": "attack",
+    "damage_multiplier": 1.05,
+    "hits": 10,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.25,
+        "duration": -1,
+        "undispellable": true
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "archmage_fp"
+    ],
+    "note": "하늘로부터 운석을 소환하여 강력한 화염 공격을 가한다. 또한 영구히 공격 시 단일 적에게 운석이 떨어져 피해를 입히는 대신, 자신의 방어력이 감소한다.",
+    "player_effects": {
+      "post_attack_ability_damage": [
+        {
+          "ratio": 0.7,
+          "count": 1,
+          "target": "self",
+          "duration": -1,
+          "undispellable": true
+        }
+      ]
+    },
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "holy_arrow",
+    "name": "홀리 애로우",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "attack",
+    "damage_multiplier": 0.4,
+    "hits": 3,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "cleric"
+    ],
+    "note": "성스러운 화살을 소환하여 적에게 발사한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "heal",
+    "name": "힐",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "heal",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 1.5,
+    "damage_cut": 0,
+    "job_ids": [
+      "cleric"
+    ],
+    "note": "자신의 HP를 회복시키고 파티원 전원의 최종 데미지가 증가한다.",
+    "heal_cap": {
+      "mode": "max_hp_ratio",
+      "value": 0.2
+    },
+    "player_effects": {
+      "final_damage": [
+        {
+          "ratio": 0.06,
+          "target": "allies",
+          "duration": 1,
+          "undispellable": false
+        }
+      ]
+    },
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "angelic_touch",
+    "name": "엔젤릭 터치",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "attack",
+    "damage_multiplier": 0.15,
+    "hits": 5,
+    "player_mods": {},
+    "enemy_mods": {},
+    "enemy_stat_effects": [
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.4,
+        "duration": 5,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "cleric"
+    ],
+    "note": "천사를 강림시켜 적에게 천사의 손길을 선물한다. 천사에게 피격된 적은 약화되어 일정 시간 동안 방어율이 감소한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "shining_ray",
+    "name": "샤이닝 레이",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "attack",
+    "damage_multiplier": 0.7,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "priest"
+    ],
+    "note": "성스러운 빛으로 적에게 데미지를 준다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "dispel",
+    "name": "디스펠",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "debuff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "effect_actions": [
+      {
+        "action": "dispel",
+        "target": "enemy",
+        "count": 3
+      },
+      {
+        "action": "clear_all",
+        "target": "allies",
+        "count": 1
+      }
+    ],
+    "job_ids": [
+      "priest"
+    ],
+    "note": "적의 마법효과를 무효화함과 동시에 자신을 포함한 주변 파티원들의 일부 상태 이상을 치료한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "holy_magic_shell",
+    "name": "홀리 매직쉘",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "damage_cut",
+        "target": "allies",
+        "value": 0.9,
+        "duration": 1,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 2.5,
+    "damage_cut": 0,
+    "job_ids": [
+      "priest"
+    ],
+    "note": "자신의 HP를 일정 비율 회복시켜주며 일정 시간 동안 모든 피해와 디버프, 디스펠을 방어하는 성스러운 보호막을 걸어준다.",
+    "heal_cap": {
+      "mode": "max_hp_ratio",
+      "value": 0.5
+    },
+    "stats": {},
+    "heal_target": "self",
+    "player_effects": {
+      "veil": [
+        {
+          "mode": "count",
+          "target": "allies",
+          "duration": 1,
+          "count": 1,
+          "undispellable": false
+        }
+      ],
+      "dispel_guard": [
+        {
+          "mode": "count",
+          "target": "allies",
+          "duration": 1,
+          "count": 1,
+          "undispellable": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "angel_ray",
+    "name": "엔젤 레이",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "attack",
+    "damage_multiplier": 0.65,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 1.2,
+    "damage_cut": 0,
+    "job_ids": [
+      "bishop"
+    ],
+    "note": "성령의 기운으로 충만한 성검을 소환하여 전방을 향해 발사하며 HP를 회복시킨다.",
+    "heal_cap": {
+      "mode": "max_hp_ratio",
+      "value": 0.1
+    },
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "genesis",
+    "name": "제네시스",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "attack",
+    "damage_multiplier": 0.8,
+    "hits": 10,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "bishop"
+    ],
+    "note": "하늘로부터 신성한 빛의 기둥을 떨어뜨려 강력한 성속성 공격을 가한다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "advanced_bless",
+    "name": "어드밴스드 블레스",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "base_atk",
+        "target": "allies",
+        "value": 30.0,
+        "duration": 3,
+        "undispellable": true
+      },
+      {
+        "stat": "hp_bonus",
+        "target": "allies",
+        "value": 0.25,
+        "duration": 3,
+        "undispellable": true
+      },
+      {
+        "stat": "atk",
+        "target": "allies",
+        "value": 0.5,
+        "duration": 3,
+        "undispellable": true
+      },
+      {
+        "stat": "defense",
+        "target": "allies",
+        "value": 1.0,
+        "duration": 3,
+        "undispellable": true
+      }
+    ],
+    "heal_power": 0,
+    "damage_cut": 0,
+    "job_ids": [
+      "bishop"
+    ],
+    "note": "일정 시간 동안 주변 파티원들의 공격력, 방어력, 최대 HP를 크게 높여준다.",
+    "stats": {},
+    "heal_target": "self"
+  },
+  {
+    "id": "len_1",
+    "name": "매화검 본초 : 참",
+    "unlock_level": 3,
+    "uses": 0,
+    "cooldown": 2,
+    "role": "attack",
+    "damage_multiplier": 0.45,
+    "hits": 2,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "len_1"
+    ],
+    "note": "적을 벤다.",
+    "stats": {}
+  },
+  {
+    "id": "len_2",
+    "name": "청허심경",
+    "unlock_level": 3,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "base_atk",
+        "target": "self",
+        "value": 30.0,
+        "duration": 2,
+        "undispellable": false
+      },
+      {
+        "stat": "damage_cut",
+        "target": "self",
+        "value": 0.2,
+        "duration": 2,
+        "undispellable": false
+      },
+      {
+        "stat": "critical_rate",
+        "target": "self",
+        "value": 0.15,
+        "duration": 2,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "len_1"
+    ],
+    "note": "심법을 수련하여 정순한 내공을 쌓는다.",
+    "stats": {}
+  },
+  {
+    "id": "len_3",
+    "name": "매화검 본초 : 자",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 2,
+    "role": "attack",
+    "damage_multiplier": 0.55,
+    "hits": 3,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "len_2"
+    ],
+    "note": "적을 찌른다.",
+    "stats": {}
+  },
+  {
+    "id": "len_4",
+    "name": "망혼검 본초 : 영격",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "len_2"
+    ],
+    "note": "사야에게 건네받은 이무기의 내공이 발현된다. 공격 적중 시 이무기의 내공이 실린 검격이 추가로 적을 벤다.",
+    "stats": {},
+    "player_effects": {
+      "bonus_damage": [
+        {
+          "ratio": 0.6,
+          "target": "self",
+          "duration": 2,
+          "undispellable": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "len_5",
+    "name": "청허심경 II",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "len_2"
+    ],
+    "note": "",
+    "stats": {},
+    "player_stat_effects": [
+      {
+        "stat": "critical_rate",
+        "target": "self",
+        "value": 0.2,
+        "duration": 2,
+        "undispellable": true
+      }
+    ],
+    "player_effects": {
+      "final_damage": [
+        {
+          "ratio": 0.1,
+          "target": "self",
+          "duration": 2,
+          "undispellable": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "len_6",
+    "name": "매화검 본초 : 천",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 2,
+    "role": "attack",
+    "damage_multiplier": 0.8,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "len_3"
+    ],
+    "note": "날카로운 검격이 적을 관통한다.",
+    "stats": {}
+  },
+  {
+    "id": "len_7",
+    "name": "매화검 2초식 : 쇄매",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "len_3"
+    ],
+    "note": "공격 적중 시 허공에 흩어진 내공의 잔흔이 매화 꽃잎으로 형상화되어 적을 향해 쇄도한다.",
+    "player_effects": {
+      "post_attack_ability_damage": [
+        {
+          "ratio": 0.2,
+          "count": 5,
+          "target": "self",
+          "duration": 3,
+          "undispellable": true
+        }
+      ]
+    },
+    "stats": {}
+  },
+  {
+    "id": "len_8",
+    "name": "망혼강림",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "attack",
+    "damage_multiplier": 0.75,
+    "hits": 9,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "len_3"
+    ],
+    "note": "이무기의 내공을 직접 실은 검법을 펼친다.",
+    "stats": {}
+  },
+  {
+    "id": "len_9",
+    "name": "매화검 본초 : 선참",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 2,
+    "role": "attack",
+    "damage_multiplier": 0.55,
+    "hits": 7,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "len_4"
+    ],
+    "note": "검을 매우 빠르게 휘둘러 전방의 적을 크게 베어낸다.",
+    "stats": {}
+  },
+  {
+    "id": "len_10",
+    "name": "매화검 3초식 : 일격예인",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "len_4"
+    ],
+    "note": "내공을 실어 스스로 움직이는 검기를 생성한다.",
+    "player_effects": {
+      "bonus_damage": [
+        {
+          "ratio": 0.8,
+          "target": "self",
+          "duration": 3,
+          "undispellable": true
+        }
+      ]
+    },
+    "stats": {}
+  },
+  {
+    "id": "len_11",
+    "name": "진안",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "dmg_amplification",
+        "target": "self",
+        "value": 0.15,
+        "duration": 3,
+        "undispellable": true
+      },
+      {
+        "stat": "critical_damage",
+        "target": "self",
+        "value": 0.1,
+        "duration": 3,
+        "undispellable": true
+      }
+    ],
+    "enemy_stat_effects": [
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.4,
+        "duration": 3,
+        "undispellable": true
+      }
+    ],
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "len_4"
+    ],
+    "note": "가장 완벽한 검로를 꿰뚫어 보는 통찰력을 얻는다.",
+    "stats": {}
+  },
+  {
+    "id": "skill",
+    "name": "디스펠",
+    "unlock_level": 1,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "debuff",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "effect_actions": [
+      {
+        "action": "dispel",
+        "target": "enemy",
+        "count": 1
+      }
+    ],
+    "job_ids": [],
+    "note": "",
+    "stats": {}
   }
 ]

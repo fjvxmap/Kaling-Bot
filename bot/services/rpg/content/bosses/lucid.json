@@ -1,0 +1,444 @@
+{
+  "id": "lucid",
+  "name": "루시드",
+  "level_req": 10,
+  "stats": {
+    "base_atk": 20,
+    "max_hp": 12500,
+    "dmg_supplement": 5
+  },
+  "gold": 2500,
+  "exp": 1,
+  "patterns": [],
+  "warnings": [
+    {
+      "id": "fairy_dust",
+      "name": "페어리 더스트",
+      "pattern": {
+        "id": "fairy_dust",
+        "name": "페어리 더스트",
+        "damage_multiplier": 1.2,
+        "hits": 12,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {},
+        "boss_effects": {
+          "bonus_damage": [
+            {
+              "ratio": 0.15,
+              "target": "self",
+              "duration": 5,
+              "undispellable": false
+            }
+          ]
+        }
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 400,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1,
+      "failure_variants": [
+        {
+          "name": "페어리 더스트 판타즈멀",
+          "conditions": [
+            {
+              "stack_effect_id": "phantasmal_waltz",
+              "target": "boss",
+              "min_stacks": 7,
+              "max_stacks": -1
+            }
+          ],
+          "pattern": {
+            "id": "fairy_dust_failure_variant",
+            "name": "페어리 더스트 판타즈멀",
+            "damage_multiplier": 1.2,
+            "hits": 24,
+            "player_mods": {},
+            "boss_mods": {},
+            "duration": 0,
+            "stats": {},
+            "boss_effects": {
+              "bonus_damage": [
+                {
+                  "ratio": 0.25,
+                  "target": "self",
+                  "duration": 5,
+                  "undispellable": true
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "illusion_dragon",
+      "name": "일루전 드래곤",
+      "pattern": {
+        "id": "illusion_dragon",
+        "name": "일루전 드래곤",
+        "damage_multiplier": 0.6,
+        "hits": 35,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "boss_effects": {
+          "bonus_damage": [
+            {
+              "ratio": 0.3,
+              "target": "self",
+              "duration": 5,
+              "undispellable": false
+            }
+          ]
+        },
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 3,
+          "min_damage": 75
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "illusion_bloom",
+      "name": "일루전 블룸",
+      "pattern": {
+        "id": "illusion_bloom",
+        "name": "일루전 블룸",
+        "damage_multiplier": 0.7,
+        "hits": 12,
+        "player_mods": {},
+        "boss_mods": {},
+        "boss_stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.3,
+            "duration": 5,
+            "undispellable": false
+          }
+        ],
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 7,
+          "min_damage": 0
+        }
+      ],
+      "failure_variants": [
+        {
+          "name": "일루전 블룸 판타즈멀",
+          "conditions": [
+            {
+              "stack_effect_id": "phantasmal_waltz",
+              "target": "boss",
+              "min_stacks": 7,
+              "max_stacks": -1
+            }
+          ],
+          "pattern": {
+            "id": "illusion_bloom_failure_variant",
+            "name": "일루전 블룸 판타즈멀",
+            "damage_multiplier": 0.9,
+            "hits": 36,
+            "player_mods": {},
+            "boss_mods": {},
+            "boss_stat_effects": [
+              {
+                "stat": "atk",
+                "target": "self",
+                "value": 1.0,
+                "duration": 5,
+                "undispellable": true
+              }
+            ],
+            "duration": 0,
+            "boss_effects": {
+              "bonus_damage": [
+                {
+                  "ratio": 0.2,
+                  "target": "self",
+                  "duration": 5,
+                  "undispellable": true
+                }
+              ]
+            },
+            "stats": {}
+          }
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "rend_reverie",
+      "name": "렌드 레버리",
+      "pattern": {
+        "id": "rend_reverie",
+        "name": "렌드 레버리",
+        "damage_multiplier": 3.6,
+        "hits": 9,
+        "player_mods": {},
+        "boss_mods": {},
+        "boss_stat_effects": [
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.5,
+            "duration": 5,
+            "undispellable": false
+          }
+        ],
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 100,
+          "min_damage": 0
+        },
+        {
+          "objective": "hits",
+          "required": 3,
+          "min_damage": 0
+        }
+      ],
+      "failure_variants": [
+        {
+          "name": "렌드 레버리 판타즈멀",
+          "conditions": [
+            {
+              "stack_effect_id": "phantasmal_waltz",
+              "target": "boss",
+              "min_stacks": 7,
+              "max_stacks": -1
+            }
+          ],
+          "pattern": {
+            "id": "rend_reverie_failure_variant",
+            "name": "렌드 레버리 판타즈멀",
+            "damage_multiplier": 4.8,
+            "hits": 18,
+            "player_mods": {},
+            "boss_mods": {},
+            "boss_stat_effects": [
+              {
+                "stat": "triple_attack_rate",
+                "target": "self",
+                "value": 1.0,
+                "duration": 5,
+                "undispellable": true
+              }
+            ],
+            "duration": 0,
+            "boss_effects": {
+              "bonus_damage": [
+                {
+                  "ratio": 0.2,
+                  "target": "self",
+                  "duration": 5,
+                  "undispellable": true
+                }
+              ]
+            },
+            "stats": {}
+          }
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "nightmare_rush",
+      "name": "나이트메어 러쉬",
+      "pattern": {
+        "id": "nightmare_rush",
+        "name": "나이트메어 러쉬",
+        "damage_multiplier": 25,
+        "hits": 1,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "debuff",
+          "required": 2,
+          "min_damage": 0
+        }
+      ],
+      "failure_variants": [
+        {
+          "name": "나이트메어 러쉬 판타즈멀",
+          "conditions": [
+            {
+              "stack_effect_id": "phantasmal_waltz",
+              "target": "boss",
+              "min_stacks": 7,
+              "max_stacks": -1
+            }
+          ],
+          "pattern": {
+            "id": "nightmare_rush_failure_variant",
+            "name": "나이트메어 러쉬 판타즈멀",
+            "damage_multiplier": 50,
+            "hits": 1,
+            "player_mods": {},
+            "boss_mods": {},
+            "duration": 0,
+            "boss_effects": {
+              "flurry": {
+                "count": 3,
+                "target": "self",
+                "duration": 5,
+                "undispellable": true
+              }
+            },
+            "stats": {}
+          }
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "dimension_rend",
+      "name": "차원 분쇄",
+      "pattern": {
+        "id": "dimension_rend",
+        "name": "차원 분쇄",
+        "damage_multiplier": 9.99,
+        "hits": 999,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "plain_damage": {
+          "mode": "flat",
+          "value": 999999.0
+        },
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 2500,
+          "min_damage": 0
+        }
+      ],
+      "turns": 5
+    }
+  ],
+  "hp_warnings": [
+    {
+      "threshold": 0.95,
+      "warning_id": "fairy_dust"
+    },
+    {
+      "threshold": 0.85,
+      "warning_id": "illusion_dragon"
+    },
+    {
+      "threshold": 0.75,
+      "warning_id": "illusion_bloom"
+    },
+    {
+      "threshold": 0.6,
+      "warning_id": "rend_reverie"
+    },
+    {
+      "threshold": 0.5,
+      "warning_id": "nightmare_rush"
+    },
+    {
+      "threshold": 0.3,
+      "warning_id": "rend_reverie"
+    },
+    {
+      "threshold": 0.2,
+      "warning_id": "dimension_rend"
+    }
+  ],
+  "hp_effects": [
+    {
+      "thresholds": [
+        0.8,
+        0.35
+      ],
+      "pattern": {
+        "id": "lucid_hp_effect",
+        "name": "판타즈멀 왈츠",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "player_mods": {},
+        "boss_mods": {},
+        "effect_actions": [
+          {
+            "action": "stack_increase",
+            "target": "self",
+            "count": 1,
+            "stack_effect_id": "phantasmal_waltz",
+            "value": 7
+          }
+        ],
+        "duration": 0,
+        "threshold": 0.8,
+        "stats": {}
+      }
+    }
+  ],
+  "ct": {
+    "gauge_by_hp": [
+      {
+        "above": 0,
+        "max": 4
+      }
+    ],
+    "warnings_by_hp": [
+      {
+        "above": 1,
+        "warning_id": "fairy_dust"
+      }
+    ]
+  },
+  "rewards": {
+    "items": [
+      {
+        "chance": 0.025,
+        "template_id": "twilight_mark",
+        "rarity": "unique"
+      },
+      {
+        "chance": 0.008,
+        "template_id": "dreamy_belt",
+        "rarity": "unique"
+      }
+    ],
+    "materials": [
+      {
+        "id": "boss_power_crystal",
+        "chance": 1,
+        "min": 1,
+        "max": 1
+      }
+    ]
+  },
+  "description": "\"후훗, 악몽은 이미 시작됐어요.\"",
+  "sort_order": 11,
+  "stack_effects": [
+    {
+      "stack_effect_id": "phantasmal_waltz",
+      "initial_stacks": 1
+    }
+  ]
+}

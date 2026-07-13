@@ -5,12 +5,22 @@
     "hp_bonus",
     "atk",
     "defense",
+    "defense_ignore",
     "garrison",
     "strength",
     "enmity",
     "damage_cut",
     "dmg_mitigation",
-    "dmg_amplification"
+    "dmg_amplification",
+    "dmg_supplement",
+    "skill_damage",
+    "skill_dmg_supplement",
+    "critical_rate",
+    "critical_damage",
+    "triple_attack_rate",
+    "double_attack_rate",
+    "life_steal",
+    "life_steal_cap"
   ],
   "labels": {
     "base_atk": "기본 공격력",
@@ -18,25 +28,45 @@
     "hp_bonus": "HP 보너스",
     "atk": "공격력 증가",
     "defense": "방어",
+    "defense_ignore": "방어력 무시",
     "garrison": "견수",
     "strength": "혼신",
     "enmity": "배수",
     "damage_cut": "데미지 컷",
     "dmg_mitigation": "데미지 감소",
-    "dmg_amplification": "데미지 증가"
+    "dmg_amplification": "데미지 증가",
+    "dmg_supplement": "가산 피해",
+    "skill_damage": "스킬 데미지",
+    "skill_dmg_supplement": "스킬 가산 피해",
+    "critical_rate": "크리티컬 확률",
+    "critical_damage": "크리티컬 데미지",
+    "triple_attack_rate": "트리플 어택 확률",
+    "double_attack_rate": "더블 어택 확률",
+    "life_steal": "생명력 흡수",
+    "life_steal_cap": "생명력 흡수 상한"
   },
   "percent_stats": [
     "atk",
     "damage_cut",
     "defense",
+    "defense_ignore",
     "dmg_amplification",
     "enmity",
     "garrison",
     "hp_bonus",
-    "strength"
+    "strength",
+    "skill_damage",
+    "critical_rate",
+    "critical_damage",
+    "triple_attack_rate",
+    "double_attack_rate",
+    "life_steal",
+    "life_steal_cap"
   ],
   "integer_stats": [
     "base_atk",
-    "max_hp"
+    "max_hp",
+    "dmg_supplement",
+    "skill_dmg_supplement"
   ]
 }

@@ -3,5 +3,16 @@
   "explore_limit_enabled": false,
   "boss_weekly_reward_limit_enabled": false,
   "max_equipped_items": 4,
-  "max_enhancement_stars": 10
+  "max_equipped_skills": 5,
+  "max_enhancement_stars": 10,
+  "level_up_growth": {
+    "base_atk": 0.5,
+    "max_hp": 5,
+    "defense": 0.01
+  },
+  "reward_multipliers": {
+    "win_min": 1,
+    "win_max": 1.2,
+    "loss": 0.2
+  }
 }

@@ -3,17 +3,24 @@
     "job_id": "novice",
     "level": 1,
     "gold": 130,
-    "stat_points": 0,
     "base_atk": 12,
     "max_hp": 120,
     "atk": 0,
     "defense": 0.08,
+    "defense_ignore": 0,
     "garrison": 0,
     "strength": 0,
     "enmity": 0,
     "damage_cut": 0,
     "dmg_mitigation": 0,
     "dmg_amplification": 0,
-    "hp_bonus": 0
+    "dmg_supplement": 0,
+    "skill_dmg_supplement": 0,
+    "hp_bonus": 0,
+    "critical_rate": 0,
+    "critical_damage": 0,
+    "double_attack_rate": 0,
+    "triple_attack_rate": 0,
+    "life_steal": 0
   }
 }

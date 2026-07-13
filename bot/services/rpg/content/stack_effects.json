@@ -1,0 +1,343 @@
+[
+  {
+    "id": "evangelists_blade",
+    "name": "혁인",
+    "max_stacks": 5,
+    "description": ".",
+    "tiers": [
+      {
+        "stack": 1,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.2,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 2,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.4,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 3,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.6,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.5,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 4,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.8,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 1.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 5,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 1.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 1.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "effects": {
+          "bonus_damage": [
+            {
+              "ratio": 0.25,
+              "target": "self",
+              "duration": -1,
+              "undispellable": true
+            }
+          ]
+        },
+        "stats": {}
+      }
+    ],
+    "conditions": [
+      {
+        "objective": "warning_failure",
+        "target": "none",
+        "operation": "increase",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "objective": "dispel",
+        "target": "opponent",
+        "operation": "decrease",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      }
+    ],
+    "stats": {}
+  },
+  {
+    "id": "trance",
+    "name": "트랜스",
+    "max_stacks": 3,
+    "description": ".",
+    "tiers": [
+      {
+        "stack": 1,
+        "stat_effects": [
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.25,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 2,
+        "stat_effects": [
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.5,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 3,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 1.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 1.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      }
+    ],
+    "conditions": [
+      {
+        "objective": "warning_success",
+        "target": "none",
+        "operation": "decrease",
+        "value": 2,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "objective": "warning_failure",
+        "target": "none",
+        "operation": "increase",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      }
+    ],
+    "stats": {}
+  },
+  {
+    "id": "phantasmal_waltz",
+    "name": "판타즈멀 왈츠",
+    "max_stacks": 7,
+    "description": ".",
+    "tiers": [
+      {
+        "stack": 1,
+        "stat_effects": [
+          {
+            "stat": "dmg_supplement",
+            "target": "self",
+            "value": 3.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 2,
+        "stat_effects": [
+          {
+            "stat": "dmg_supplement",
+            "target": "self",
+            "value": 4.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 3,
+        "stat_effects": [
+          {
+            "stat": "critical_rate",
+            "target": "self",
+            "value": 5.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 4,
+        "stat_effects": [
+          {
+            "stat": "dmg_supplement",
+            "target": "self",
+            "value": 6.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 5,
+        "stat_effects": [
+          {
+            "stat": "dmg_supplement",
+            "target": "self",
+            "value": 8.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 6,
+        "stat_effects": [
+          {
+            "stat": "dmg_supplement",
+            "target": "self",
+            "value": 10.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "effects": {
+          "bonus_damage": [
+            {
+              "ratio": 0.1,
+              "target": "self",
+              "duration": -1,
+              "undispellable": true
+            }
+          ]
+        },
+        "stats": {}
+      },
+      {
+        "stack": 7,
+        "stat_effects": [
+          {
+            "stat": "dmg_supplement",
+            "target": "self",
+            "value": 12.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.5,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "effects": {
+          "bonus_damage": [
+            {
+              "ratio": 0.1,
+              "target": "self",
+              "duration": -1,
+              "undispellable": true
+            }
+          ]
+        },
+        "stats": {}
+      }
+    ],
+    "conditions": [
+      {
+        "objective": "warning_failure",
+        "target": "none",
+        "operation": "increase",
+        "value": 3,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "objective": "hits",
+        "target": "self",
+        "operation": "decrease",
+        "value": 2,
+        "required": 7,
+        "min_damage": 0
+      }
+    ],
+    "stats": {}
+  }
+]

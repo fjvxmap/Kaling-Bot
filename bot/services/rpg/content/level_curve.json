@@ -1,5 +1,6 @@
 {
   "base": 280,
   "linear": 170,
-  "quadratic": 50
+  "quadratic": 50,
+  "cubic": 10
 }

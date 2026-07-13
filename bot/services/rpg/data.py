@@ -8,6 +8,27 @@ from typing import Any
 
 CONTENT_DIR = Path(__file__).with_name("content")
 LEGACY_CONTENT_PATH = Path(__file__).with_name("content.json")
+WARNING_OBJECTIVES = {
+    "damage",
+    "hits",
+    "debuff",
+    "dispel",
+    "clear_all",
+    "triple_attack",
+    "double_attack",
+    "ability",
+    "ability_damage",
+    "warning_success",
+    "warning_failure",
+}
+INFINITE_EFFECT_TURNS = -1
+STACK_EFFECT_ACTIONS = {
+    "stack_increase",
+    "stack_decrease",
+    "stack_set",
+    "stack_remove",
+    "stack_max",
+}
 
 
 def _read_json(path: Path) -> Any:
@@ -38,10 +59,13 @@ def _load_content() -> dict[str, Any]:
             "player": _read_json(CONTENT_DIR / "player.json"),
             "stat_allocation": _read_json(CONTENT_DIR / "stat_allocation.json"),
             "enhancement": _read_json(CONTENT_DIR / "enhancement.json"),
-            "drop_rarity_weights": _read_json(CONTENT_DIR / "drop_rarity_weights.json"),
+            "gacha": _read_json(CONTENT_DIR / "gacha.json"),
             "items": _read_json(CONTENT_DIR / "items.json"),
             "jobs": _read_json(CONTENT_DIR / "jobs.json"),
             "skills": _read_json(CONTENT_DIR / "skills.json"),
+            "stack_effects": _read_json(CONTENT_DIR / "stack_effects.json")
+            if (CONTENT_DIR / "stack_effects.json").exists()
+            else [],
             "materials": _read_json(CONTENT_DIR / "materials.json"),
             "crafting_recipes": _read_json(CONTENT_DIR / "crafting_recipes.json"),
             "dungeons": _read_json_dir(CONTENT_DIR / "dungeons"),
@@ -56,12 +80,182 @@ CONTENT = _load_content()
 
 
 @dataclass(frozen=True)
+class FlurryEffect:
+    count: int
+    duration: int
+    undispellable: bool = False
+    target: str = "self"
+
+
+@dataclass(frozen=True)
+class DoubleStrikeEffect:
+    count: int
+    duration: int
+    undispellable: bool = False
+    target: str = "self"
+
+
+@dataclass(frozen=True)
+class BonusDamageEffect:
+    ratio: float
+    duration: int
+    undispellable: bool = False
+    target: str = "self"
+
+
+@dataclass(frozen=True)
+class CriticalReinforceEffect:
+    ratio: float
+    duration: int
+    undispellable: bool = False
+    target: str = "self"
+
+
+@dataclass(frozen=True)
+class FinalDamageEffect:
+    ratio: float
+    duration: int
+    undispellable: bool = False
+    target: str = "self"
+
+
+@dataclass(frozen=True)
+class PostAttackAbilityDamageEffect:
+    ratio: float
+    count: int
+    duration: int
+    undispellable: bool = False
+    target: str = "self"
+
+
+@dataclass(frozen=True)
+class DispelGuardEffect:
+    duration: int
+    count: int = 0
+    undispellable: bool = False
+    target: str = "self"
+
+
+@dataclass(frozen=True)
+class VeilEffect:
+    duration: int
+    count: int = 0
+    undispellable: bool = False
+    target: str = "self"
+
+
+@dataclass(frozen=True)
+class HealCap:
+    mode: str = "none"
+    value: float = 0.0
+
+    @property
+    def has_cap(self) -> bool:
+        return self.mode in {"flat", "max_hp_ratio"} and self.value > 0
+
+
+@dataclass(frozen=True)
+class PlainDamage:
+    mode: str = "none"
+    value: float = 0.0
+
+    @property
+    def has_damage(self) -> bool:
+        return self.mode in {"flat", "target_max_hp_ratio"} and self.value > 0
+
+
+@dataclass(frozen=True)
+class StatEffect:
+    stat: str
+    value: float
+    duration: int
+    undispellable: bool = False
+    heal_cap: HealCap = field(default_factory=HealCap)
+    target: str = "self"
+
+
+@dataclass(frozen=True)
+class CombatSpecialEffects:
+    flurry: FlurryEffect | None = None
+    double_strike: DoubleStrikeEffect | None = None
+    bonus_damage: list[BonusDamageEffect] = field(default_factory=list)
+    critical_reinforce: list[CriticalReinforceEffect] = field(default_factory=list)
+    final_damage: list[FinalDamageEffect] = field(default_factory=list)
+    post_attack_ability_damage: list[PostAttackAbilityDamageEffect] = field(default_factory=list)
+    dispel_guard: list[DispelGuardEffect] = field(default_factory=list)
+    veil: list[VeilEffect] = field(default_factory=list)
+
+    @property
+    def has_any(self) -> bool:
+        return (
+            self.flurry is not None
+            or self.double_strike is not None
+            or bool(self.bonus_damage)
+            or bool(self.critical_reinforce)
+            or bool(self.final_damage)
+            or bool(self.post_attack_ability_damage)
+            or bool(self.dispel_guard)
+            or bool(self.veil)
+        )
+
+
+@dataclass(frozen=True)
+class EffectActionStackCondition:
+    stack_effect_id: str = ""
+    target: str = "self"
+    min_stacks: int = 0
+    max_stacks: int = -1
+
+
+@dataclass(frozen=True)
+class EffectAction:
+    action: str
+    target: str = "enemy"
+    count: int = 1
+    stack_effect_id: str = ""
+    value: int = 1
+    conditions: list[EffectActionStackCondition] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class StackEffectCondition:
+    objective: str
+    target: str = "self"
+    operation: str = "increase"
+    value: int = 1
+    required: int = 1
+    min_damage: int = 0
+
+
+@dataclass(frozen=True)
+class StackEffectTier:
+    stack: int
+    stat_effects: list[StatEffect] = field(default_factory=list)
+    effects: CombatSpecialEffects = field(default_factory=CombatSpecialEffects)
+
+
+@dataclass(frozen=True)
+class StackEffectTemplate:
+    id: str
+    name: str
+    max_stacks: int
+    description: str = ""
+    tiers: list[StackEffectTier] = field(default_factory=list)
+    conditions: list[StackEffectCondition] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class ItemTemplate:
     id: str
     name: str
     rarity: str
     stats: dict[str, float]
     base_price: int
+    fixed_stats: frozenset[str] = field(default_factory=frozenset)
+    stat_effects: list[StatEffect] = field(default_factory=list)
+    effects: CombatSpecialEffects = field(default_factory=CombatSpecialEffects)
+    undispellable: bool = True
+    excluded_from_gacha: bool = False
 
 
 @dataclass(frozen=True)
@@ -76,8 +270,17 @@ class SkillTemplate:
     hits: int = 0
     player_mods: dict[str, float] = field(default_factory=dict)
     enemy_mods: dict[str, float] = field(default_factory=dict)
+    player_stat_effects: list[StatEffect] = field(default_factory=list)
+    enemy_stat_effects: list[StatEffect] = field(default_factory=list)
+    player_effects: CombatSpecialEffects = field(default_factory=CombatSpecialEffects)
+    enemy_effects: CombatSpecialEffects = field(default_factory=CombatSpecialEffects)
+    effect_actions: list[EffectAction] = field(default_factory=list)
+    player_undispellable: bool = False
+    enemy_undispellable: bool = False
     duration: int = 0
     heal_power: float = 0.0
+    heal_cap: HealCap = field(default_factory=HealCap)
+    heal_target: str = "self"
     damage_cut: float = 0.0
     job_ids: tuple[str, ...] = ()
     note: str = ""
@@ -91,7 +294,10 @@ class JobTemplate:
     level_req: int
     parent_id: str
     stats: dict[str, float]
-    description: str
+    description: str = ""
+    stat_effects: list[StatEffect] = field(default_factory=list)
+    effects: CombatSpecialEffects = field(default_factory=CombatSpecialEffects)
+    undispellable: bool = True
 
 
 @dataclass(frozen=True)
@@ -100,19 +306,64 @@ class BossPattern:
     name: str
     damage_multiplier: float = 0.0
     hits: int = 0
+    plain_damage: PlainDamage = field(default_factory=PlainDamage)
     player_mods: dict[str, float] = field(default_factory=dict)
     boss_mods: dict[str, float] = field(default_factory=dict)
+    player_stat_effects: list[StatEffect] = field(default_factory=list)
+    boss_stat_effects: list[StatEffect] = field(default_factory=list)
+    player_effects: CombatSpecialEffects = field(default_factory=CombatSpecialEffects)
+    boss_effects: CombatSpecialEffects = field(default_factory=CombatSpecialEffects)
+    effect_actions: list[EffectAction] = field(default_factory=list)
+    player_undispellable: bool = False
+    boss_undispellable: bool = False
     duration: int = 0
     id: str = ""
 
 
 @dataclass(frozen=True)
-class BossHPWarningTemplate:
-    threshold: float
-    pattern_id: str
+class BossWarningObjective:
     objective: str
     required: int
+    min_damage: int = 0
+
+
+@dataclass(frozen=True)
+class BossWarningFailureStackCondition:
+    stack_effect_id: str
+    target: str = "boss"
+    min_stacks: int = 0
+    max_stacks: int = -1
+
+
+@dataclass(frozen=True)
+class BossWarningFailureVariant:
+    conditions: list[BossWarningFailureStackCondition]
+    pattern: BossPattern
+    name: str = ""
+
+
+@dataclass(frozen=True)
+class BossWarningTemplate:
+    id: str
+    name: str
+    pattern_id: str
+    objectives: list[BossWarningObjective]
+    turns: int = 1
     pattern: BossPattern | None = None
+    failure_variants: list[BossWarningFailureVariant] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class BossHPWarningTemplate:
+    threshold: float
+    warning_id: str
+    warning: BossWarningTemplate | None = None
+
+
+@dataclass(frozen=True)
+class BossHPInstantEffectTemplate:
+    threshold: float
+    pattern: BossPattern
 
 
 @dataclass(frozen=True)
@@ -124,10 +375,14 @@ class BossCTGaugeTemplate:
 @dataclass(frozen=True)
 class BossCTWarningTemplate:
     above: float
-    pattern_id: str
-    objective: str
-    required: int
-    pattern: BossPattern | None = None
+    warning_id: str
+    warning: BossWarningTemplate | None = None
+
+
+@dataclass(frozen=True)
+class BossStackEffectTemplate:
+    stack_effect_id: str
+    initial_stacks: int = 0
 
 
 @dataclass(frozen=True)
@@ -136,13 +391,13 @@ class MaterialTemplate:
     name: str
     rarity: str
     description: str = ""
+    emoji: str = ""
 
 
 @dataclass(frozen=True)
 class RewardItemDrop:
     chance: float
     template_id: str = ""
-    rank: int = 0
     rarity: str = ""
     stars: int = 0
 
@@ -157,12 +412,33 @@ class RewardMaterialDrop:
 
 @dataclass(frozen=True)
 class RewardTemplate:
-    gold_min: int = 0
-    gold_max: int = 0
-    exp: int = 0
-    stat_points: int = 0
     item_drops: list[RewardItemDrop] = field(default_factory=list)
     material_drops: list[RewardMaterialDrop] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class GachaEntry:
+    type: str
+    chance: float
+    item_ids: tuple[str, ...] = ()
+    material_ids: tuple[str, ...] = ()
+    item_amounts: dict[str, int] = field(default_factory=dict)
+    material_amounts: dict[str, int] = field(default_factory=dict)
+    rarity: str = ""
+    stars: int = 0
+    min: int = 1
+    max: int = 1
+
+
+@dataclass(frozen=True)
+class GachaPool:
+    id: str
+    name: str
+    description: str
+    cost_material_id: str
+    cost_material_amount: int
+    draws: int
+    entries: list[GachaEntry] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -183,15 +459,12 @@ class EnemyTemplate:
     id: str
     name: str
     weight: int
-    rank: int
     stats: dict[str, float]
     gold: int
     exp: int
-    drop_chance: float
     description: str
     rare: bool = False
     rewards: RewardTemplate = field(default_factory=RewardTemplate)
-    consolation_rewards: RewardTemplate = field(default_factory=RewardTemplate)
 
 
 @dataclass(frozen=True)
@@ -199,7 +472,6 @@ class DungeonTemplate:
     id: str
     name: str
     level_req: int
-    rank: int
     enemies: list[EnemyTemplate]
     description: str
 
@@ -209,23 +481,485 @@ class BossTemplate:
     id: str
     name: str
     level_req: int
-    rank: int
     stats: dict[str, float]
     gold: int
     exp: int
-    stat_points: int
-    drop_chance: float
     patterns: list[BossPattern]
+    warnings: list[BossWarningTemplate]
     description: str
     hp_warnings: list[BossHPWarningTemplate] = field(default_factory=list)
+    hp_effects: list[BossHPInstantEffectTemplate] = field(default_factory=list)
     ct_gauge: list[BossCTGaugeTemplate] = field(default_factory=list)
     ct_warnings: list[BossCTWarningTemplate] = field(default_factory=list)
+    stack_effects: list[BossStackEffectTemplate] = field(default_factory=list)
     pattern_by_id: dict[str, BossPattern] = field(default_factory=dict)
+    warning_by_id: dict[str, BossWarningTemplate] = field(default_factory=dict)
     rewards: RewardTemplate = field(default_factory=RewardTemplate)
 
 
 def _stats(raw: dict[str, Any] | None) -> dict[str, float]:
     return {str(key): float(value) for key, value in (raw or {}).items()}
+
+
+def _fixed_stats(raw: Any, stats: dict[str, float]) -> frozenset[str]:
+    if not isinstance(raw, list):
+        return frozenset()
+    return frozenset(str(stat) for stat in raw if str(stat) in stats)
+
+
+def _safe_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _effect_duration(raw: dict[str, Any] | None, default_duration: int) -> int:
+    value = default_duration if raw is None else raw.get("duration", default_duration)
+    duration = _safe_int(value, default_duration)
+    if duration < 0:
+        return INFINITE_EFFECT_TURNS
+    return max(1, duration)
+
+
+def _effect_undispellable(raw: Any, fallback: bool = False) -> bool:
+    if isinstance(raw, dict):
+        return bool(raw.get("undispellable", fallback))
+    return fallback
+
+
+def _effect_target(raw: Any) -> str:
+    if not isinstance(raw, dict):
+        return "self"
+    target = str(raw.get("target", "self") or "self")
+    if target in {"ally", "allies", "party"}:
+        return "allies"
+    return "self"
+
+
+def _target_value(raw: Any) -> str:
+    target = str(raw or "self")
+    if target in {"ally", "allies", "party"}:
+        return "allies"
+    return "self"
+
+
+def _guard_count(raw: Any) -> int:
+    if not isinstance(raw, dict):
+        return 0
+    mode = str(raw.get("mode", raw.get("type", "")) or "")
+    count = raw.get("count", raw.get("uses", raw.get("charges", 0)))
+    if mode == "count" or count:
+        return max(1, _safe_int(count, 1))
+    return 0
+
+
+def _guard_duration(raw: Any, default_duration: int) -> int:
+    if isinstance(raw, dict) and _guard_count(raw) > 0 and "duration" not in raw:
+        return INFINITE_EFFECT_TURNS
+    return _effect_duration(raw, default_duration)
+
+
+def _guard_rows(raw: Any) -> list[Any]:
+    if raw in (None, False, {}, []):
+        return []
+    return raw if isinstance(raw, list) else [raw]
+
+
+def _bonus_ratio(raw: Any) -> float:
+    if isinstance(raw, dict):
+        if "percent" in raw:
+            return max(0.0, _safe_float(raw.get("percent")) / 100.0)
+        return max(0.0, _safe_float(raw.get("ratio", raw.get("value", 0.0))))
+    value = _safe_float(raw)
+    return max(0.0, value / 100.0 if value > 1 else value)
+
+
+def _signed_ratio(raw: Any) -> float:
+    if isinstance(raw, dict):
+        if "percent" in raw:
+            return _safe_float(raw.get("percent")) / 100.0
+        return _safe_float(raw.get("ratio", raw.get("value", 0.0)))
+    value = _safe_float(raw)
+    return value / 100.0 if abs(value) > 1 else value
+
+
+def _heal_cap(raw: Any) -> HealCap:
+    if not isinstance(raw, dict):
+        return HealCap()
+    cap = raw.get("heal_cap")
+    if isinstance(cap, dict):
+        raw_mode = str(cap.get("mode", cap.get("type", cap.get("kind", "none"))) or "none")
+        value = _safe_float(cap.get("value", cap.get("amount", 0.0)), 0.0)
+    else:
+        raw_mode = str(raw.get("heal_cap_mode", raw.get("heal_cap_type", "none")) or "none")
+        value = _safe_float(raw.get("heal_cap_value", cap if cap is not None else 0.0), 0.0)
+        if cap is not None and raw_mode == "none":
+            raw_mode = "flat"
+    aliases = {
+        "fixed": "flat",
+        "value": "flat",
+        "amount": "flat",
+        "max_hp": "max_hp_ratio",
+        "max_hp_percent": "max_hp_ratio",
+        "hp_percent": "max_hp_ratio",
+        "percent": "max_hp_ratio",
+    }
+    mode = aliases.get(raw_mode, raw_mode)
+    if mode not in {"flat", "max_hp_ratio"} or value <= 0:
+        return HealCap()
+    if raw_mode in {"max_hp_percent", "hp_percent", "percent"} or (mode == "max_hp_ratio" and value > 1):
+        value /= 100.0
+    return HealCap(mode=mode, value=max(0.0, value))
+
+
+def _combat_effects(
+    raw: Any,
+    default_duration: int = 1,
+    fallback_undispellable: bool = False,
+) -> CombatSpecialEffects:
+    if not isinstance(raw, dict):
+        return CombatSpecialEffects()
+
+    flurry: FlurryEffect | None = None
+    flurry_raw = raw.get("flurry")
+    if isinstance(flurry_raw, dict):
+        count = max(1, _safe_int(flurry_raw.get("count", flurry_raw.get("branches", 1)), 1))
+        if count > 1:
+            flurry = FlurryEffect(
+                count=count,
+                duration=_effect_duration(flurry_raw, default_duration),
+                undispellable=_effect_undispellable(flurry_raw, fallback_undispellable),
+                target=_effect_target(flurry_raw),
+            )
+    elif flurry_raw:
+        count = 2 if isinstance(flurry_raw, bool) else max(1, _safe_int(flurry_raw, 1))
+        if count > 1:
+            flurry = FlurryEffect(
+                count=count,
+                duration=_effect_duration(None, default_duration),
+                undispellable=fallback_undispellable,
+                target="self",
+            )
+
+    double_strike: DoubleStrikeEffect | None = None
+    double_raw = raw.get("double_strike")
+    if isinstance(double_raw, dict):
+        if bool(double_raw.get("enabled", True)):
+            count = max(2, _safe_int(double_raw.get("count", double_raw.get("actions", 2)), 2))
+            double_strike = DoubleStrikeEffect(
+                count=count,
+                duration=_effect_duration(double_raw, default_duration),
+                undispellable=_effect_undispellable(double_raw, fallback_undispellable),
+                target=_effect_target(double_raw),
+            )
+    elif double_raw:
+        double_strike = DoubleStrikeEffect(
+            count=2,
+            duration=_effect_duration(None, default_duration),
+            undispellable=fallback_undispellable,
+            target="self",
+        )
+
+    bonus_damage: list[BonusDamageEffect] = []
+    bonus_raw = raw.get("bonus_damage", [])
+    bonus_rows = bonus_raw if isinstance(bonus_raw, list) else [bonus_raw]
+    for bonus in bonus_rows:
+        ratio = _bonus_ratio(bonus)
+        if ratio <= 0:
+            continue
+        duration = _effect_duration(bonus if isinstance(bonus, dict) else None, default_duration)
+        bonus_damage.append(
+            BonusDamageEffect(
+                ratio=ratio,
+                duration=duration,
+                undispellable=_effect_undispellable(bonus, fallback_undispellable),
+                target=_effect_target(bonus),
+            )
+        )
+
+    critical_reinforce: list[CriticalReinforceEffect] = []
+    reinforce_raw = raw.get("critical_reinforce", [])
+    reinforce_rows = reinforce_raw if isinstance(reinforce_raw, list) else [reinforce_raw]
+    for reinforce in reinforce_rows:
+        ratio = _bonus_ratio(reinforce)
+        if ratio <= 0:
+            continue
+        duration = _effect_duration(reinforce if isinstance(reinforce, dict) else None, default_duration)
+        critical_reinforce.append(
+            CriticalReinforceEffect(
+                ratio=ratio,
+                duration=duration,
+                undispellable=_effect_undispellable(reinforce, fallback_undispellable),
+                target=_effect_target(reinforce),
+            )
+        )
+
+    final_damage: list[FinalDamageEffect] = []
+    final_damage_raw = raw.get("final_damage", [])
+    final_damage_rows = final_damage_raw if isinstance(final_damage_raw, list) else [final_damage_raw]
+    for final_effect in final_damage_rows:
+        ratio = _signed_ratio(final_effect)
+        if ratio == 0 or ratio <= -1:
+            continue
+        duration = _effect_duration(final_effect if isinstance(final_effect, dict) else None, default_duration)
+        final_damage.append(
+            FinalDamageEffect(
+                ratio=ratio,
+                duration=duration,
+                undispellable=_effect_undispellable(final_effect, fallback_undispellable),
+                target=_effect_target(final_effect),
+            )
+        )
+
+    post_attack_ability_damage: list[PostAttackAbilityDamageEffect] = []
+    post_attack_raw = raw.get("post_attack_ability_damage", [])
+    post_attack_rows = post_attack_raw if isinstance(post_attack_raw, list) else [post_attack_raw]
+    for post_attack in post_attack_rows:
+        ratio = _bonus_ratio(post_attack)
+        if ratio <= 0:
+            continue
+        count = 1
+        if isinstance(post_attack, dict):
+            count = max(1, _safe_int(post_attack.get("count", post_attack.get("hits", 1)), 1))
+        post_attack_ability_damage.append(
+            PostAttackAbilityDamageEffect(
+                ratio=ratio,
+                count=count,
+                duration=_effect_duration(post_attack if isinstance(post_attack, dict) else None, default_duration),
+                undispellable=_effect_undispellable(post_attack, fallback_undispellable),
+                target=_effect_target(post_attack),
+            )
+        )
+
+    dispel_guard: list[DispelGuardEffect] = []
+    for guard in _guard_rows(raw.get("dispel_guard")):
+        dispel_guard.append(
+            DispelGuardEffect(
+                duration=_guard_duration(guard, default_duration),
+                count=_guard_count(guard),
+                undispellable=_effect_undispellable(guard, fallback_undispellable),
+                target=_effect_target(guard),
+            )
+        )
+
+    veil: list[VeilEffect] = []
+    for guard in [*_guard_rows(raw.get("veil")), *_guard_rows(raw.get("mount"))]:
+        veil.append(
+            VeilEffect(
+                duration=_guard_duration(guard, default_duration),
+                count=_guard_count(guard),
+                undispellable=_effect_undispellable(guard, fallback_undispellable),
+                target=_effect_target(guard),
+            )
+        )
+
+    return CombatSpecialEffects(
+        flurry=flurry,
+        double_strike=double_strike,
+        bonus_damage=bonus_damage,
+        critical_reinforce=critical_reinforce,
+        final_damage=final_damage,
+        post_attack_ability_damage=post_attack_ability_damage,
+        dispel_guard=dispel_guard,
+        veil=veil,
+    )
+
+
+def _stat_effects(
+    raw: Any,
+    legacy_mods: Any,
+    default_duration: int,
+    fallback_undispellable: bool = False,
+) -> list[StatEffect]:
+    effects: list[StatEffect] = []
+    rows = raw if isinstance(raw, list) else []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        stat = str(row.get("stat", row.get("key", "")))
+        value = _safe_float(row.get("value"), 0.0)
+        if not stat or value == 0:
+            continue
+        effects.append(
+            StatEffect(
+                stat=stat,
+                value=value,
+                duration=_effect_duration(row, default_duration),
+                target=_stat_effect_target(row),
+                undispellable=_effect_undispellable(row, fallback_undispellable),
+                heal_cap=_heal_cap(row),
+            )
+        )
+    if effects:
+        return effects
+    return [
+        StatEffect(
+            stat=stat,
+            value=value,
+            duration=_effect_duration(None, default_duration),
+            target="self",
+            undispellable=fallback_undispellable,
+        )
+        for stat, value in _stats(legacy_mods).items()
+        if value
+    ]
+
+
+def _stat_effect_target(row: dict[str, Any]) -> str:
+    target = str(row.get("target", "self") or "self")
+    if target in {"ally", "allies", "party"}:
+        return "allies"
+    return "self"
+
+
+def _stat_effect_totals(effects: list[StatEffect]) -> dict[str, float]:
+    totals: dict[str, float] = {}
+    for effect in effects:
+        totals[effect.stat] = totals.get(effect.stat, 0.0) + effect.value
+    return totals
+
+
+def _effect_actions(raw: Any) -> list[EffectAction]:
+    rows = raw if isinstance(raw, list) else []
+    actions: list[EffectAction] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        raw_action = str(row.get("action", row.get("type", "")) or "")
+        operation = str(row.get("operation", row.get("op", "")) or "")
+        action = _stack_action(raw_action, operation)
+        if action not in {"dispel", "clear_all", *STACK_EFFECT_ACTIONS}:
+            continue
+        value = max(1, _safe_int(row.get("value", row.get("stacks", row.get("count", 1))), 1))
+        raw_conditions = row.get("conditions", row.get("stack_conditions", []))
+        if not isinstance(raw_conditions, list):
+            raw_conditions = []
+        actions.append(
+            EffectAction(
+                action=action,
+                target=str(row.get("target", _effect_action_default_target(action)) or _effect_action_default_target(action)),
+                count=max(1, _safe_int(row.get("count"), 1)),
+                stack_effect_id=str(row.get("stack_effect_id", row.get("effect_id", "")) or ""),
+                value=value,
+                conditions=[
+                    condition
+                    for condition in (
+                        _effect_action_stack_condition(condition_raw)
+                        for condition_raw in raw_conditions
+                        if isinstance(condition_raw, dict)
+                    )
+                    if condition.stack_effect_id
+                ],
+            )
+        )
+    return actions
+
+
+def _effect_action_default_target(action: str) -> str:
+    return "self" if action in STACK_EFFECT_ACTIONS else "enemy"
+
+
+def _effect_action_stack_condition(raw: dict[str, Any]) -> EffectActionStackCondition:
+    min_stacks = _safe_int(raw.get("min_stacks", raw.get("min", raw.get("stacks", 1))), 1)
+    max_stacks = _safe_int(raw.get("max_stacks", raw.get("max", -1)), -1)
+    return EffectActionStackCondition(
+        stack_effect_id=str(raw.get("stack_effect_id", raw.get("effect_id", raw.get("id", ""))) or ""),
+        target=_effect_action_stack_condition_target(raw.get("target", "self")),
+        min_stacks=max(0, min_stacks),
+        max_stacks=max_stacks,
+    )
+
+
+def _effect_action_stack_condition_target(value: Any) -> str:
+    target = str(value or "self")
+    if target in {"boss"}:
+        return "boss"
+    if target in {"player", "participant", "user"}:
+        return "player"
+    if target in {"me", "caster", "holder"}:
+        return "self"
+    if target in {"enemy", "opponent", "target"}:
+        return "enemy"
+    if target in {"ally", "allies", "party"}:
+        return "allies"
+    if target in {"opponents", "enemies"}:
+        return "opponents"
+    return "self"
+
+
+def _stack_action(action: str, operation: str = "") -> str:
+    if action in STACK_EFFECT_ACTIONS:
+        return action
+    if action in {"stack", "stack_effect"}:
+        op = operation or "increase"
+        return f"stack_{op}"
+    return action
+
+
+def _stack_condition_target(value: Any) -> str:
+    target = str(value or "self")
+    if target in {"none", "event", "warning"}:
+        return "none"
+    if target in {"me", "holder"}:
+        return "self"
+    if target in {"enemy", "opponent"}:
+        return "opponent"
+    return "self"
+
+
+def _stack_effect_condition(raw: dict[str, Any]) -> StackEffectCondition:
+    operation = str(raw.get("operation", raw.get("op", "increase")) or "increase")
+    action = _stack_action("stack", operation)
+    return StackEffectCondition(
+        objective=str(raw.get("objective", raw.get("kind", "damage")) or "damage"),
+        target=_stack_condition_target(raw.get("target")),
+        operation=action.removeprefix("stack_"),
+        value=max(1, _safe_int(raw.get("value", raw.get("stacks", 1)), 1)),
+        required=max(1, _safe_int(raw.get("required"), 1)),
+        min_damage=max(0, _safe_int(raw.get("min_damage"), 0)),
+    )
+
+
+def _stack_effect_tier(raw: dict[str, Any]) -> StackEffectTier:
+    return StackEffectTier(
+        stack=max(1, _safe_int(raw.get("stack", raw.get("stacks", 1)), 1)),
+        stat_effects=_stat_effects(
+            raw.get("stat_effects"),
+            raw.get("mods"),
+            INFINITE_EFFECT_TURNS,
+            True,
+        ),
+        effects=_combat_effects(raw.get("effects"), INFINITE_EFFECT_TURNS, True),
+    )
+
+
+def _stack_effect_template(raw: dict[str, Any]) -> StackEffectTemplate:
+    max_stacks = max(1, _safe_int(raw.get("max_stacks", raw.get("max", 1)), 1))
+    tiers = [
+        _stack_effect_tier(tier)
+        for tier in raw.get("tiers", raw.get("stacks", []))
+        if isinstance(tier, dict)
+    ]
+    return StackEffectTemplate(
+        id=str(raw["id"]),
+        name=str(raw.get("name", raw["id"])),
+        max_stacks=max_stacks,
+        description=str(raw.get("description", "")),
+        tiers=sorted(tiers, key=lambda tier: tier.stack),
+        conditions=[
+            _stack_effect_condition(condition)
+            for condition in raw.get("conditions", [])
+            if isinstance(condition, dict)
+        ],
+    )
 
 
 def _base_price(rarity: str, stats: dict[str, float]) -> int:
@@ -235,6 +969,12 @@ def _base_price(rarity: str, stats: dict[str, float]) -> int:
             power += value * 19
         elif key == "max_hp":
             power += value * 2.2
+        elif key == "defense_ignore":
+            power += value * 850
+        elif key == "dmg_supplement":
+            power += value * 24
+        elif key == "skill_dmg_supplement":
+            power += value * 18
         elif key == "dmg_mitigation":
             power += value * 30
         else:
@@ -246,16 +986,23 @@ def _base_price(rarity: str, stats: dict[str, float]) -> int:
 def _item(raw: dict[str, Any]) -> ItemTemplate:
     stats = _stats(raw.get("stats"))
     rarity = str(raw["rarity"])
+    undispellable = bool(raw.get("undispellable", True))
     return ItemTemplate(
         id=str(raw["id"]),
         name=str(raw["name"]),
         rarity=rarity,
         stats=stats,
         base_price=int(raw.get("base_price") or _base_price(rarity, stats)),
+        fixed_stats=_fixed_stats(raw.get("fixed_stats"), stats),
+        stat_effects=_stat_effects(raw.get("stat_effects"), None, INFINITE_EFFECT_TURNS, undispellable),
+        effects=_combat_effects(raw.get("effects"), INFINITE_EFFECT_TURNS, undispellable),
+        undispellable=undispellable,
+        excluded_from_gacha=bool(raw.get("excluded_from_gacha", False)),
     )
 
 
 def _job(raw: dict[str, Any]) -> JobTemplate:
+    undispellable = bool(raw.get("undispellable", True))
     return JobTemplate(
         id=str(raw["id"]),
         name=str(raw["name"]),
@@ -263,11 +1010,39 @@ def _job(raw: dict[str, Any]) -> JobTemplate:
         level_req=int(raw["level_req"]),
         parent_id=str(raw.get("parent_id", "")),
         stats=_stats(raw.get("stats")),
+        stat_effects=_stat_effects(raw.get("stat_effects"), None, INFINITE_EFFECT_TURNS, undispellable),
+        effects=_combat_effects(raw.get("effects"), INFINITE_EFFECT_TURNS, undispellable),
+        undispellable=undispellable,
         description=str(raw.get("description", "")),
     )
 
 
 def _skill(raw: dict[str, Any]) -> SkillTemplate:
+    duration = int(raw.get("duration", 0))
+    damage_cut = float(raw.get("damage_cut", 0.0))
+    player_undispellable = bool(raw.get("player_undispellable", raw.get("undispellable", False)))
+    enemy_undispellable = bool(raw.get("enemy_undispellable", False))
+    player_stat_effects = _stat_effects(
+        raw.get("player_stat_effects"),
+        raw.get("player_mods"),
+        duration,
+        player_undispellable,
+    )
+    enemy_stat_effects = _stat_effects(
+        raw.get("enemy_stat_effects"),
+        raw.get("enemy_mods"),
+        duration,
+        enemy_undispellable,
+    )
+    if damage_cut > 0 and not any(effect.stat == "damage_cut" for effect in player_stat_effects):
+        player_stat_effects.append(
+            StatEffect(
+                stat="damage_cut",
+                value=damage_cut,
+                duration=_effect_duration(None, duration),
+                undispellable=player_undispellable,
+            )
+        )
     return SkillTemplate(
         id=str(raw["id"]),
         name=str(raw["name"]),
@@ -277,11 +1052,20 @@ def _skill(raw: dict[str, Any]) -> SkillTemplate:
         role=str(raw.get("role", "attack")),
         damage_multiplier=float(raw.get("damage_multiplier", 0.0)),
         hits=int(raw.get("hits", 0)),
-        player_mods=_stats(raw.get("player_mods")),
-        enemy_mods=_stats(raw.get("enemy_mods")),
-        duration=int(raw.get("duration", 0)),
+        player_mods=_stat_effect_totals(player_stat_effects),
+        enemy_mods=_stat_effect_totals(enemy_stat_effects),
+        player_stat_effects=player_stat_effects,
+        enemy_stat_effects=enemy_stat_effects,
+        player_effects=_combat_effects(raw.get("player_effects", raw.get("effects")), duration, player_undispellable),
+        enemy_effects=_combat_effects(raw.get("enemy_effects"), duration, enemy_undispellable),
+        effect_actions=_effect_actions(raw.get("effect_actions")),
+        player_undispellable=player_undispellable,
+        enemy_undispellable=enemy_undispellable,
+        duration=duration,
         heal_power=float(raw.get("heal_power", 0.0)),
-        damage_cut=float(raw.get("damage_cut", 0.0)),
+        heal_cap=_heal_cap(raw),
+        heal_target=_target_value(raw.get("heal_target", raw.get("healTarget", "self"))),
+        damage_cut=damage_cut,
         job_ids=tuple(str(job_id) for job_id in raw.get("job_ids", ())),
         note=str(raw.get("note", "")),
     )
@@ -293,25 +1077,14 @@ def _material(raw: dict[str, Any]) -> MaterialTemplate:
         name=str(raw["name"]),
         rarity=str(raw.get("rarity", "normal")),
         description=str(raw.get("description", "")),
+        emoji=str(raw.get("emoji", "")),
     )
-
-
-def _gold_range(raw: Any, default_gold: int) -> tuple[int, int]:
-    if isinstance(raw, dict):
-        minimum = int(raw.get("min", default_gold))
-        maximum = int(raw.get("max", minimum))
-    elif raw is None:
-        minimum = maximum = default_gold
-    else:
-        minimum = maximum = int(raw)
-    return max(0, minimum), max(0, max(minimum, maximum))
 
 
 def _reward_item_drop(raw: dict[str, Any]) -> RewardItemDrop:
     return RewardItemDrop(
         chance=max(0.0, min(1.0, float(raw.get("chance", 0.0)))),
         template_id=str(raw.get("template_id", raw.get("item_id", ""))),
-        rank=max(0, int(raw.get("rank", 0))),
         rarity=str(raw.get("rarity", "")),
         stars=max(0, int(raw.get("stars", 0))),
     )
@@ -328,36 +1101,75 @@ def _reward_material_drop(raw: dict[str, Any]) -> RewardMaterialDrop:
     )
 
 
-def _reward(
-    raw: dict[str, Any] | None,
-    *,
-    default_gold: int = 0,
-    default_exp: int = 0,
-    default_stat_points: int = 0,
-    default_item_rank: int = 0,
-    default_item_chance: float = 0.0,
-) -> RewardTemplate:
+def _reward(raw: dict[str, Any] | None) -> RewardTemplate:
     raw = raw or {}
-    gold_min, gold_max = _gold_range(raw.get("gold"), default_gold)
     item_drops = [
         _reward_item_drop(item)
         for item in raw.get("items", [])
         if isinstance(item, dict)
     ]
-    if not item_drops and default_item_chance > 0:
-        item_drops = [RewardItemDrop(default_item_chance, rank=default_item_rank)]
     material_drops = [
         _reward_material_drop(material)
         for material in raw.get("materials", [])
         if isinstance(material, dict) and material.get("id")
     ]
     return RewardTemplate(
-        gold_min=gold_min,
-        gold_max=gold_max,
-        exp=max(0, int(raw.get("exp", default_exp))),
-        stat_points=max(0, int(raw.get("stat_points", default_stat_points))),
         item_drops=item_drops,
         material_drops=material_drops,
+    )
+
+
+def _gacha_entry(raw: dict[str, Any]) -> GachaEntry:
+    minimum = max(1, _safe_int(raw.get("min", raw.get("amount", 1)), 1))
+    maximum = max(minimum, _safe_int(raw.get("max", minimum), minimum))
+    raw_item_ids = raw.get("item_ids", raw.get("items", []))
+    raw_material_ids = raw.get("material_ids", raw.get("materials", []))
+    item_amounts = _gacha_target_amounts(raw_item_ids)
+    material_amounts = _gacha_target_amounts(raw_material_ids, minimum)
+    return GachaEntry(
+        type=str(raw.get("type", "item_rarity")),
+        chance=max(0.0, float(raw.get("chance", raw.get("weight", 0.0)))),
+        item_ids=tuple(item_amounts.keys()),
+        material_ids=tuple(material_amounts.keys()),
+        item_amounts=item_amounts,
+        material_amounts=material_amounts,
+        rarity=str(raw.get("rarity", "")),
+        stars=max(0, int(raw.get("stars", 0))),
+        min=minimum,
+        max=maximum,
+    )
+
+
+def _gacha_target_amounts(raw_targets: Any, default_amount: int = 1) -> dict[str, int]:
+    if not isinstance(raw_targets, list):
+        return {}
+    targets: dict[str, int] = {}
+    for raw_target in raw_targets:
+        if isinstance(raw_target, dict):
+            target_id = str(raw_target.get("id", raw_target.get("item_id", raw_target.get("material_id", ""))))
+            amount = max(1, _safe_int(raw_target.get("amount"), default_amount))
+        else:
+            target_id = str(raw_target)
+            amount = max(1, default_amount)
+        if not target_id:
+            continue
+        targets[target_id] = amount
+    return targets
+
+
+def _gacha_pool(raw: dict[str, Any], defaults: dict[str, Any]) -> GachaPool:
+    return GachaPool(
+        id=str(raw.get("id", "default")),
+        name=str(raw.get("name", raw.get("id", "기본 가챠"))),
+        description=str(raw.get("description", "")),
+        cost_material_id=str(raw.get("material_id", defaults.get("material_id", "crystal"))),
+        cost_material_amount=max(1, int(raw.get("cost", defaults.get("cost", 3000)))),
+        draws=max(1, int(raw.get("draws", defaults.get("draws", 10)))),
+        entries=[
+            _gacha_entry(entry)
+            for entry in raw.get("entries", [])
+            if isinstance(entry, dict)
+        ],
     )
 
 
@@ -378,31 +1190,16 @@ def _crafting_recipe(raw: dict[str, Any]) -> CraftingRecipe:
 def _enemy(raw: dict[str, Any]) -> EnemyTemplate:
     gold = int(raw["gold"])
     exp = int(raw["exp"])
-    rank = int(raw["rank"])
-    drop_chance = float(raw["drop_chance"])
     return EnemyTemplate(
         id=str(raw["id"]),
         name=str(raw["name"]),
         weight=int(raw["weight"]),
-        rank=rank,
         stats=_stats(raw.get("stats")),
         gold=gold,
         exp=exp,
-        drop_chance=drop_chance,
         description=str(raw.get("description", "")),
         rare=bool(raw.get("rare", False)),
-        rewards=_reward(
-            raw.get("rewards"),
-            default_gold=gold,
-            default_exp=exp,
-            default_item_rank=rank,
-            default_item_chance=drop_chance,
-        ),
-        consolation_rewards=_reward(
-            raw.get("consolation_rewards"),
-            default_gold=max(1, gold // 5),
-            default_exp=max(1, exp // 5),
-        ),
+        rewards=_reward(raw.get("rewards")),
     )
 
 
@@ -411,22 +1208,62 @@ def _dungeon(raw: dict[str, Any]) -> DungeonTemplate:
         id=str(raw["id"]),
         name=str(raw["name"]),
         level_req=int(raw["level_req"]),
-        rank=int(raw["rank"]),
         enemies=[_enemy(enemy) for enemy in raw.get("enemies", [])],
         description=str(raw.get("description", "")),
     )
 
 
+def _plain_damage(raw: Any) -> PlainDamage:
+    if raw in (None, "", 0, 0.0):
+        return PlainDamage()
+    if not isinstance(raw, dict):
+        return PlainDamage(mode="flat", value=max(0.0, _safe_float(raw, 0.0)))
+    mode = str(raw.get("mode", raw.get("type", "flat")) or "flat")
+    if mode in {"fixed", "amount", "value"}:
+        mode = "flat"
+    elif mode in {"target_max_hp", "target_max_hp_percent", "max_hp", "max_hp_ratio", "max_hp_percent", "hp_percent", "percent", "ratio"}:
+        mode = "target_max_hp_ratio"
+    elif mode not in {"none", "flat", "target_max_hp_ratio"}:
+        mode = "none"
+    value = max(0.0, _safe_float(raw.get("value", raw.get("amount", raw.get("ratio", raw.get("percent", 0.0)))), 0.0))
+    if mode == "target_max_hp_ratio" and ("percent" in raw or value > 1):
+        value /= 100.0
+    return PlainDamage(mode=mode, value=value)
+
+
 def _boss_pattern(raw: dict[str, Any]) -> BossPattern:
+    duration = int(raw.get("duration", 0))
+    player_undispellable = bool(raw.get("player_undispellable", False))
+    boss_undispellable = bool(raw.get("boss_undispellable", raw.get("undispellable", False)))
+    player_stat_effects = _stat_effects(
+        raw.get("player_stat_effects"),
+        raw.get("player_mods"),
+        duration,
+        player_undispellable,
+    )
+    boss_stat_effects = _stat_effects(
+        raw.get("boss_stat_effects"),
+        raw.get("boss_mods"),
+        duration,
+        boss_undispellable,
+    )
     return BossPattern(
         id=str(raw.get("id", "")),
-        threshold=float(raw.get("threshold", 0.0)),
+        threshold=_hp_threshold(raw.get("threshold", 0.0)),
         name=str(raw["name"]),
         damage_multiplier=float(raw.get("damage_multiplier", 0.0)),
         hits=int(raw.get("hits", 0)),
-        player_mods=_stats(raw.get("player_mods")),
-        boss_mods=_stats(raw.get("boss_mods")),
-        duration=int(raw.get("duration", 0)),
+        plain_damage=_plain_damage(raw.get("plain_damage", raw.get("neutral_damage", raw.get("true_damage")))),
+        player_mods=_stat_effect_totals(player_stat_effects),
+        boss_mods=_stat_effect_totals(boss_stat_effects),
+        player_stat_effects=player_stat_effects,
+        boss_stat_effects=boss_stat_effects,
+        player_effects=_combat_effects(raw.get("player_effects"), duration, player_undispellable),
+        boss_effects=_combat_effects(raw.get("boss_effects", raw.get("effects")), duration, boss_undispellable),
+        effect_actions=_effect_actions(raw.get("effect_actions")),
+        player_undispellable=player_undispellable,
+        boss_undispellable=boss_undispellable,
+        duration=duration,
     )
 
 
@@ -435,64 +1272,258 @@ def _warning_pattern(raw: dict[str, Any], fallback_id: str, fallback_name: str) 
     if not isinstance(pattern, dict):
         return None
     normalized = dict(pattern)
-    normalized.setdefault("id", raw.get("pattern_id", fallback_id))
-    normalized.setdefault("name", fallback_name)
+    normalized["id"] = str(raw.get("warning_id", raw.get("id", fallback_id)) or fallback_id)
+    normalized["name"] = str(raw.get("name", fallback_name) or fallback_name)
     return _boss_pattern(normalized)
 
 
-def _hp_warning(raw: dict[str, Any], index: int = 0) -> BossHPWarningTemplate:
-    pattern = _warning_pattern(raw, f"hp_warning_{index + 1}", "HP Warning Failure")
-    return BossHPWarningTemplate(
-        threshold=float(raw["threshold"]),
-        pattern_id=str(raw.get("pattern_id", pattern.id if pattern is not None else "")),
-        objective=str(raw.get("objective", "damage")),
-        required=max(1, int(raw.get("required", 1))),
-        pattern=pattern,
+def _warning_failure_stack_condition(raw: dict[str, Any]) -> BossWarningFailureStackCondition:
+    target = str(raw.get("target", "boss") or "boss")
+    if target in {"player", "self", "participant", "user"}:
+        target = "player"
+    else:
+        target = "boss"
+    return BossWarningFailureStackCondition(
+        stack_effect_id=str(raw.get("stack_effect_id", raw.get("effect_id", raw.get("id", ""))) or ""),
+        target=target,
+        min_stacks=max(0, _safe_int(raw.get("min_stacks", raw.get("min", raw.get("stacks", 1))), 1)),
+        max_stacks=_safe_int(raw.get("max_stacks", raw.get("max", -1)), -1),
     )
+
+
+def _warning_failure_variant(
+    raw: dict[str, Any],
+    index: int,
+    warning_id: str,
+    warning_name: str,
+) -> BossWarningFailureVariant | None:
+    conditions = [
+        _warning_failure_stack_condition(condition)
+        for condition in raw.get("conditions", [])
+        if isinstance(condition, dict)
+    ]
+    pattern_raw = raw.get("pattern") if isinstance(raw.get("pattern"), dict) else raw
+    normalized = dict(pattern_raw)
+    normalized["id"] = str(normalized.get("id", f"{warning_id}_failure_variant_{index + 1}") or f"{warning_id}_failure_variant_{index + 1}")
+    normalized["name"] = str(raw.get("name", normalized.get("name", f"{warning_name} 변형 {index + 1}")) or f"{warning_name} 변형 {index + 1}")
+    return BossWarningFailureVariant(
+        conditions=conditions,
+        pattern=_boss_pattern(normalized),
+        name=str(raw.get("name", normalized["name"]) or normalized["name"]),
+    )
+
+
+def _warning_objectives(
+    raw: dict[str, Any],
+    default_objective: str = "damage",
+) -> list[BossWarningObjective]:
+    objectives = raw.get("objectives")
+    parsed: list[BossWarningObjective] = []
+    if isinstance(objectives, list):
+        for objective in objectives:
+            if not isinstance(objective, dict):
+                continue
+            kind = str(objective.get("objective", objective.get("kind", default_objective)) or default_objective)
+            parsed.append(
+                BossWarningObjective(
+                    objective=kind,
+                    required=max(1, _safe_int(objective.get("required"), 1)),
+                    min_damage=max(0, _safe_int(objective.get("min_damage"), 0)),
+                )
+            )
+    if parsed:
+        return parsed
+    return [
+        BossWarningObjective(
+            objective=str(raw.get("objective", default_objective) or default_objective),
+            required=max(1, _safe_int(raw.get("required"), 1)),
+            min_damage=max(0, _safe_int(raw.get("min_damage"), 0)),
+        )
+    ]
+
+
+def _warning_template(
+    raw: dict[str, Any],
+    index: int,
+    prefix: str,
+    default_objective: str,
+) -> BossWarningTemplate:
+    warning_id = str(raw.get("warning_id", raw.get("id", "")) or "")
+    if not warning_id:
+        warning_id = f"{prefix}_{index + 1}"
+    warning_name = str(raw.get("name", "") or "")
+    pattern = _warning_pattern(raw, warning_id, warning_name or warning_id)
+    if not warning_name:
+        warning_name = pattern.name if pattern is not None else warning_id
+    pattern_id = warning_id if pattern is not None else str(raw.get("pattern_id", ""))
+    failure_variants = [
+        variant
+        for index, variant_raw in enumerate(raw.get("failure_variants", []))
+        if isinstance(variant_raw, dict)
+        for variant in [_warning_failure_variant(variant_raw, index, warning_id, warning_name or warning_id)]
+        if variant is not None
+    ]
+    return BossWarningTemplate(
+        id=warning_id,
+        name=warning_name,
+        pattern_id=pattern_id,
+        objectives=_warning_objectives(raw, default_objective),
+        turns=max(1, _safe_int(raw.get("turns", raw.get("limit_turns", 1)), 1)),
+        pattern=pattern,
+        failure_variants=failure_variants,
+    )
+
+
+def _hp_warning(
+    raw: dict[str, Any],
+    index: int,
+    warning_by_id: dict[str, BossWarningTemplate],
+) -> BossHPWarningTemplate:
+    warning_id = str(raw.get("warning_id", "") or "")
+    warning = warning_by_id.get(warning_id) if warning_id else None
+    if warning is None:
+        warning = _warning_template(raw, index, "hp_warning", "damage")
+        warning_id = warning.id
+    return BossHPWarningTemplate(
+        threshold=_hp_threshold(raw["threshold"]),
+        warning_id=warning_id,
+        warning=warning,
+    )
+
+
+def _hp_thresholds(value: Any) -> list[float]:
+    source = value if isinstance(value, list) else [value]
+    thresholds = [_hp_threshold(threshold) for threshold in source]
+    unique = sorted({round(threshold, 6) for threshold in thresholds}, reverse=True)
+    return unique or [0.0]
+
+
+def _hp_effect_pattern_id(base_id: str, threshold: float, threshold_count: int) -> str:
+    if threshold_count <= 1:
+        return base_id
+    threshold_key = int(round(max(0.0, min(1.0, threshold)) * 10000))
+    return f"{base_id}_hp_{threshold_key:04d}"
+
+
+def _hp_instant_effects(raw: dict[str, Any], index: int) -> list[BossHPInstantEffectTemplate]:
+    pattern_raw = raw.get("pattern") if isinstance(raw.get("pattern"), dict) else raw
+    normalized = dict(pattern_raw)
+    fallback_id = str(raw.get("id", f"hp_effect_{index + 1}") or f"hp_effect_{index + 1}")
+    fallback_name = str(raw.get("name", f"HP 즉시 효과 {index + 1}") or f"HP 즉시 효과 {index + 1}")
+    normalized["id"] = str(normalized.get("id", fallback_id) or fallback_id)
+    normalized["name"] = str(normalized.get("name", fallback_name) or fallback_name)
+    thresholds = _hp_thresholds(raw.get("thresholds", raw.get("threshold", normalized.get("threshold", 0.0))))
+    effects: list[BossHPInstantEffectTemplate] = []
+    for threshold in thresholds:
+        threshold_pattern = dict(normalized)
+        threshold_pattern["threshold"] = threshold
+        threshold_pattern["id"] = _hp_effect_pattern_id(normalized["id"], threshold, len(thresholds))
+        effects.append(
+            BossHPInstantEffectTemplate(
+                threshold=threshold,
+                pattern=_boss_pattern(threshold_pattern),
+            )
+        )
+    return effects
 
 
 def _ct_gauge(raw: dict[str, Any]) -> BossCTGaugeTemplate:
     return BossCTGaugeTemplate(
-        above=float(raw.get("above", 0.0)),
+        above=_hp_threshold(raw.get("above", 0.0)),
         max=max(1, int(raw.get("max", 1))),
     )
 
 
-def _ct_warning(raw: dict[str, Any], index: int = 0) -> BossCTWarningTemplate:
-    pattern = _warning_pattern(raw, f"ct_warning_{index + 1}", "CT Warning Failure")
+def _ct_warning(
+    raw: dict[str, Any],
+    index: int,
+    warning_by_id: dict[str, BossWarningTemplate],
+) -> BossCTWarningTemplate:
+    warning_id = str(raw.get("warning_id", "") or "")
+    warning = warning_by_id.get(warning_id) if warning_id else None
+    if warning is None:
+        warning = _warning_template(raw, index, "ct_warning", "hits")
+        warning_id = warning.id
     return BossCTWarningTemplate(
-        above=float(raw.get("above", 0.0)),
-        pattern_id=str(raw.get("pattern_id", pattern.id if pattern is not None else "")),
-        objective=str(raw.get("objective", "hits")),
-        required=max(1, int(raw.get("required", 1))),
-        pattern=pattern,
+        above=_hp_threshold(raw.get("above", 0.0)),
+        warning_id=warning_id,
+        warning=warning,
     )
+
+
+def _boss_stack_effect(raw: dict[str, Any]) -> BossStackEffectTemplate:
+    stack_effect_id = str(raw.get("stack_effect_id", raw.get("id", raw.get("effect_id", ""))) or "")
+    return BossStackEffectTemplate(
+        stack_effect_id=stack_effect_id,
+        initial_stacks=max(0, _safe_int(raw.get("initial_stacks", raw.get("stacks", 0)), 0)),
+    )
+
+
+def _hp_threshold(value: Any) -> float:
+    threshold = _safe_float(value, 0.0)
+    if threshold > 1:
+        threshold /= 100.0
+    return max(0.0, min(1.0, threshold))
 
 
 def _boss(raw: dict[str, Any]) -> BossTemplate:
     patterns = [_boss_pattern(pattern) for pattern in raw.get("patterns", [])]
+    warnings = [
+        _warning_template(warning, index, "warning", "damage")
+        for index, warning in enumerate(raw.get("warnings", []))
+    ]
+    warning_by_id = {
+        warning.id: warning
+        for warning in warnings
+        if warning.id
+    }
     ct = raw.get("ct", {})
-    rank = int(raw["rank"])
     gold = int(raw["gold"])
     exp = int(raw["exp"])
-    stat_points = int(raw.get("stat_points", 0))
-    drop_chance = float(raw.get("drop_chance", 0.0))
     hp_warnings = sorted(
-        [_hp_warning(warning, index) for index, warning in enumerate(raw.get("hp_warnings", []))],
+        [_hp_warning(warning, index, warning_by_id) for index, warning in enumerate(raw.get("hp_warnings", []))],
         key=lambda warning: warning.threshold,
         reverse=True,
     )
+    hp_effect_rows = raw.get("hp_effects", raw.get("hp_instant_effects", raw.get("instant_hp_effects", [])))
+    hp_effects = sorted(
+        [
+            hp_effect
+            for index, effect in enumerate(hp_effect_rows)
+            if isinstance(effect, dict)
+            for hp_effect in _hp_instant_effects(effect, index)
+        ],
+        key=lambda effect: effect.threshold,
+        reverse=True,
+    )
     ct_warnings = sorted(
-        [_ct_warning(warning, index) for index, warning in enumerate(ct.get("warnings_by_hp", []))],
+        [_ct_warning(warning, index, warning_by_id) for index, warning in enumerate(ct.get("warnings_by_hp", []))],
         key=lambda warning: warning.above,
         reverse=True,
     )
+    direct_warnings = [
+        warning.warning
+        for warning in [*hp_warnings, *ct_warnings]
+        if warning.warning is not None and warning.warning.id not in warning_by_id
+    ]
+    all_warnings = [*warnings, *direct_warnings]
+    warning_by_id = {
+        warning.id: warning
+        for warning in all_warnings
+        if warning.id
+    }
     direct_patterns = [
         warning.pattern
-        for warning in [*hp_warnings, *ct_warnings]
+        for warning in all_warnings
         if warning.pattern is not None
     ]
-    all_patterns = [*patterns, *direct_patterns]
+    variant_patterns = [
+        variant.pattern
+        for warning in all_warnings
+        for variant in warning.failure_variants
+    ]
+    hp_effect_patterns = [effect.pattern for effect in hp_effects]
+    all_patterns = [*patterns, *direct_patterns, *variant_patterns, *hp_effect_patterns]
     pattern_by_id = {
         pattern.id or pattern.name: pattern
         for pattern in all_patterns
@@ -501,30 +1532,28 @@ def _boss(raw: dict[str, Any]) -> BossTemplate:
         id=str(raw["id"]),
         name=str(raw["name"]),
         level_req=int(raw["level_req"]),
-        rank=rank,
         stats=_stats(raw.get("stats")),
         gold=gold,
         exp=exp,
-        stat_points=stat_points,
-        drop_chance=drop_chance,
         patterns=all_patterns,
+        warnings=all_warnings,
         description=str(raw.get("description", "")),
         hp_warnings=hp_warnings,
+        hp_effects=hp_effects,
         ct_gauge=sorted(
             [_ct_gauge(rule) for rule in ct.get("gauge_by_hp", [])],
             key=lambda rule: rule.above,
             reverse=True,
         ),
         ct_warnings=ct_warnings,
+        stack_effects=[
+            _boss_stack_effect(effect)
+            for effect in raw.get("stack_effects", [])
+            if isinstance(effect, dict)
+        ],
         pattern_by_id=pattern_by_id,
-        rewards=_reward(
-            raw.get("rewards"),
-            default_gold=gold,
-            default_exp=exp,
-            default_stat_points=stat_points,
-            default_item_rank=rank + 1,
-            default_item_chance=drop_chance,
-        ),
+        warning_by_id=warning_by_id,
+        rewards=_reward(raw.get("rewards")),
     )
 
 
@@ -533,7 +1562,20 @@ DAILY_EXPLORES = int(_SETTINGS.get("daily_explores", 7))
 EXPLORE_LIMIT_ENABLED = bool(_SETTINGS.get("explore_limit_enabled", False))
 BOSS_WEEKLY_REWARD_LIMIT_ENABLED = bool(_SETTINGS.get("boss_weekly_reward_limit_enabled", False))
 MAX_EQUIPPED_ITEMS = int(_SETTINGS.get("max_equipped_items", 4))
+MAX_EQUIPPED_SKILLS = int(_SETTINGS.get("max_equipped_skills", 4))
 MAX_ENHANCEMENT_STARS = int(_SETTINGS.get("max_enhancement_stars", 10))
+_LEVEL_UP_GROWTH = _SETTINGS.get("level_up_growth", {})
+if not isinstance(_LEVEL_UP_GROWTH, dict):
+    _LEVEL_UP_GROWTH = {}
+LEVEL_UP_BASE_ATK = _safe_float(_LEVEL_UP_GROWTH.get("base_atk"), 1.0)
+LEVEL_UP_MAX_HP = _safe_float(_LEVEL_UP_GROWTH.get("max_hp"), 5.0)
+LEVEL_UP_DEFENSE = _safe_float(_LEVEL_UP_GROWTH.get("defense"), 0.025)
+_REWARD_MULTIPLIERS = _SETTINGS.get("reward_multipliers", {})
+if not isinstance(_REWARD_MULTIPLIERS, dict):
+    _REWARD_MULTIPLIERS = {}
+REWARD_WIN_MULTIPLIER_MIN = _safe_float(_REWARD_MULTIPLIERS.get("win_min"), 1.0)
+REWARD_WIN_MULTIPLIER_MAX = _safe_float(_REWARD_MULTIPLIERS.get("win_max"), 1.2)
+REWARD_LOSS_MULTIPLIER = _safe_float(_REWARD_MULTIPLIERS.get("loss"), 0.2)
 
 _STAT_DATA = CONTENT.get("stats", {})
 STAT_ORDER = [str(stat) for stat in _STAT_DATA.get("order", [])]
@@ -567,12 +1609,32 @@ SKILL_BY_ID = {skill.id: skill for skill in SKILLS}
 
 MATERIALS = [_material(material) for material in CONTENT.get("materials", [])]
 MATERIAL_BY_ID = {material.id: material for material in MATERIALS}
+MATERIALS_BY_RARITY = {
+    rarity: [material for material in MATERIALS if material.rarity == rarity]
+    for rarity in RARITIES
+}
+
+_GACHA_DATA = CONTENT.get("gacha", {})
+GACHA_POOLS = [
+    _gacha_pool(pool, _GACHA_DATA)
+    for pool in _GACHA_DATA.get("pools", [])
+    if isinstance(pool, dict)
+]
+GACHA_POOL_BY_ID = {pool.id: pool for pool in GACHA_POOLS}
+GACHA_DEFAULT_POOL_ID = str(_GACHA_DATA.get("default_pool_id", GACHA_POOLS[0].id if GACHA_POOLS else ""))
 
 CRAFTING_RECIPES = sorted(
     [_crafting_recipe(recipe) for recipe in CONTENT.get("crafting_recipes", [])],
     key=lambda recipe: (recipe.sort_order, recipe.level_req, recipe.name),
 )
 CRAFTING_RECIPE_BY_ID = {recipe.id: recipe for recipe in CRAFTING_RECIPES}
+
+STACK_EFFECTS = [
+    _stack_effect_template(effect)
+    for effect in CONTENT.get("stack_effects", [])
+    if isinstance(effect, dict)
+]
+STACK_EFFECT_BY_ID = {effect.id: effect for effect in STACK_EFFECTS}
 
 DUNGEONS = [_dungeon(dungeon) for dungeon in CONTENT.get("dungeons", [])]
 DUNGEON_BY_ID = {dungeon.id: dungeon for dungeon in DUNGEONS}
@@ -583,6 +1645,25 @@ BOSS_BY_ID = {boss.id: boss for boss in BOSSES}
 
 def _validate_content() -> None:
     errors: list[str] = []
+    stack_effect_ids = [effect.id for effect in STACK_EFFECTS if effect.id]
+    if len(stack_effect_ids) != len(set(stack_effect_ids)):
+        errors.append("stack effects have duplicate ids")
+    for effect in STACK_EFFECTS:
+        if effect.max_stacks < 1:
+            errors.append(f"stack effect {effect.id} max stacks must be at least 1")
+        tier_stacks = [tier.stack for tier in effect.tiers]
+        if len(tier_stacks) != len(set(tier_stacks)):
+            errors.append(f"stack effect {effect.id} has duplicate tier stacks")
+        for tier in effect.tiers:
+            if tier.stack < 1 or tier.stack > effect.max_stacks:
+                errors.append(f"stack effect {effect.id} tier out of range: {tier.stack}")
+        for condition in effect.conditions:
+            if condition.objective not in WARNING_OBJECTIVES:
+                errors.append(f"stack effect {effect.id} condition objective not found: {condition.objective}")
+            if condition.operation not in {"increase", "decrease", "set", "remove", "max"}:
+                errors.append(f"stack effect {effect.id} condition operation is invalid: {condition.operation}")
+    for skill in SKILLS:
+        errors.extend(_validate_effect_actions(skill.effect_actions, f"skill {skill.id} effect actions"))
     for recipe in CRAFTING_RECIPES:
         if recipe.result_item_id not in ITEM_BY_ID:
             errors.append(f"crafting recipe {recipe.id} result item not found: {recipe.result_item_id}")
@@ -592,17 +1673,114 @@ def _validate_content() -> None:
     for dungeon in DUNGEONS:
         for enemy in dungeon.enemies:
             errors.extend(_validate_reward(enemy.rewards, f"enemy {enemy.id} rewards"))
-            errors.extend(_validate_reward(enemy.consolation_rewards, f"enemy {enemy.id} consolation_rewards"))
     for boss in BOSSES:
+        pattern_ids = [pattern.id for pattern in boss.patterns if pattern.id]
+        if len(pattern_ids) != len(set(pattern_ids)):
+            errors.append(f"boss {boss.id} has duplicate pattern ids")
+        for pattern in boss.patterns:
+            errors.extend(_validate_effect_actions(pattern.effect_actions, f"boss {boss.id} pattern {pattern.id} effect actions"))
+        warning_ids = [warning.id for warning in boss.warnings if warning.id]
+        if len(warning_ids) != len(set(warning_ids)):
+            errors.append(f"boss {boss.id} has duplicate warning ids")
+        for warning in boss.warnings:
+            if warning.pattern is not None:
+                errors.extend(_validate_effect_actions(warning.pattern.effect_actions, f"boss {boss.id} warning {warning.id} effect actions"))
+            for index, variant in enumerate(warning.failure_variants, start=1):
+                for condition in variant.conditions:
+                    if condition.stack_effect_id not in STACK_EFFECT_BY_ID:
+                        errors.append(
+                            f"boss {boss.id} warning {warning.id} failure variant {index} "
+                            f"stack effect not found: {condition.stack_effect_id}"
+                        )
+                    if condition.min_stacks < 0:
+                        errors.append(
+                            f"boss {boss.id} warning {warning.id} failure variant {index} "
+                            f"min stacks must be non-negative"
+                        )
+                    if condition.max_stacks >= 0 and condition.max_stacks < condition.min_stacks:
+                        errors.append(
+                            f"boss {boss.id} warning {warning.id} failure variant {index} "
+                            f"max stacks must be at least min stacks"
+                        )
+                errors.extend(
+                    _validate_effect_actions(
+                        variant.pattern.effect_actions,
+                        f"boss {boss.id} warning {warning.id} failure variant {index} effect actions",
+                    )
+                )
+            if warning.pattern_id not in boss.pattern_by_id:
+                errors.append(f"boss {boss.id} warning pattern not found: {warning.pattern_id}")
+            if not warning.objectives:
+                errors.append(f"boss {boss.id} warning has no objectives: {warning.id}")
+            for objective in warning.objectives:
+                if objective.objective not in WARNING_OBJECTIVES:
+                    errors.append(
+                        f"boss {boss.id} warning {warning.id} objective not found: {objective.objective}"
+                    )
+                if objective.required < 1:
+                    errors.append(
+                        f"boss {boss.id} warning {warning.id} objective required must be at least 1"
+                    )
+                if objective.min_damage < 0:
+                    errors.append(
+                        f"boss {boss.id} warning {warning.id} objective min damage must be non-negative"
+                    )
         for warning in boss.hp_warnings:
-            if warning.pattern_id not in boss.pattern_by_id:
-                errors.append(f"boss {boss.id} hp warning pattern not found: {warning.pattern_id}")
+            if warning.warning_id not in boss.warning_by_id:
+                errors.append(f"boss {boss.id} hp warning not found: {warning.warning_id}")
+        for index, effect in enumerate(boss.hp_effects, start=1):
+            if effect.threshold < 0 or effect.threshold > 1:
+                errors.append(f"boss {boss.id} hp effect {index} threshold out of range: {effect.threshold}")
+            errors.extend(_validate_effect_actions(effect.pattern.effect_actions, f"boss {boss.id} hp effect {index} effect actions"))
         for warning in boss.ct_warnings:
-            if warning.pattern_id not in boss.pattern_by_id:
-                errors.append(f"boss {boss.id} ct warning pattern not found: {warning.pattern_id}")
+            if warning.warning_id not in boss.warning_by_id:
+                errors.append(f"boss {boss.id} ct warning not found: {warning.warning_id}")
+        for stack_effect in boss.stack_effects:
+            if stack_effect.stack_effect_id not in STACK_EFFECT_BY_ID:
+                errors.append(f"boss {boss.id} stack effect not found: {stack_effect.stack_effect_id}")
+                continue
+            max_stacks = STACK_EFFECT_BY_ID[stack_effect.stack_effect_id].max_stacks
+            if stack_effect.initial_stacks < 0 or stack_effect.initial_stacks > max_stacks:
+                errors.append(
+                    f"boss {boss.id} stack effect initial stacks out of range: "
+                    f"{stack_effect.stack_effect_id} {stack_effect.initial_stacks}"
+                )
         errors.extend(_validate_reward(boss.rewards, f"boss {boss.id} rewards"))
+    pool_ids = [pool.id for pool in GACHA_POOLS]
+    if len(pool_ids) != len(set(pool_ids)):
+        errors.append("gacha has duplicate pool ids")
+    if GACHA_POOLS and GACHA_DEFAULT_POOL_ID not in GACHA_POOL_BY_ID:
+        errors.append(f"gacha default pool not found: {GACHA_DEFAULT_POOL_ID}")
+    for pool in GACHA_POOLS:
+        if not pool.entries:
+            errors.append(f"gacha pool {pool.id} has no entries")
+        for index, entry in enumerate(pool.entries, start=1):
+            errors.extend(_validate_gacha_entry(entry, f"gacha pool {pool.id} entry {index}"))
     if errors:
         raise ValueError("Invalid RPG content:\n" + "\n".join(f"- {error}" for error in errors))
+
+
+def _validate_effect_actions(actions: list[EffectAction], label: str) -> list[str]:
+    errors: list[str] = []
+    for action in actions:
+        if action.action in STACK_EFFECT_ACTIONS and action.stack_effect_id not in STACK_EFFECT_BY_ID:
+            errors.append(f"{label} stack effect not found: {action.stack_effect_id}")
+        for index, condition in enumerate(action.conditions, start=1):
+            if condition.stack_effect_id not in STACK_EFFECT_BY_ID:
+                errors.append(
+                    f"{label} {action.action} condition {index} stack effect not found: "
+                    f"{condition.stack_effect_id}"
+                )
+            if condition.target not in {"self", "enemy", "allies", "opponents", "boss", "player"}:
+                errors.append(
+                    f"{label} {action.action} condition {index} target is invalid: "
+                    f"{condition.target}"
+                )
+            if condition.min_stacks < 0:
+                errors.append(f"{label} {action.action} condition {index} min stacks must be non-negative")
+            if condition.max_stacks >= 0 and condition.max_stacks < condition.min_stacks:
+                errors.append(f"{label} {action.action} condition {index} max stacks must be at least min stacks")
+    return errors
 
 
 def _validate_reward(reward: RewardTemplate, label: str) -> list[str]:
@@ -618,6 +1796,27 @@ def _validate_reward(reward: RewardTemplate, label: str) -> list[str]:
     return errors
 
 
+def _validate_gacha_entry(entry: GachaEntry, label: str) -> list[str]:
+    errors: list[str] = []
+    if entry.type not in {"item", "item_rarity", "material", "material_rarity"}:
+        errors.append(f"{label} type not found: {entry.type}")
+    if entry.chance <= 0:
+        errors.append(f"{label} chance must be greater than 0")
+    if entry.type == "item":
+        for item_id in entry.item_ids:
+            if item_id not in ITEM_BY_ID:
+                errors.append(f"{label} item not found: {item_id}")
+    if entry.type == "item_rarity" and entry.rarity not in RARITIES:
+        errors.append(f"{label} rarity not found: {entry.rarity}")
+    if entry.type == "material":
+        for material_id in entry.material_ids:
+            if material_id not in MATERIAL_BY_ID:
+                errors.append(f"{label} material not found: {material_id}")
+    if entry.type == "material_rarity" and entry.rarity not in RARITIES:
+        errors.append(f"{label} rarity not found: {entry.rarity}")
+    return errors
+
+
 _validate_content()
 
 _LEVEL_CURVE = CONTENT.get("level_curve", {})
@@ -628,20 +1827,14 @@ STAT_ALLOCATIONS = {
     for stat_id, rule in CONTENT.get("stat_allocation", {}).items()
     if isinstance(rule, dict)
 }
-DROP_RARITY_WEIGHTS = {
-    str(rarity): dict(rule)
-    for rarity, rule in CONTENT.get("drop_rarity_weights", {}).items()
-    if isinstance(rule, dict)
-}
-
-
 def next_level_exp(level: int) -> int:
     level = max(1, level)
     step = level - 1
     base = int(_LEVEL_CURVE.get("base", 280))
     linear = int(_LEVEL_CURVE.get("linear", 170))
     quadratic = int(_LEVEL_CURVE.get("quadratic", 50))
-    return base + linear * step + quadratic * step * step
+    cubic = int(_LEVEL_CURVE.get("cubic", 0))
+    return base + linear * step + quadratic * step * step + cubic * step * step * step
 
 
 def previous_level_exp(level: int) -> int:
@@ -662,9 +1855,13 @@ def star_multiplier(stars: int) -> float:
 
 def scaled_item_stats(template_id: str, stars: int) -> dict[str, float]:
     multiplier = star_multiplier(stars)
+    template = ITEM_BY_ID[template_id]
     stats: dict[str, float] = {}
-    for key, value in ITEM_BY_ID[template_id].stats.items():
-        scaled = value / multiplier if value < 0 else value * multiplier
+    for key, value in template.stats.items():
+        if key in template.fixed_stats:
+            scaled = value
+        else:
+            scaled = value / multiplier if value < 0 else value * multiplier
         if key in INTEGER_STATS:
             stats[key] = float(max(1, round(scaled)))
         elif key == "dmg_mitigation":

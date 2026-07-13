@@ -1,0 +1,106 @@
+{
+  "id": "ramuramu",
+  "name": "라무라무",
+  "level_req": 5,
+  "enemies": [
+    {
+      "id": "baby_slime",
+      "name": "아기 슬라임",
+      "weight": 70,
+      "stats": {
+        "base_atk": 12,
+        "max_hp": 150,
+        "defense": 0.3
+      },
+      "gold": 125,
+      "exp": 100,
+      "rare": false,
+      "description": "",
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.2,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 50,
+            "max": 100
+          }
+        ]
+      }
+    },
+    {
+      "id": "spa_slime",
+      "name": "온천 슬라임",
+      "weight": 20,
+      "stats": {
+        "base_atk": 18,
+        "max_hp": 95,
+        "critical_rate": 0.25
+      },
+      "gold": 200,
+      "exp": 130,
+      "rare": false,
+      "description": "온천을 즐기고 있는 듯한 슬라임이다. 가까이 가면 뜨거운 온천 물을 쏘아댄다.",
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.5,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 50,
+            "max": 100
+          }
+        ]
+      }
+    },
+    {
+      "id": "sad_slime",
+      "name": "속상한 슬라임",
+      "weight": 10,
+      "stats": {
+        "base_atk": 20,
+        "max_hp": 150,
+        "garrison": 1
+      },
+      "gold": 250,
+      "exp": 180,
+      "rare": true,
+      "description": "속상해 보이는 슬라임이다. 부정적인 아우라가 상당하다.",
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.2,
+            "rarity": "epic"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1,
+            "min": 2,
+            "max": 3
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 100,
+            "max": 150
+          }
+        ]
+      }
+    }
+  ],
+  "description": "슬라임으로 가득한 온천이 있다는 신비한 곳이다. 듣기로는 모험가에게 설문을 보내 유인한다는데... 사상검증을 위한 함정 문항도 있는 모양이다.",
+  "sort_order": 15,
+  "stats": {}
+}

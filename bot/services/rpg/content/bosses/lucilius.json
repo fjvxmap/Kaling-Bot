@@ -1,0 +1,402 @@
+{
+  "id": "lucilius",
+  "name": "루시퍼",
+  "level_req": 25,
+  "stats": {
+    "base_atk": 75,
+    "max_hp": 60000,
+    "defense": 0.25,
+    "triple_attack_rate": 0.5
+  },
+  "gold": 10000,
+  "exp": 1,
+  "patterns": [],
+  "warnings": [
+    {
+      "id": "paradise_lost",
+      "name": "파라다이스 로스트",
+      "pattern": {
+        "id": "paradise_lost",
+        "name": "파라다이스 로스트",
+        "damage_multiplier": 6.6,
+        "hits": 1,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 666,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "phosphorus",
+      "name": "포스포로스",
+      "pattern": {
+        "id": "phosphorus",
+        "name": "포스포로스",
+        "damage_multiplier": 12,
+        "hits": 1,
+        "player_mods": {},
+        "boss_mods": {},
+        "effect_actions": [
+          {
+            "action": "dispel",
+            "target": "enemy",
+            "count": 3
+          }
+        ],
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "dispel",
+          "required": 2,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "iblis",
+      "name": "이블리스",
+      "pattern": {
+        "id": "iblis",
+        "name": "이블리스",
+        "damage_multiplier": 0.6,
+        "hits": 12,
+        "player_mods": {},
+        "boss_mods": {},
+        "player_stat_effects": [
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -0.25,
+            "duration": 3,
+            "undispellable": false
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": -0.5,
+            "duration": 3,
+            "undispellable": false
+          },
+          {
+            "stat": "double_attack_rate",
+            "target": "self",
+            "value": -0.5,
+            "duration": 3,
+            "undispellable": false
+          }
+        ],
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 12,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "axion",
+      "name": "액시온",
+      "pattern": {
+        "id": "axion",
+        "name": "액시온",
+        "damage_multiplier": 1.6,
+        "hits": 3,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 1,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "debuff",
+          "required": 2,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "axion_apocalypse",
+      "name": "액시온 아포칼립스",
+      "pattern": {
+        "id": "axion_apocalypse",
+        "name": "액시온 아포칼립스",
+        "damage_multiplier": 2.2,
+        "hits": 3,
+        "player_mods": {},
+        "boss_mods": {},
+        "boss_stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.5,
+            "duration": 3,
+            "undispellable": false
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.5,
+            "duration": 3,
+            "undispellable": false
+          },
+          {
+            "stat": "double_attack_rate",
+            "target": "self",
+            "value": 0.5,
+            "duration": 3,
+            "undispellable": false
+          }
+        ],
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 30,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "orbital_blackness",
+      "name": "오비탈 블랙",
+      "pattern": {
+        "id": "orbital_blackness",
+        "name": "오비탈 블랙",
+        "damage_multiplier": 1.6,
+        "hits": 3,
+        "player_mods": {},
+        "boss_mods": {},
+        "player_stat_effects": [
+          {
+            "stat": "dmg_mitigation",
+            "target": "self",
+            "value": -66.0,
+            "duration": 3,
+            "undispellable": false
+          }
+        ],
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 250,
+          "min_damage": 0
+        },
+        {
+          "objective": "hits",
+          "required": 6,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "gopherwood_ark",
+      "name": "고펠우드 아크",
+      "pattern": {
+        "id": "gopherwood_ark",
+        "name": "고펠우드 아크",
+        "damage_multiplier": 6.6,
+        "hits": 1,
+        "player_mods": {},
+        "boss_mods": {},
+        "player_stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": -0.5,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -0.25,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 666,
+          "min_damage": 0
+        },
+        {
+          "objective": "hits",
+          "required": 12,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "the_end",
+      "name": "디 엔드",
+      "pattern": {
+        "id": "the_end",
+        "name": "디 엔드",
+        "damage_multiplier": 12,
+        "hits": 12,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 6666,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1
+    }
+  ],
+  "hp_warnings": [
+    {
+      "threshold": 0.95,
+      "warning_id": "phosphorus"
+    },
+    {
+      "threshold": 0.8,
+      "warning_id": "iblis"
+    },
+    {
+      "threshold": 0.65,
+      "warning_id": "axion_apocalypse"
+    },
+    {
+      "threshold": 0.5,
+      "warning_id": "paradise_lost"
+    },
+    {
+      "threshold": 0.25,
+      "warning_id": "gopherwood_ark"
+    },
+    {
+      "threshold": 0.03,
+      "warning_id": "the_end"
+    }
+  ],
+  "ct": {
+    "gauge_by_hp": [
+      {
+        "above": 75,
+        "max": 3
+      },
+      {
+        "above": 0,
+        "max": 2
+      }
+    ],
+    "warnings_by_hp": [
+      {
+        "above": 100,
+        "warning_id": "phosphorus"
+      },
+      {
+        "above": 90,
+        "warning_id": "iblis"
+      },
+      {
+        "above": 75,
+        "warning_id": "axion"
+      },
+      {
+        "above": 50,
+        "warning_id": "orbital_blackness"
+      },
+      {
+        "above": 25,
+        "warning_id": "paradise_lost"
+      }
+    ]
+  },
+  "rewards": {
+    "items": [],
+    "materials": [
+      {
+        "id": "boss_power_crystal",
+        "chance": 1,
+        "min": 1,
+        "max": 1
+      },
+      {
+        "id": "gold_brick",
+        "chance": 0.05,
+        "min": 1,
+        "max": 1
+      },
+      {
+        "id": "tears_of_the_apocalypse",
+        "chance": 1,
+        "min": 3,
+        "max": 5
+      }
+    ]
+  },
+  "description": ".",
+  "sort_order": 20,
+  "stack_effects": [
+    {
+      "stack_effect_id": "evangelists_blade",
+      "initial_stacks": 0
+    }
+  ],
+  "hp_effects": [
+    {
+      "thresholds": [
+        1.0
+      ],
+      "pattern": {
+        "id": "lucilius_hp_effect",
+        "name": "파라다이스 로스트",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "threshold": 1.0,
+        "plain_damage": {
+          "mode": "flat",
+          "value": 600.0
+        },
+        "stats": {},
+        "effect_actions": [
+          {
+            "action": "stack_increase",
+            "target": "self",
+            "count": 1,
+            "stack_effect_id": "evangelists_blade",
+            "value": 1
+          }
+        ]
+      }
+    }
+  ]
+}

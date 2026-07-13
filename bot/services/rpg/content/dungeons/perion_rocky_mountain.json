@@ -1,0 +1,113 @@
+{
+  "id": "perion_rocky_mountain",
+  "name": "페리온 바위산",
+  "level_req": 10,
+  "enemies": [
+    {
+      "id": "wild_boar",
+      "name": "와일드보어",
+      "weight": 52,
+      "stats": {
+        "base_atk": 22,
+        "max_hp": 300,
+        "atk": 0.05
+      },
+      "gold": 310,
+      "exp": 250,
+      "description": "바위산을 가로지르며 들이받는 멧돼지. 정직하게 아프다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.55,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 125,
+            "max": 188
+          }
+        ]
+      }
+    },
+    {
+      "id": "fire_boar",
+      "name": "파이어보어",
+      "weight": 32,
+      "stats": {
+        "base_atk": 26,
+        "max_hp": 270,
+        "dmg_amplification": 0.05
+      },
+      "gold": 360,
+      "exp": 300,
+      "description": "뜨겁게 달아오른 와일드보어. 가까이 가면 털 냄새가 아니라 내 장비 타는 냄새가 난다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.65,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 0.9,
+            "min": 2,
+            "max": 2
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 145,
+            "max": 205
+          }
+        ]
+      }
+    },
+    {
+      "id": "stone_golem",
+      "name": "스톤골렘",
+      "weight": 16,
+      "stats": {
+        "base_atk": 21,
+        "max_hp": 480,
+        "defense": 0.45,
+        "dmg_mitigation": 3
+      },
+      "gold": 520,
+      "exp": 410,
+      "description": "돌로 된 거대한 몸체를 끌고 다닌다. 부수는 맛은 있는데, 부서지는 쪽이 내가 될 수도 있다.",
+      "rare": true,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.18,
+            "rarity": "epic"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1,
+            "min": 2,
+            "max": 4
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 212,
+            "max": 300
+          }
+        ]
+      }
+    }
+  ],
+  "description": "페리온 근처의 험한 바위산. 공격은 단순하지만 한 대 한 대가 무겁다.",
+  "sort_order": 20,
+  "stats": {}
+}

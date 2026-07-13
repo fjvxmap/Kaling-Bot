@@ -9,7 +9,75 @@
       "boss_power_crystal": 5,
       "guardian_angel_slime_ball": 10
     },
-    "description": "가디언 엔젤 슬라임이 사용하던 반지를 제작한다.",
-    "sort_order": 10
+    "description": "가디언 엔젤 슬라임이 사용하던 반지이다.",
+    "sort_order": 999,
+    "stats": {}
+  },
+  {
+    "id": "hraesvelgr",
+    "name": "흐레스벨그",
+    "result_item_id": "hraesvelgr",
+    "level_req": 1,
+    "gold": 0,
+    "materials": {
+      "boss_power_crystal": 10,
+      "rare_power_crystal": 25,
+      "gold_brick": 1,
+      "tears_of_the_apocalypse": 25,
+      "abyssal_wing": 25
+    },
+    "description": "응축된 마력을 탄환으로 엮어 쏘아낸다.\n표적을 꿰뚫는 순간 봉인된 힘이 폭발하듯 흩어지며, 그 참상은 매가 먹잇감을 산 채로 찢어 집어삼키는 모습과도 같다.",
+    "sort_order": 10,
+    "stats": {}
+  },
+  {
+    "id": "hrunting",
+    "name": "흐룬팅",
+    "result_item_id": "hrunting",
+    "level_req": 1,
+    "gold": 0,
+    "materials": {
+      "boss_power_crystal": 10,
+      "rare_power_crystal": 25,
+      "gold_brick": 1,
+      "tears_of_the_apocalypse": 25,
+      "abyssal_wing": 25
+    },
+    "description": "헤아릴 수 없는 피를 마신 검신은 마침내 흑요처럼 검게 물들었다.\n그리고 이상하게도, 베어낼수록 그 칼날은 더욱 예리해진다.",
+    "sort_order": 20,
+    "stats": {}
+  },
+  {
+    "id": "ereshkigal",
+    "name": "에레쉬키갈",
+    "result_item_id": "ereshkigal",
+    "level_req": 1,
+    "gold": 0,
+    "materials": {
+      "boss_power_crystal": 10,
+      "rare_power_crystal": 25,
+      "gold_brick": 1,
+      "tears_of_the_apocalypse": 25,
+      "abyssal_wing": 25
+    },
+    "description": "불길한 낫은 한 번의 베임으로 영혼을 명계에 유폐한다.\n저주의 낙인이 새겨진 혼은, 영원의 혼돈 속을 끝없이 헤매게 되리라.",
+    "sort_order": 30,
+    "stats": {}
+  },
+  {
+    "id": "futsunomitama",
+    "name": "후츠노미타마",
+    "result_item_id": "futsunomitama",
+    "level_req": 1,
+    "gold": 0,
+    "materials": {
+      "boss_power_crystal": 10,
+      "rare_power_crystal": 25,
+      "gold_brick": 1,
+      "tears_of_the_apocalypse": 25,
+      "abyssal_wing": 25
+    },
+    "description": "천상의 뜻을 품고 인간에게 전해진 신성한 단검.\n세상의 평화를 바라는 모든 이들의 염원을 힘으로 삼아, 세상을 어지럽히려는 모든 악을 멸한다.",
+    "sort_order": 40
   }
 ]

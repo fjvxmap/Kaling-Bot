@@ -1,0 +1,114 @@
+{
+  "id": "ariant_sands",
+  "name": "아리안트 사막",
+  "level_req": 26,
+  "enemies": [
+    {
+      "id": "sand_rat",
+      "name": "모래쥐",
+      "weight": 45,
+      "stats": {
+        "base_atk": 58,
+        "max_hp": 1450,
+        "double_attack_rate": 0.12
+      },
+      "gold": 1450,
+      "exp": 1250,
+      "description": "모래 속을 파고드는 작은 몬스터. 눈에 보였을 때는 이미 튀어나온 뒤다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.75,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 238,
+            "max": 300
+          }
+        ]
+      }
+    },
+    {
+      "id": "scorpion",
+      "name": "스콜피언",
+      "weight": 35,
+      "stats": {
+        "base_atk": 66,
+        "max_hp": 1600,
+        "defense_ignore": 0.08,
+        "critical_rate": 0.18
+      },
+      "gold": 1700,
+      "exp": 1450,
+      "description": "사막의 독침을 세운 전갈. 방어 위로 파고드는 찌르기가 까다롭다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.8,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 0.9,
+            "min": 7,
+            "max": 10
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 275,
+            "max": 350
+          }
+        ]
+      }
+    },
+    {
+      "id": "jr_cactus",
+      "name": "주니어 카투스",
+      "weight": 20,
+      "stats": {
+        "base_atk": 62,
+        "max_hp": 1900,
+        "defense": 0.55,
+        "dmg_mitigation": 6
+      },
+      "gold": 2150,
+      "exp": 1800,
+      "description": "가시가 촘촘한 선인장 몬스터. 때리는 쪽도 맞는 것 같은 이상한 경험을 준다.",
+      "rare": true,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.36,
+            "rarity": "epic"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1,
+            "min": 8,
+            "max": 12
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 350,
+            "max": 450
+          }
+        ]
+      }
+    }
+  ],
+  "description": "아리안트의 뜨거운 사막. 빠른 적과 단단한 적이 섞여 있어 장비 상태를 꽤 시험한다.",
+  "sort_order": 52,
+  "stats": {}
+}

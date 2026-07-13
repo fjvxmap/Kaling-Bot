@@ -44,17 +44,20 @@ Commands:
 - `/rpg 장착`: open the equipment UI directly
 - `/rpg 판매`: sell selected unequipped weapons
 - `/rpg 자동판매`: configure rarities to sell immediately on drop
+- `/rpg 가챠`: spend correction crystals on a configured 10-pull reward pool
 - `/rpg 어빌리티`: equip up to 3 abilities for auto combat and boss battles
 - `/rpg 강화`: select a weapon, preview stat gain/cost/odds, then enhance
-- `/rpg 복구`: restore a destroyed weapon trace to +0
-- `/rpg 스탯`: spend a chosen amount of stat points on attack, HP, or defense
+- `/rpg 복구`: restore a destroyed weapon trace at 3 stars below its trace stars
+- Level ups now grow base attack by 1, max HP by 5, and defense by 2.5% automatically.
 
 Testing flags currently disable daily explore limits and boss reward locks.
 Boss battles are message-based sessions: players can join before start, share boss HP,
 keep separate HP/CT/warning objectives, use personal ephemeral ability buttons without
 spending a turn, and spend turns with attack or guard. Guard skips your attack and only
 for that incoming hit raises defense by 1000%. HP warnings queue per player; queued HP
-warnings take priority over CT warnings and are shown one at a time.
+warnings take priority over CT warnings and are shown one at a time. Boss warning
+templates contain their failure effect, can be linked by HP/CT triggers, and can
+require multiple objectives at once, such as damage, hit count, and debuff count.
 
 Runtime RPG state is stored at `bot/data/rpg_state.json` and ignored by Git.
 

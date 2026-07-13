@@ -1,0 +1,112 @@
+{
+  "id": "henesys",
+  "name": "헤네시스",
+  "level_req": 1,
+  "enemies": [
+    {
+      "id": "slime",
+      "name": "슬라임",
+      "weight": 62,
+      "stats": {
+        "base_atk": 8,
+        "max_hp": 80
+      },
+      "gold": 95,
+      "exp": 70,
+      "description": "하찮은 몸놀림으로 폴짝폴짝 뛰어다니는 모습이 귀엽다. 세상 어딘가에는 귀여움을 겨루는 슬라임들이 가득한 곳이 있다고 한다. 할 짓 더럽게 없나보다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.3,
+            "rarity": "normal"
+          }
+        ],
+        "materials": [
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 25,
+            "max": 50
+          }
+        ]
+      }
+    },
+    {
+      "id": "red_snail",
+      "name": "빨간 달팽이",
+      "weight": 30,
+      "stats": {
+        "base_atk": 10,
+        "max_hp": 72,
+        "defense": 0.1
+      },
+      "gold": 110,
+      "exp": 82,
+      "description": "껍질이 조금 단단해보이는 달팽이. 더듬이인 줄 알았던 것에서 눈이 자라나 있는 기괴한 모습을 하고 있다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.7,
+            "rarity": "normal"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1,
+            "min": 1,
+            "max": 1
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 25,
+            "max": 50
+          }
+        ]
+      }
+    },
+    {
+      "id": "horn_mushroom",
+      "name": "뿔버섯",
+      "weight": 8,
+      "stats": {
+        "base_atk": 9,
+        "max_hp": 80,
+        "defense": 0.25,
+        "dmg_mitigation": 1
+      },
+      "gold": 190,
+      "exp": 135,
+      "description": "갓에 뿔을 달고 걸어다니는 버섯이다. 상당히 단단하다.",
+      "rare": true,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.3,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1,
+            "min": 1,
+            "max": 2
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 50,
+            "max": 75
+          }
+        ]
+      }
+    }
+  ],
+  "description": "모험가가 처음 방문하게 되는 마을. 수염이 덥수룩하고 괴팍한 촌장이 가끔 수상한 의뢰를 준다고 한다. 그것을 수락한 모험가들을 다시 만난 사람은 없다는데...",
+  "sort_order": 10,
+  "stats": {}
+}

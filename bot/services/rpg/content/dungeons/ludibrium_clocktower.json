@@ -1,0 +1,113 @@
+{
+  "id": "ludibrium_clocktower",
+  "name": "루디브리엄 시계탑",
+  "level_req": 22,
+  "enemies": [
+    {
+      "id": "rats",
+      "name": "라츠",
+      "weight": 45,
+      "stats": {
+        "base_atk": 50,
+        "max_hp": 1000,
+        "defense": 0.2
+      },
+      "gold": 1050,
+      "exp": 900,
+      "description": "장난감 시계탑 사이를 뛰어다니는 작은 몬스터. 작다고 무시하면 발목을 물린다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.7,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 225,
+            "max": 288
+          }
+        ]
+      }
+    },
+    {
+      "id": "blockpus",
+      "name": "블록퍼스",
+      "weight": 35,
+      "stats": {
+        "base_atk": 54,
+        "max_hp": 1180,
+        "garrison": 0.2
+      },
+      "gold": 1250,
+      "exp": 1050,
+      "description": "블록으로 된 문어. 장난감처럼 보이지만 내구도는 장난이 아니다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.75,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 0.9,
+            "min": 5,
+            "max": 8
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 262,
+            "max": 325
+          }
+        ]
+      }
+    },
+    {
+      "id": "chronos",
+      "name": "크로노스",
+      "weight": 20,
+      "stats": {
+        "base_atk": 62,
+        "max_hp": 1350,
+        "defense": 0.45,
+        "critical_rate": 0.15
+      },
+      "gold": 1600,
+      "exp": 1350,
+      "description": "시계탑의 시간 속을 배회하는 몬스터. 한 박자 늦게 피하면 이미 맞고 있다.",
+      "rare": true,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.33,
+            "rarity": "epic"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1,
+            "min": 6,
+            "max": 10
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 325,
+            "max": 425
+          }
+        ]
+      }
+    }
+  ],
+  "description": "루디브리엄 시계탑 안쪽. 장난감 같은 외형과 달리 몬스터들의 체급이 확실히 올라간다.",
+  "sort_order": 44,
+  "stats": {}
+}

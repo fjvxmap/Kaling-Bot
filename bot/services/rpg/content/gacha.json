@@ -1,0 +1,56 @@
+{
+  "default_pool_id": "default",
+  "material_id": "crystal",
+  "cost": 3000,
+  "draws": 10,
+  "pools": [
+    {
+      "id": "default",
+      "name": "통상 가챠",
+      "description": "보정석 3000개를 사용해 랜덤 보상 10개를 획득합니다.",
+      "entries": [
+        {
+          "type": "item_rarity",
+          "rarity": "rare",
+          "chance": 69.0,
+          "stars": 0
+        },
+        {
+          "type": "item_rarity",
+          "rarity": "epic",
+          "chance": 27.0,
+          "stars": 0
+        },
+        {
+          "type": "item_rarity",
+          "rarity": "unique",
+          "chance": 3.0,
+          "stars": 0
+        },
+        {
+          "type": "material",
+          "chance": 1.0,
+          "stars": 0,
+          "material_ids": [
+            {
+              "id": "rare_power_crystal",
+              "amount": 50
+            },
+            {
+              "id": "boss_power_crystal",
+              "amount": 5
+            },
+            {
+              "id": "gold_brick",
+              "amount": 1
+            },
+            {
+              "id": "crystal",
+              "amount": 3000
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

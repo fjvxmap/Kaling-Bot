@@ -1,0 +1,149 @@
+{
+  "id": "orbis_cloud_park",
+  "name": "오르비스 구름공원",
+  "level_req": 15,
+  "enemies": [
+    {
+      "id": "star_pixie",
+      "name": "스타픽시",
+      "weight": 45,
+      "stats": {
+        "base_atk": 34,
+        "max_hp": 520,
+        "critical_rate": 0.2
+      },
+      "gold": 560,
+      "exp": 470,
+      "description": "별빛을 흩뿌리며 날아다니는 픽시. 반짝임에 방심하면 꽤 따갑게 맞는다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.65,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 188,
+            "max": 238
+          }
+        ]
+      }
+    },
+    {
+      "id": "jr_cellion",
+      "name": "주니어 샐리온",
+      "weight": 30,
+      "stats": {
+        "base_atk": 38,
+        "max_hp": 590,
+        "atk": 0.08
+      },
+      "gold": 660,
+      "exp": 540,
+      "description": "붉은 기운을 두른 작은 정령. 몸집은 작아도 기세는 제법 사납다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.7,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 0.9,
+            "min": 3,
+            "max": 4
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 212,
+            "max": 262
+          }
+        ]
+      }
+    },
+    {
+      "id": "jr_grupin",
+      "name": "주니어 그류핀",
+      "weight": 18,
+      "stats": {
+        "base_atk": 36,
+        "max_hp": 680,
+        "defense": 0.35
+      },
+      "gold": 760,
+      "exp": 610,
+      "description": "푸른 기운을 두른 정령. 구름 위를 가볍게 뛰어다닌다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.75,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1,
+            "min": 3,
+            "max": 5
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 238,
+            "max": 300
+          }
+        ]
+      }
+    },
+    {
+      "id": "jr_lioner",
+      "name": "주니어 라이오너",
+      "weight": 7,
+      "stats": {
+        "base_atk": 42,
+        "max_hp": 760,
+        "critical_rate": 0.12,
+        "double_attack_rate": 0.25
+      },
+      "gold": 950,
+      "exp": 780,
+      "description": "노란 기운을 품은 정령. 몸놀림이 빨라 구름 사이로 순식간에 파고든다.",
+      "rare": true,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.25,
+            "rarity": "epic"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1,
+            "min": 4,
+            "max": 6
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 288,
+            "max": 362
+          }
+        ]
+      }
+    }
+  ],
+  "description": "오르비스의 구름공원. 귀여운 이름과 달리 픽시와 작은 정령들이 제법 성실하게 때린다.",
+  "sort_order": 30,
+  "stats": {}
+}

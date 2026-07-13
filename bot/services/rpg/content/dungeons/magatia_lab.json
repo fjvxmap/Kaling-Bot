@@ -1,0 +1,115 @@
+{
+  "id": "magatia_lab",
+  "name": "마가티아 연구소",
+  "level_req": 30,
+  "enemies": [
+    {
+      "id": "triple_rumo",
+      "name": "트리플 루모",
+      "weight": 42,
+      "stats": {
+        "base_atk": 70,
+        "max_hp": 2050,
+        "triple_attack_rate": 0.15
+      },
+      "gold": 2050,
+      "exp": 1750,
+      "description": "실험실을 굴러다니는 루모 셋. 이름 그대로 공격 리듬이 자꾸 셋으로 쪼개진다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.8,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 238,
+            "max": 300
+          }
+        ]
+      }
+    },
+    {
+      "id": "homunculus",
+      "name": "호문쿨루",
+      "weight": 36,
+      "stats": {
+        "base_atk": 78,
+        "max_hp": 2300,
+        "atk": 0.1,
+        "skill_damage": 0.15
+      },
+      "gold": 2350,
+      "exp": 2050,
+      "description": "연금술로 만들어진 생명체. 연구 윤리 같은 건 이미 실험대 밑으로 굴러간 듯하다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.85,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 0.9,
+            "min": 9,
+            "max": 13
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 288,
+            "max": 362
+          }
+        ]
+      }
+    },
+    {
+      "id": "saitie",
+      "name": "사이티",
+      "weight": 22,
+      "stats": {
+        "base_atk": 88,
+        "max_hp": 2750,
+        "defense": 0.45,
+        "defense_ignore": 0.12,
+        "critical_rate": 0.2
+      },
+      "gold": 3000,
+      "exp": 2600,
+      "description": "실험실 깊은 곳의 위험한 피조물. 눈앞의 모험가를 표본쯤으로 생각하는 모양이다.",
+      "rare": true,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.4,
+            "rarity": "epic"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1,
+            "min": 10,
+            "max": 15
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 350,
+            "max": 438
+          }
+        ]
+      }
+    }
+  ],
+  "description": "마가티아의 연구소. 전직 이후의 성장 상태와 장비 강화 상태를 본격적으로 확인하는 구간이다.",
+  "sort_order": 60,
+  "stats": {}
+}

@@ -1,0 +1,113 @@
+{
+  "id": "el_nath_ice_valley",
+  "name": "엘나스 얼음골짜기",
+  "level_req": 18,
+  "enemies": [
+    {
+      "id": "jr_pepe",
+      "name": "주니어 페페",
+      "weight": 45,
+      "stats": {
+        "base_atk": 40,
+        "max_hp": 740,
+        "defense": 0.25
+      },
+      "gold": 760,
+      "exp": 650,
+      "description": "작고 동그란 펭귄형 몬스터. 귀엽지만 넘어뜨리는 힘은 귀엽지 않다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.7,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 212,
+            "max": 275
+          }
+        ]
+      }
+    },
+    {
+      "id": "hector",
+      "name": "헥터",
+      "weight": 35,
+      "stats": {
+        "base_atk": 45,
+        "max_hp": 820,
+        "critical_rate": 0.15
+      },
+      "gold": 880,
+      "exp": 760,
+      "description": "눈밭을 달리는 늑대. 발소리가 들릴 때쯤이면 이미 늦었다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.75,
+            "rarity": "rare"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 0.9,
+            "min": 4,
+            "max": 6
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 238,
+            "max": 300
+          }
+        ]
+      }
+    },
+    {
+      "id": "white_fang",
+      "name": "화이트팽",
+      "weight": 20,
+      "stats": {
+        "base_atk": 50,
+        "max_hp": 980,
+        "defense_ignore": 0.08,
+        "double_attack_rate": 0.15
+      },
+      "gold": 1150,
+      "exp": 980,
+      "description": "설원 깊은 곳에서 튀어나오는 하얀 이빨. 방어 자세를 취해도 파고드는 힘이 날카롭다.",
+      "rare": true,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.28,
+            "rarity": "epic"
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1,
+            "min": 5,
+            "max": 8
+          },
+          {
+            "id": "crystal",
+            "chance": 1,
+            "min": 288,
+            "max": 375
+          }
+        ]
+      }
+    }
+  ],
+  "description": "엘나스의 차가운 골짜기. 체력과 방어가 갖춰지지 않았다면 눈밭에 오래 눕게 된다.",
+  "sort_order": 36,
+  "stats": {}
+}

@@ -2,87 +2,127 @@
   "id": "guardian_angel_slime",
   "name": "가디언 엔젤 슬라임",
   "level_req": 5,
-  "rank": 1,
   "stats": {
     "base_atk": 50,
     "max_hp": 2000
   },
-  "patterns": [
+  "patterns": [],
+  "warnings": [
     {
-      "id": "guardian_wave",
-      "threshold": 0,
-      "name": "가디언 웨이브",
-      "damage_multiplier": 5,
-      "hits": 1,
-      "player_mods": {
-        "atk": -0.5,
-        "defense": -0.25
-      },
-      "boss_mods": {},
-      "duration": 3
-    }
-  ],
-  "hp_warnings": [
-    {
-      "threshold": 0.9,
-      "objective": "damage",
-      "required": 100,
+      "id": "guardian_jump",
+      "name": "점프",
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 100,
+          "min_damage": 0
+        }
+      ],
       "pattern": {
         "id": "guardian_jump",
+        "threshold": 0,
         "name": "점프",
         "damage_multiplier": 10,
         "hits": 1,
         "player_mods": {},
         "boss_mods": {},
-        "duration": 0
-      }
+        "duration": 0,
+        "stats": {}
+      },
+      "turns": 1
     },
     {
-      "threshold": 0.75,
-      "objective": "hits",
-      "required": 2,
+      "id": "guardian_bonk",
+      "name": "바닥 찍기",
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 2,
+          "min_damage": 0
+        }
+      ],
       "pattern": {
         "id": "guardian_bonk",
+        "threshold": 0,
         "name": "바닥 찍기",
         "damage_multiplier": 1.5,
         "hits": 1,
-        "player_mods": {
-          "atk": -0.7,
-          "defense": -0.7
-        },
+        "player_mods": {},
         "boss_mods": {},
-        "duration": 3
-      }
+        "duration": 3,
+        "player_stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": -0.7,
+            "duration": 3,
+            "undispellable": false
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -0.7,
+            "duration": 3,
+            "undispellable": false
+          }
+        ],
+        "stats": {}
+      },
+      "turns": 1
     },
     {
-      "threshold": 0.5,
-      "objective": "damage",
-      "required": 150,
+      "id": "guardian_laser",
+      "name": "슬라임 레이저",
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 150,
+          "min_damage": 0
+        }
+      ],
       "pattern": {
         "id": "guardian_laser",
+        "threshold": 0,
         "name": "슬라임 레이저",
         "damage_multiplier": 2.5,
         "hits": 3,
         "player_mods": {},
-        "boss_mods": {
-          "atk": 0.5
-        },
-        "duration": 0
-      }
+        "boss_mods": {},
+        "duration": 0,
+        "boss_stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.5,
+            "duration": 0,
+            "undispellable": false
+          }
+        ],
+        "stats": {}
+      },
+      "turns": 1
+    }
+  ],
+  "hp_warnings": [
+    {
+      "threshold": 0.9,
+      "warning_id": "guardian_jump"
     },
     {
-      "threshold": 0.25,
-      "objective": "hits",
-      "required": 2,
-      "pattern": {
-        "id": "guardian_jump",
-        "name": "바닥 찍기",
-        "damage_multiplier": 10,
-        "hits": 1,
-        "player_mods": {},
-        "boss_mods": {},
-        "duration": 0
-      }
+      "threshold": 0.75,
+      "warning_id": "guardian_bonk"
+    },
+    {
+      "threshold": 0.5,
+      "warning_id": "guardian_laser"
+    },
+    {
+      "threshold": 0.3,
+      "warning_id": "guardian_jump"
+    },
+    {
+      "threshold": 0.15,
+      "warning_id": "guardian_bonk"
     }
   ],
   "ct": {
@@ -95,35 +135,14 @@
     "warnings_by_hp": [
       {
         "above": 0,
-        "objective": "hits",
-        "required": 2,
-        "pattern": {
-          "id": "guardian_wave",
-          "threshold": 0,
-          "name": "가디언 웨이브",
-          "damage_multiplier": 2.5,
-          "hits": 1,
-          "player_mods": {
-            "atk": -0.5,
-            "defense": -0.25
-          },
-          "boss_mods": {},
-          "duration": 1
-        }
+        "warning_id": "guardian_jump"
       }
     ]
   },
   "rewards": {
-    "gold": {
-      "min": 1000,
-      "max": 1500
-    },
-    "exp": 1,
-    "stat_points": 0,
     "items": [
       {
         "chance": 0.02,
-        "rank": 1,
         "template_id": "guardian_angel_ring",
         "rarity": "epic"
       }
@@ -140,11 +159,18 @@
         "chance": 1,
         "min": 1,
         "max": 3
+      },
+      {
+        "id": "gold_brick",
+        "chance": 0.02,
+        "min": 1,
+        "max": 1
       }
     ]
   },
   "description": "감히 슬라임의 귀여움을 평가하려 한 그대에게 자격을 묻겠노라!",
   "sort_order": 10,
   "gold": 1200,
-  "exp": 1
+  "exp": 1,
+  "stack_effects": []
 }
