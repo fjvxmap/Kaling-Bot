@@ -573,10 +573,9 @@ class RPGCog(commands.Cog):
 
     async def _send_boss_panel(self, interaction: discord.Interaction) -> None:
         profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
-        selected_boss_id = next((boss.id for boss in self.service.bosses() if profile.level >= boss.level_req), None)
         await interaction.response.send_message(
-            embed=self._boss_panel_embed(profile, selected_boss_id),
-            view=BossPanelView(self, interaction.user.id, interaction.user.display_name, selected_boss_id),
+            embed=self._boss_panel_embed(profile, None),
+            view=BossPanelView(self, interaction.user.id, interaction.user.display_name, None),
         )
 
     def _boss_panel_embed(self, profile: PlayerProfile, selected_boss_id: str | None = None) -> discord.Embed:
@@ -4168,6 +4167,8 @@ class BossCancelButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction) -> None:
         assert isinstance(self.view, BossSessionView)
+        was_owner = interaction.user.id == self.view.session.owner_id
+        selected_boss_id = self.view.session.boss.id
         ok, message = self.view.cog._cancel_waiting_boss_participation(
             self.view.session,
             interaction.user.id,
@@ -4175,6 +4176,18 @@ class BossCancelButton(discord.ui.Button):
         )
         if not ok:
             await interaction.response.send_message(message, ephemeral=True)
+            return
+        if was_owner and self.view.session.cancelled:
+            profile = self.view.cog.service.get_profile(interaction.user.id, interaction.user.display_name)
+            await interaction.response.edit_message(
+                embed=self.view.cog._boss_panel_embed(profile, selected_boss_id),
+                view=BossPanelView(
+                    self.view.cog,
+                    interaction.user.id,
+                    interaction.user.display_name,
+                    selected_boss_id,
+                ),
+            )
             return
         await self.view._edit(interaction)
 
@@ -4334,7 +4347,6 @@ class BossAbilityView(discord.ui.View):
         self.add_item(BossAttackButton(disabled=controls_disabled, row=0))
         self.add_item(BossGuardButton(disabled=controls_disabled, row=0))
         self.add_item(BossDamageDetailButton(disabled=participant is None, row=0))
-        self.add_item(BossGiveUpButton(row=0))
         for skill in skills[:MAX_EQUIPPED_SKILLS]:
             cooldown = participant.ability_cooldowns.get(skill.id, 0) if participant is not None else 0
             used_out = participant is not None and self.cog._ability_used_out(participant, skill)
