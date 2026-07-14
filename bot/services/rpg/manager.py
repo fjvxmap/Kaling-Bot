@@ -3346,7 +3346,7 @@ class RPGService:
             profile.daily_explores_used = 0
 
     def _today_key(self) -> str:
-        return datetime.now().astimezone().date().isoformat()
+        return datetime.now(RPG_TIMEZONE).date().isoformat()
 
     def _week_key(self) -> str:
         return weekly_boss_key_for_date(datetime.now(RPG_TIMEZONE).date())

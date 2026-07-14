@@ -60,6 +60,12 @@ activate_conda() {
 }
 
 cd "$ROOT_DIR"
+
+BACKUP_DIR="$ROOT_DIR/.deploy_backups/$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP_DIR"
+[ ! -f "$ROOT_DIR/bot/data/rpg_state.json" ] || cp -p "$ROOT_DIR/bot/data/rpg_state.json" "$BACKUP_DIR/rpg_state.json"
+[ ! -f "$ROOT_DIR/web/db.sqlite3" ] || cp -p "$ROOT_DIR/web/db.sqlite3" "$BACKUP_DIR/db.sqlite3"
+
 git pull --ff-only
 
 activate_conda

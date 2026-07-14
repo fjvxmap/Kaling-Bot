@@ -212,3 +212,4 @@ __marimo__/
 
 # rpg contents
 .rpg_content_backups/
+.deploy_backups/
