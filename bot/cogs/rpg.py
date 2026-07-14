@@ -649,10 +649,6 @@ class RPGCog(commands.Cog):
         owner = session.participants.get(session.owner_id)
         if owner is None:
             return False, "자발자 정보를 찾을 수 없습니다."
-        if not session.practice:
-            ok, message = self.service.consume_boss_start(owner.user_id, owner.display_name, session.boss.id)
-            if not ok:
-                return False, message
         self._refresh_boss_permanent_effects(session)
         session.started = True
         session.log.append("연습 보스전 시작" if session.practice else "보스전 시작")
@@ -1977,12 +1973,23 @@ class RPGCog(commands.Cog):
         for participant in session.participants.values():
             if not participant.alive:
                 continue
+            drop_rate_multiplier = 1.0
+            if participant.user_id == session.owner_id:
+                ok, message = self.service.consume_boss_start(
+                    participant.user_id,
+                    participant.display_name,
+                    session.boss.id,
+                )
+                if not ok:
+                    session.rewards[participant.user_id] = message
+                    continue
+                drop_rate_multiplier = 2.0
             reward = self.service.grant_boss_reward(
                 participant.user_id,
                 participant.display_name,
                 session.boss.id,
                 victory=True,
-                drop_rate_multiplier=2.0 if participant.user_id == session.owner_id else 1.0,
+                drop_rate_multiplier=drop_rate_multiplier,
             )
             self._add_session_reward_materials(session, reward.materials)
             session.rewards[participant.user_id] = self._reward_text(reward).replace("\n", ", ")

@@ -705,23 +705,26 @@ class RPGService:
             return BossResult(False, "알 수 없는 보스입니다.", profile)
         if profile.level < boss.level_req:
             return BossResult(False, f"{boss.name}은 Lv.{boss.level_req}부터 도전할 수 있습니다.", profile, boss)
+        if self.boss_start_remaining(profile, boss.id) == 0:
+            return BossResult(False, f"{boss.name} 자발 횟수를 모두 사용했습니다.", profile, boss, weekly_key=self._week_key())
 
         weekly_key = self._week_key()
-        if not self._consume_boss_start_for_profile(profile, boss.id, weekly_key):
-            return BossResult(False, f"{boss.name} 자발 횟수를 모두 사용했습니다.", profile, boss, weekly_key=weekly_key)
         battle = self._simulate_battle(
             profile,
             boss.name,
             self._enemy_stats(boss.stats),
             boss=boss,
         )
-        reward = self._grant_boss_reward_to_profile(
-            profile,
-            boss,
-            victory=battle.won,
-            weekly_key=weekly_key,
-            drop_rate_multiplier=2.0,
-        )
+        if battle.won and not self._consume_boss_start_for_profile(profile, boss.id, weekly_key):
+            reward = RewardReport(weekly_reward_locked=True)
+        else:
+            reward = self._grant_boss_reward_to_profile(
+                profile,
+                boss,
+                victory=battle.won,
+                weekly_key=weekly_key,
+                drop_rate_multiplier=2.0,
+            )
         self._save()
         return BossResult(True, "보스 도전 완료", profile, boss, battle, reward, weekly_key)
 
