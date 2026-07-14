@@ -434,11 +434,14 @@
     ]
   },
   "description": "\"후훗, 악몽은 이미 시작됐어요.\"",
-  "sort_order": 11,
+  "sort_order": 12,
   "stack_effects": [
     {
       "stack_effect_id": "phantasmal_waltz",
       "initial_stacks": 1
     }
+  ],
+  "hp_locks": [
+    0.2
   ]
 }

@@ -517,6 +517,7 @@ class BossTemplate:
     description: str
     hp_warnings: list[BossHPWarningTemplate] = field(default_factory=list)
     hp_effects: list[BossHPInstantEffectTemplate] = field(default_factory=list)
+    hp_locks: list[float] = field(default_factory=list)
     ct_gauge: list[BossCTGaugeTemplate] = field(default_factory=list)
     ct_warnings: list[BossCTWarningTemplate] = field(default_factory=list)
     stack_effects: list[BossStackEffectTemplate] = field(default_factory=list)
@@ -1524,6 +1525,16 @@ def _boss(raw: dict[str, Any]) -> BossTemplate:
         key=lambda effect: effect.threshold,
         reverse=True,
     )
+    hp_lock_rows = raw.get("hp_locks", raw.get("hp_lock_thresholds", []))
+    hp_lock_rows = hp_lock_rows if isinstance(hp_lock_rows, list) else []
+    hp_locks = sorted(
+        {
+            round(_hp_threshold(row.get("threshold", row.get("hp", row.get("value", 0.0))) if isinstance(row, dict) else row), 6)
+            for row in hp_lock_rows
+        },
+        reverse=True,
+    )
+    hp_locks = [threshold for threshold in hp_locks if 0.0 < threshold < 1.0]
     ct_warnings = sorted(
         [_ct_warning(warning, index, warning_by_id) for index, warning in enumerate(ct.get("warnings_by_hp", []))],
         key=lambda warning: warning.above,
@@ -1568,6 +1579,7 @@ def _boss(raw: dict[str, Any]) -> BossTemplate:
         description=str(raw.get("description", "")),
         hp_warnings=hp_warnings,
         hp_effects=hp_effects,
+        hp_locks=hp_locks,
         ct_gauge=sorted(
             [_ct_gauge(rule) for rule in ct.get("gauge_by_hp", [])],
             key=lambda rule: rule.above,
@@ -1763,6 +1775,13 @@ def _validate_content() -> None:
             if effect.threshold < 0 or effect.threshold > 1:
                 errors.append(f"boss {boss.id} hp effect {index} threshold out of range: {effect.threshold}")
             errors.extend(_validate_effect_actions(effect.pattern.effect_actions, f"boss {boss.id} hp effect {index} effect actions"))
+        seen_hp_locks: set[float] = set()
+        for index, threshold in enumerate(boss.hp_locks, start=1):
+            if threshold <= 0 or threshold >= 1:
+                errors.append(f"boss {boss.id} hp lock {index} threshold out of range: {threshold}")
+            if threshold in seen_hp_locks:
+                errors.append(f"boss {boss.id} duplicate hp lock threshold: {threshold}")
+            seen_hp_locks.add(threshold)
         for warning in boss.ct_warnings:
             if warning.warning_id not in boss.warning_by_id:
                 errors.append(f"boss {boss.id} ct warning not found: {warning.warning_id}")

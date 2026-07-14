@@ -339,5 +339,172 @@
       }
     ],
     "stats": {}
+  },
+  {
+    "id": "demian_stigma",
+    "name": "낙인",
+    "max_stacks": 7,
+    "description": ".",
+    "tiers": [
+      {
+        "stack": 1,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.5,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -0.25,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 2,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.75,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -0.3,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 3,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 1.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -0.4,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 4,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 1.25,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -0.5,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 5,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 1.5,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -0.75,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 6,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 2.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -1.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 7,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 2.5,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -1.25,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      }
+    ],
+    "conditions": [
+      {
+        "objective": "damage",
+        "target": "opponent",
+        "operation": "increase",
+        "value": 1,
+        "required": 450,
+        "min_damage": 0
+      },
+      {
+        "objective": "warning_success",
+        "target": "none",
+        "operation": "decrease",
+        "value": 2,
+        "required": 1,
+        "min_damage": 0
+      }
+    ],
+    "stats": {}
   }
 ]

@@ -1831,5 +1831,22 @@
     "base_price": 0,
     "excluded_from_gacha": true,
     "description": "."
+  },
+  {
+    "id": "magic_eyepatch",
+    "name": "마력이 깃든 안대",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 15,
+      "atk": 0.45,
+      "defense": -0.75
+    },
+    "base_price": 1,
+    "excluded_from_gacha": true,
+    "description": ".",
+    "fixed_stats": [
+      "base_atk",
+      "defense"
+    ]
   }
 ]

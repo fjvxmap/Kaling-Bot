@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from math import ceil
 
 import discord
 from discord import app_commands
@@ -136,6 +137,8 @@ class BossParticipant:
     boss_effects: list[ActiveEffect] = field(default_factory=list)
     player_stack_effects: list[ActiveStackEffect] = field(default_factory=list)
     boss_stack_effects: list[ActiveStackEffect] = field(default_factory=list)
+    unlocked_hp_locks: set[int] = field(default_factory=set)
+    pending_hp_locks: set[int] = field(default_factory=set)
     ability_cooldowns: dict[str, int] = field(default_factory=dict)
     ability_uses_left: dict[str, int] = field(default_factory=dict)
     last_damage_detail: BossDamageDetail | None = None
@@ -731,14 +734,17 @@ class RPGCog(commands.Cog):
         )
         self._sync_shared_effect_changes(participant.boss_effects, boss_effect_lists, boss_effects_before)
         life_steal_heal = 0
+        actual_dealt_damage = 0
+        actual_dealt_segments: list[int] = []
         if skill_result.damage > 0:
-            dealt_damage = min(session.boss_hp, skill_result.damage)
-            session.boss_hp = max(0, session.boss_hp - skill_result.damage)
+            actual_dealt_damage = self._apply_boss_damage(session, participant, skill_result.damage)
+            actual_dealt_segments = self.service._clamped_damage_segments(skill_result.hit_damages, actual_dealt_damage)
             life_steal_heal = self._apply_participant_life_steal(
                 participant,
                 player_stats,
-                dealt_damage,
-        )
+                actual_dealt_damage,
+                actual_dealt_segments,
+            )
         skill_heal = self._apply_boss_skill_heal(session, participant, skill, skill_result.raw_heal)
         debuff_count = self._debuff_effect_count(skill)
         self._add_warning_progress(participant, "damage", skill_result.damage)
@@ -760,8 +766,8 @@ class RPGCog(commands.Cog):
         bits = []
         if skill_result.damage > 0:
             bits.append(f"{skill_result.damage} 피해")
-        if skill_result.damage > 0 and skill.hits > 0:
-            bits.append(f"{skill.hits}타")
+        if skill_result.hit_damages:
+            bits.append(f"{len(skill_result.hit_damages)}타")
         if debuff_count:
             bits.append(f"디버프 {debuff_count}회")
         if skill_result.dispels:
@@ -821,8 +827,8 @@ class RPGCog(commands.Cog):
             session.boss_hp,
             self.service._effects_with_stacks(participant.player_effects, participant.player_stack_effects),
         )
-        dealt_segments = self.service._clamped_damage_segments(attack.life_steal_segments, session.boss_hp)
-        session.boss_hp = max(0, session.boss_hp - attack.damage)
+        actual_dealt_damage = self._apply_boss_damage(session, participant, attack.damage)
+        dealt_segments = self.service._clamped_damage_segments(attack.life_steal_segments, actual_dealt_damage)
         attack.heal = self._apply_participant_life_steal(
             participant,
             player_stats,
@@ -1293,6 +1299,7 @@ class RPGCog(commands.Cog):
         session.log.append(f"{participant.display_name}: {kind} 전조 {warning.name}")
 
     def _finish_boss_turn(self, session: BossSession, participant: BossParticipant, profile: PlayerProfile) -> None:
+        self._release_pending_hp_locks(session, participant)
         participant.player_effects = self.service._tick_effects(participant.player_effects)
         participant.boss_effects = self.service._tick_effects(participant.boss_effects)
         self._tick_ability_cooldowns(participant)
@@ -1375,6 +1382,63 @@ class RPGCog(commands.Cog):
 
     def _boss_hp_ratio(self, session: BossSession) -> float:
         return session.boss_hp / max(1, session.boss_max_hp)
+
+    def _boss_hp_lock_value(self, session: BossSession, threshold: float) -> int:
+        return max(1, min(session.boss_max_hp, ceil(session.boss_max_hp * threshold)))
+
+    def _current_boss_hp_lock(self, session: BossSession, participant: BossParticipant) -> tuple[int, float, int] | None:
+        for index, threshold in enumerate(session.boss.hp_locks):
+            if index in participant.unlocked_hp_locks:
+                continue
+            hp_limit = self._boss_hp_lock_value(session, threshold)
+            if session.boss_hp > hp_limit or (index in participant.pending_hp_locks and session.boss_hp >= hp_limit):
+                return index, threshold, hp_limit
+            if session.boss_hp == hp_limit:
+                return index, threshold, hp_limit
+        return None
+
+    def _apply_boss_damage(self, session: BossSession, participant: BossParticipant, damage: int) -> int:
+        damage = max(0, int(damage))
+        if damage <= 0 or session.boss_hp <= 0:
+            return 0
+        before = session.boss_hp
+        after = max(0, before - damage)
+        hp_lock = self._current_boss_hp_lock(session, participant)
+        if hp_lock is not None:
+            index, _threshold, hp_limit = hp_lock
+            if before == hp_limit:
+                after = hp_limit
+                participant.pending_hp_locks.add(index)
+            if before > hp_limit and after <= hp_limit:
+                after = hp_limit
+                participant.pending_hp_locks.add(index)
+            elif index in participant.pending_hp_locks and before >= hp_limit and after < hp_limit:
+                after = hp_limit
+        session.boss_hp = after
+        return max(0, before - after)
+
+    def _release_pending_hp_locks(self, session: BossSession, participant: BossParticipant) -> None:
+        hp_lock = self._current_boss_hp_lock(session, participant)
+        if hp_lock is not None:
+            index, _threshold, hp_limit = hp_lock
+            if session.boss_hp == hp_limit:
+                participant.pending_hp_locks.add(index)
+        if not participant.pending_hp_locks:
+            return
+        participant.unlocked_hp_locks.update(participant.pending_hp_locks)
+        participant.pending_hp_locks.clear()
+
+    def _boss_hp_lock_text(self, session: BossSession, participant: BossParticipant) -> str:
+        hp_lock = self._current_boss_hp_lock(session, participant)
+        if hp_lock is None:
+            return ""
+        _index, threshold, _hp_limit = hp_lock
+        percent = threshold * 100
+        if abs(percent - round(percent)) < 0.001:
+            percent_text = str(int(round(percent)))
+        else:
+            percent_text = f"{percent:.1f}".rstrip("0").rstrip(".")
+        return f"{percent_text}% 미만 불가"
 
     def _current_ct_max(self, session: BossSession) -> int:
         ratio = self._boss_hp_ratio(session)
@@ -1768,12 +1832,27 @@ class RPGCog(commands.Cog):
             label = labels.get(action.action, action.action)
             target = targets.get(action.target, action.target)
             if action.action.startswith("stack_"):
-                value = "" if action.action in {"stack_remove", "stack_max"} else f" {action.value}"
-                parts.append(f"{label}({target}, {action.stack_effect_id}{value})")
+                parts.append(self._boss_pattern_stack_action_text(action))
             else:
                 count = f" x{action.count}" if action.count > 1 else ""
                 parts.append(f"{label}({target}{count})")
         return ", ".join(parts)
+
+    def _boss_pattern_stack_action_text(self, action) -> str:
+        template = STACK_EFFECT_BY_ID.get(action.stack_effect_id)
+        name = template.name if template is not None else "스택"
+        value = max(0, int(action.value))
+        if action.action == "stack_increase":
+            return f"{name} +{value}레벨"
+        if action.action == "stack_decrease":
+            return f"{name} -{value}레벨"
+        if action.action == "stack_set":
+            return f"{name} lv.{value}"
+        if action.action == "stack_remove":
+            return f"{name} 제거"
+        if action.action == "stack_max":
+            return f"{name} 최대"
+        return name
 
     def _tick_ability_cooldowns(self, participant: BossParticipant) -> None:
         participant.ability_cooldowns = {
@@ -2245,7 +2324,10 @@ class RPGCog(commands.Cog):
             template = STACK_EFFECT_BY_ID.get(stack.template_id)
             if template is None:
                 continue
-            parts.append(f"{template.name} {stack.stacks}/{template.max_stacks}")
+            stacks_count = max(0, int(stack.stacks))
+            if stacks_count <= 0:
+                continue
+            parts.append(f"{template.name} lv.{stacks_count}")
         return ", ".join(parts)
 
     def _boss_shared_effects_text(self, session: BossSession, *, limit: int) -> str:
@@ -2298,13 +2380,15 @@ class RPGCog(commands.Cog):
             color=0xB56BFF,
         )
         ct_max = self._current_ct_max(session)
+        hp_lock_text = self._boss_hp_lock_text(session, participant)
         embed.add_field(
             name="보스",
             value=self._trim(
                 "\n\n".join(
                     [
                         f"{self._hp_bar(session.boss_hp, session.boss_max_hp)}\n"
-                        f"**{session.boss_hp}/{session.boss_max_hp}**",
+                        f"**{session.boss_hp}/{session.boss_max_hp}**"
+                        + (f"\n{hp_lock_text}" if hp_lock_text else ""),
                         self._participant_boss_state_text(participant, ct_max),
                         "버프/디버프\n" + self._boss_shared_effects_text(session, limit=520),
                     ]

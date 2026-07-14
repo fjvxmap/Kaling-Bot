@@ -403,6 +403,11 @@ textarea {
   background: var(--tint-green);
 }
 
+.hp-lock-section {
+  border-left-color: #2f8f9d;
+  background: #eef9fb;
+}
+
 .hp-effect-section {
   border-left-color: #b36b2c;
   background: var(--tint-amber);

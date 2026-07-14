@@ -167,6 +167,7 @@ def normalize_content(content: dict[str, Any]) -> None:
             boss.pop("rank", None)
             boss.pop("stat_points", None)
             normalize_boss_stack_effects(boss)
+            normalize_boss_hp_locks(boss)
             normalize_boss_hp_effects(boss, stat_order_index)
             for warning in boss.get("warnings", []):
                 if isinstance(warning, dict) and isinstance(warning.get("pattern"), dict):
@@ -384,6 +385,24 @@ def normalize_hp_thresholds(value: Any) -> list[float]:
     thresholds = [normalize_hp_threshold(threshold) for threshold in source]
     unique = sorted({round(threshold, 6) for threshold in thresholds}, reverse=True)
     return unique or [0.0]
+
+
+def normalize_boss_hp_locks(boss: dict[str, Any]) -> None:
+    rows = boss.get("hp_locks", boss.get("hp_lock_thresholds", []))
+    boss.pop("hp_lock_thresholds", None)
+    if not isinstance(rows, list):
+        boss.pop("hp_locks", None)
+        return
+    locks: set[float] = set()
+    for row in rows:
+        value = row.get("threshold", row.get("hp", row.get("value", 0.0))) if isinstance(row, dict) else row
+        threshold = normalize_hp_threshold(value)
+        if 0 < threshold < 1:
+            locks.add(round(threshold, 6))
+    if locks:
+        boss["hp_locks"] = sorted(locks, reverse=True)
+    else:
+        boss.pop("hp_locks", None)
 
 
 def normalize_boss_hp_effects(boss: dict[str, Any], stat_order_index: dict[str, int] | None = None) -> None:
@@ -1017,6 +1036,11 @@ def validate_content(content: dict[str, Any]) -> list[str]:
             validate_boss_warning_template(warning, pattern_ids, stat_ids, f"boss {boss.get('id')} warning", errors, stack_effects)
         for warning in boss.get("hp_warnings", []):
             validate_warning_trigger(warning, warning_ids, pattern_ids, stat_ids, f"boss {boss.get('id')} hp warning", errors, stack_effects)
+        validate_boss_hp_locks(
+            boss.get("hp_locks", []),
+            f"boss {boss.get('id')} hp locks",
+            errors,
+        )
         validate_boss_hp_effects(
             boss.get("hp_effects", []),
             stat_ids,
@@ -1183,6 +1207,25 @@ def validate_boss_hp_effects(
             errors.append(f"{label} {index} missing pattern")
             continue
         validate_boss_pattern(pattern, f"{label} {index} pattern", stat_ids, errors, stack_effect_ids)
+
+
+def validate_boss_hp_locks(rows: Any, label: str, errors: list[str]) -> None:
+    if rows in (None, []):
+        return
+    if not isinstance(rows, list):
+        errors.append(f"{label} is not an array")
+        return
+    seen: set[float] = set()
+    for index, raw in enumerate(rows, start=1):
+        value = raw.get("threshold", raw.get("hp", raw.get("value"))) if isinstance(raw, dict) else raw
+        threshold = safe_float(value, None)
+        if threshold is None or threshold <= 0 or threshold >= 1:
+            errors.append(f"{label} {index} threshold out of range")
+            continue
+        normalized = round(threshold, 6)
+        if normalized in seen:
+            errors.append(f"{label} {index} duplicate threshold: {threshold}")
+        seen.add(normalized)
 
 
 def validate_boss_warning_template(

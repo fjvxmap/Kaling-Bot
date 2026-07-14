@@ -1,0 +1,370 @@
+{
+  "id": "demian",
+  "name": "데미안",
+  "level_req": 7,
+  "stats": {
+    "base_atk": 25,
+    "max_hp": 8000,
+    "defense": 0.5
+  },
+  "gold": 1800,
+  "exp": 1,
+  "patterns": [],
+  "warnings": [
+    {
+      "id": "binding_hand",
+      "name": "속박하는 손",
+      "pattern": {
+        "id": "binding_hand",
+        "name": "속박하는 손",
+        "damage_multiplier": 2.5,
+        "hits": 1,
+        "player_mods": {},
+        "boss_mods": {},
+        "player_stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": -0.5,
+            "duration": 3,
+            "undispellable": false
+          },
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": -0.1,
+            "duration": 1,
+            "undispellable": false
+          }
+        ],
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 250,
+          "min_damage": 0
+        }
+      ],
+      "failure_variants": [
+        {
+          "name": "속박하는 손 강화",
+          "conditions": [
+            {
+              "stack_effect_id": "demian_stigma",
+              "target": "boss",
+              "min_stacks": 7,
+              "max_stacks": -1
+            }
+          ],
+          "pattern": {
+            "id": "binding_hand_failure_variant",
+            "name": "속박하는 손 강화",
+            "damage_multiplier": 3.5,
+            "hits": 1,
+            "player_mods": {},
+            "boss_mods": {},
+            "player_stat_effects": [
+              {
+                "stat": "atk",
+                "target": "self",
+                "value": -0.75,
+                "duration": 5,
+                "undispellable": false
+              },
+              {
+                "stat": "damage_cut",
+                "target": "self",
+                "value": -0.25,
+                "duration": 3,
+                "undispellable": false
+              }
+            ],
+            "duration": 0,
+            "stats": {}
+          }
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "dive",
+      "name": "다이브",
+      "pattern": {
+        "id": "dive",
+        "name": "다이브",
+        "damage_multiplier": 1.7,
+        "hits": 3,
+        "player_mods": {},
+        "boss_mods": {},
+        "effect_actions": [
+          {
+            "action": "stack_increase",
+            "target": "self",
+            "count": 1,
+            "stack_effect_id": "demian_stigma",
+            "value": 1
+          }
+        ],
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "ability",
+          "required": 1,
+          "min_damage": 0
+        }
+      ],
+      "failure_variants": [
+        {
+          "name": "다이브 강화",
+          "conditions": [
+            {
+              "stack_effect_id": "demian_stigma",
+              "target": "boss",
+              "min_stacks": 7,
+              "max_stacks": -1
+            }
+          ],
+          "pattern": {
+            "id": "dive_failure_variant",
+            "name": "다이브 강화",
+            "damage_multiplier": 3.6,
+            "hits": 3,
+            "player_mods": {},
+            "boss_mods": {},
+            "effect_actions": [
+              {
+                "action": "stack_increase",
+                "target": "self",
+                "count": 1,
+                "stack_effect_id": "demian_stigma",
+                "value": 1
+              }
+            ],
+            "duration": 0,
+            "stats": {}
+          }
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "dark_thrust",
+      "name": "다크 쓰러스트",
+      "pattern": {
+        "id": "dark_thrust",
+        "name": "다크 쓰러스트",
+        "damage_multiplier": 0.7,
+        "hits": 9,
+        "player_mods": {},
+        "boss_mods": {},
+        "player_stat_effects": [
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -0.25,
+            "duration": 5,
+            "undispellable": false
+          }
+        ],
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 5,
+          "min_damage": 0
+        }
+      ],
+      "failure_variants": [
+        {
+          "name": "다크 쓰러스트 강화",
+          "conditions": [
+            {
+              "stack_effect_id": "demian_stigma",
+              "target": "boss",
+              "min_stacks": 7,
+              "max_stacks": -1
+            }
+          ],
+          "pattern": {
+            "id": "dark_thrust_failure_variant",
+            "name": "다크 쓰러스트 강화",
+            "damage_multiplier": 1.2,
+            "hits": 15,
+            "player_mods": {},
+            "boss_mods": {},
+            "player_stat_effects": [
+              {
+                "stat": "defense",
+                "target": "self",
+                "value": -0.5,
+                "duration": 5,
+                "undispellable": false
+              }
+            ],
+            "duration": 0,
+            "stats": {}
+          }
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "sword_of_destruction",
+      "name": "파멸의 검",
+      "pattern": {
+        "id": "sword_of_destruction",
+        "name": "파멸의 검",
+        "damage_multiplier": 4.5,
+        "hits": 3,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "debuff",
+          "required": 2,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "corrupted_world_tree",
+      "name": "세계수 폭주",
+      "pattern": {
+        "id": "corrupted_world_tree",
+        "name": "세계수 폭주",
+        "damage_multiplier": 25,
+        "hits": 1,
+        "player_mods": {},
+        "boss_mods": {},
+        "effect_actions": [
+          {
+            "action": "stack_max",
+            "target": "self",
+            "count": 1,
+            "stack_effect_id": "demian_stigma",
+            "value": 7
+          }
+        ],
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 750,
+          "min_damage": 0
+        }
+      ],
+      "turns": 3
+    }
+  ],
+  "hp_warnings": [
+    {
+      "threshold": 0.9,
+      "warning_id": "binding_hand"
+    },
+    {
+      "threshold": 0.75,
+      "warning_id": "binding_hand"
+    },
+    {
+      "threshold": 0.5,
+      "warning_id": "binding_hand"
+    },
+    {
+      "threshold": 0.25,
+      "warning_id": "sword_of_destruction"
+    },
+    {
+      "threshold": 0.15,
+      "warning_id": "corrupted_world_tree"
+    }
+  ],
+  "ct": {
+    "gauge_by_hp": [
+      {
+        "above": 0.3,
+        "max": 3
+      },
+      {
+        "above": 0,
+        "max": 2
+      }
+    ],
+    "warnings_by_hp": [
+      {
+        "above": 1,
+        "warning_id": "dive"
+      },
+      {
+        "above": 0.3,
+        "warning_id": "dark_thrust"
+      }
+    ]
+  },
+  "rewards": {
+    "items": [
+      {
+        "chance": 0.008,
+        "template_id": "magic_eyepatch",
+        "rarity": "unique"
+      }
+    ],
+    "materials": [
+      {
+        "id": "boss_power_crystal",
+        "chance": 1,
+        "min": 1,
+        "max": 1
+      }
+    ]
+  },
+  "description": "\"지옥을 보여주마.\"",
+  "sort_order": 11,
+  "stack_effects": [
+    {
+      "stack_effect_id": "demian_stigma",
+      "initial_stacks": 0
+    }
+  ],
+  "hp_locks": [
+    0.3
+  ],
+  "hp_effects": [
+    {
+      "thresholds": [
+        0.3
+      ],
+      "pattern": {
+        "id": "demian_hp_effect",
+        "name": "낙인",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "player_mods": {},
+        "boss_mods": {},
+        "effect_actions": [
+          {
+            "action": "stack_max",
+            "target": "self",
+            "count": 1,
+            "stack_effect_id": "demian_stigma",
+            "value": 7
+          }
+        ],
+        "duration": 0,
+        "threshold": 0.3,
+        "stats": {}
+      }
+    }
+  ]
+}

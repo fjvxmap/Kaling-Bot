@@ -929,6 +929,7 @@ function renderBosses() {
       warnings: [],
       hp_warnings: [],
       hp_effects: [],
+      hp_locks: [],
       ct: { gauge_by_hp: [{ above: 0, max: 5 }], warnings_by_hp: [] },
       rewards: blankReward(),
       description: "",
@@ -945,6 +946,7 @@ function renderBossDetail(boss) {
   delete boss.rank;
   delete boss.stat_points;
   boss.hp_warnings ||= [];
+  normalizeBossHpLocks(boss);
   normalizeBossHpEffects(boss);
   boss.ct ||= { gauge_by_hp: [], warnings_by_hp: [] };
   boss.ct.gauge_by_hp ||= [];
@@ -963,6 +965,7 @@ function renderBossDetail(boss) {
     ]),
     statsEditor(boss, "stats", "보스 스탯"),
     bossStackEffectEditor(boss),
+    bossHpLockEditor(boss),
     bossHpEffectEditor(boss),
     bossWarningTemplateEditor(boss),
     bossHpWarningEditor(boss),
@@ -2091,6 +2094,80 @@ function normalizeUiHpThresholds(value, options = {}) {
     : thresholds;
   const result = normalized.length ? normalized : [0.5];
   return sort ? result.sort((a, b) => b - a) : result;
+}
+
+function normalizeBossHpLocks(boss) {
+  const rows = Array.isArray(boss.hp_locks)
+    ? boss.hp_locks
+    : Array.isArray(boss.hp_lock_thresholds)
+      ? boss.hp_lock_thresholds
+      : [];
+  delete boss.hp_lock_thresholds;
+  boss.hp_locks = Array.from(new Set(rows
+    .map((row) => {
+      const value = row && typeof row === "object"
+        ? (row.threshold ?? row.hp ?? row.value)
+        : row;
+      return round(normalizeUiHpThreshold(value), 6);
+    })
+    .filter((threshold) => threshold > 0 && threshold < 1)))
+    .sort((a, b) => b - a);
+}
+
+function nextBossHpLock(locks) {
+  const used = new Set((locks || []).map((threshold) => round(normalizeUiHpThreshold(threshold), 6)));
+  for (const candidate of [0.8, 0.5, 0.25, 0.2, 0.1]) {
+    const normalized = round(candidate, 6);
+    if (!used.has(normalized)) {
+      return normalized;
+    }
+  }
+  for (let percent = 95; percent >= 5; percent -= 5) {
+    const candidate = round(percent / 100, 6);
+    if (!used.has(candidate)) {
+      return candidate;
+    }
+  }
+  return 0.5;
+}
+
+function bossHpLockEditor(boss) {
+  normalizeBossHpLocks(boss);
+  const addButton = el("button", {
+    type: "button",
+    onclick: () => {
+      boss.hp_locks.push(nextBossHpLock(boss.hp_locks));
+      normalizeBossHpLocks(boss);
+      markDirty();
+      render();
+    },
+  }, "락 추가");
+  const rows = boss.hp_locks.map((threshold, index) => {
+    const proxy = { threshold };
+    return el("div", { className: "row two" }, [
+      numberField("HP 기준", proxy, "threshold", {
+        step: 0.01,
+        onChange: (value) => {
+          boss.hp_locks[index] = normalizeUiHpThreshold(value);
+        },
+      }),
+      deleteButton(() => {
+        boss.hp_locks.splice(index, 1);
+        normalizeBossHpLocks(boss);
+        markDirty();
+        render();
+      }),
+    ]);
+  });
+  return el("section", { className: "section themed hp-lock-section" }, [
+    el("div", { className: "section-head" }, [
+      el("h3", {}, "HP 락"),
+      addButton,
+    ]),
+    el("div", { className: "rows" }, rows.length
+      ? rows
+      : [el("div", { className: "empty" }, "HP 락 없음")]),
+  ]);
 }
 
 function syncHpEffectThresholds(effect) {
