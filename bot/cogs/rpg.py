@@ -157,6 +157,7 @@ class BossSession:
     started: bool = False
     completed: bool = False
     failed: bool = False
+    cancelled: bool = False
     participants: dict[int, BossParticipant] = field(default_factory=dict)
     rewards: dict[int, str] = field(default_factory=dict)
     reward_materials: dict[str, int] = field(default_factory=dict)
@@ -556,7 +557,7 @@ class RPGCog(commands.Cog):
         for session in self.boss_sessions.values():
             if exclude_session_id is not None and session.id == exclude_session_id:
                 continue
-            if session.completed or session.failed:
+            if session.completed or session.failed or session.cancelled:
                 continue
             if started_only and not session.started:
                 continue
@@ -638,6 +639,10 @@ class RPGCog(commands.Cog):
     def _start_boss_session(self, session: BossSession, user_id: int) -> tuple[bool, str]:
         if user_id != session.owner_id:
             return False, "보스전을 만든 사람만 시작할 수 있습니다."
+        if session.cancelled:
+            return False, "이미 취소된 보스전입니다."
+        if session.completed or session.failed:
+            return False, "이미 종료된 보스전입니다."
         if session.started:
             return True, "이미 시작되었습니다."
         if not session.participants:
@@ -657,6 +662,52 @@ class RPGCog(commands.Cog):
             self._reset_boss_ability_uses(participant, profile)
             self._prepare_visible_warning(session, participant, profile)
         return True, "보스전을 시작했습니다."
+
+    def _cancel_waiting_boss_participation(
+        self,
+        session: BossSession,
+        user_id: int,
+        display_name: str,
+    ) -> tuple[bool, str]:
+        if session.cancelled:
+            return True, "이미 취소된 보스전입니다."
+        if session.completed or session.failed:
+            return False, "이미 종료된 보스전입니다."
+        if session.started:
+            return False, "이미 시작된 보스전입니다. 진행 중에는 포기 버튼을 사용하세요."
+        participant = session.participants.get(user_id)
+        if participant is None:
+            return False, "이 보스전에 참가하지 않았습니다."
+        if user_id == session.owner_id:
+            session.cancelled = True
+            session.log.append(f"{participant.display_name}: 보스전 준비 취소")
+            return True, "보스전 준비를 취소했습니다."
+        del session.participants[user_id]
+        session.log.append(f"{participant.display_name}: 참가 취소")
+        self._refresh_boss_permanent_effects(session)
+        return True, "참가를 취소했습니다."
+
+    def _give_up_boss_session(
+        self,
+        session: BossSession,
+        user_id: int,
+        display_name: str,
+    ) -> tuple[bool, str]:
+        if session.cancelled:
+            return True, "이미 종료된 보스전입니다."
+        if session.completed or session.failed:
+            return False, "이미 종료된 보스전입니다."
+        if not session.started:
+            return False, "아직 시작되지 않은 보스전입니다. 대기 중에는 취소 버튼을 사용하세요."
+        participant = session.participants.get(user_id)
+        if participant is None:
+            return False, "이 보스전에 참가하지 않았습니다."
+        del session.participants[user_id]
+        session.log.append(f"{participant.display_name}: 보스전 포기")
+        if not session.participants:
+            session.cancelled = True
+            session.log.append("모든 참전자가 포기하여 보스전 종료")
+        return True, "보스전을 포기했습니다."
 
     def _refresh_boss_permanent_effects(self, session: BossSession) -> None:
         if session.started:
@@ -723,7 +774,7 @@ class RPGCog(commands.Cog):
         participant = session.participants.get(user_id)
         if participant is None:
             return False, "이 보스전에 참가하지 않았습니다."
-        if not session.started or session.completed or session.failed:
+        if not session.started or session.completed or session.failed or session.cancelled:
             return False, "진행 중인 보스전이 아닙니다."
         if not participant.alive:
             return False, "전투 불능 상태입니다."
@@ -848,6 +899,8 @@ class RPGCog(commands.Cog):
             return False, "이미 클리어된 보스전입니다."
         if session.failed:
             return False, "이미 실패한 보스전입니다."
+        if session.cancelled:
+            return False, "이미 취소된 보스전입니다."
         if not participant.alive:
             return False, "전투 불능 상태입니다."
 
@@ -968,6 +1021,8 @@ class RPGCog(commands.Cog):
             return False, "이미 클리어된 보스전입니다."
         if session.failed:
             return False, "이미 실패한 보스전입니다."
+        if session.cancelled:
+            return False, "이미 취소된 보스전입니다."
         if not participant.alive:
             return False, "전투 불능 상태입니다."
 
@@ -2271,6 +2326,9 @@ class RPGCog(commands.Cog):
         elif session.failed:
             color = 0xED4245
             status = "실패"
+        elif session.cancelled:
+            color = 0x6E7681
+            status = "취소됨"
         elif session.started:
             color = 0xFFB84D
             status = "진행 중"
@@ -4031,13 +4089,15 @@ class BossSessionView(discord.ui.View):
         super().__init__(timeout=900)
         self.cog = cog
         self.session = session
-        if session.completed or session.failed:
+        if session.completed or session.failed or session.cancelled:
             return
         if not session.started:
             self.add_item(BossJoinButton())
             self.add_item(BossStartButton())
+            self.add_item(BossCancelButton())
             return
         self.add_item(BossAbilityMenuButton())
+        self.add_item(BossGiveUpButton())
 
     async def _edit(self, interaction: discord.Interaction) -> None:
         await interaction.response.edit_message(
@@ -4102,6 +4162,49 @@ class BossStartButton(discord.ui.Button):
             )
 
 
+class BossCancelButton(discord.ui.Button):
+    def __init__(self) -> None:
+        super().__init__(label="취소", style=discord.ButtonStyle.danger)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, BossSessionView)
+        ok, message = self.view.cog._cancel_waiting_boss_participation(
+            self.view.session,
+            interaction.user.id,
+            interaction.user.display_name,
+        )
+        if not ok:
+            await interaction.response.send_message(message, ephemeral=True)
+            return
+        await self.view._edit(interaction)
+
+
+class BossGiveUpButton(discord.ui.Button):
+    def __init__(self, *, row: int | None = None) -> None:
+        super().__init__(label="포기", style=discord.ButtonStyle.danger, row=row)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, BossSessionView | BossAbilityView)
+        user_id = self.view.user_id if isinstance(self.view, BossAbilityView) else interaction.user.id
+        display_name = self.view.display_name if isinstance(self.view, BossAbilityView) else interaction.user.display_name
+        ok, message = self.view.cog._give_up_boss_session(
+            self.view.session,
+            user_id,
+            display_name,
+        )
+        if not ok:
+            if isinstance(self.view, BossAbilityView):
+                await self.view._edit(interaction, message)
+                return
+            await interaction.response.send_message(message, ephemeral=True)
+            return
+        if isinstance(self.view, BossAbilityView):
+            await self.view.cog._refresh_boss_public_message(self.view.session)
+            await self.view._edit(interaction, message)
+            return
+        await self.view._edit(interaction)
+
+
 class BossAttackButton(discord.ui.Button):
     def __init__(self, *, disabled: bool = False, row: int | None = None) -> None:
         super().__init__(label="공격", style=discord.ButtonStyle.danger, disabled=disabled, row=row)
@@ -4163,7 +4266,12 @@ class BossAbilityMenuButton(discord.ui.Button):
         if participant is None:
             await interaction.response.send_message("이 보스전에 참가하지 않았습니다.", ephemeral=True)
             return
-        if not self.view.session.started or self.view.session.completed or self.view.session.failed:
+        if (
+            not self.view.session.started
+            or self.view.session.completed
+            or self.view.session.failed
+            or self.view.session.cancelled
+        ):
             await interaction.response.send_message("진행 중인 보스전이 아닙니다.", ephemeral=True)
             return
         self.view.session.message = interaction.message
@@ -4221,10 +4329,12 @@ class BossAbilityView(discord.ui.View):
             or not session.started
             or session.completed
             or session.failed
+            or session.cancelled
         )
         self.add_item(BossAttackButton(disabled=controls_disabled, row=0))
         self.add_item(BossGuardButton(disabled=controls_disabled, row=0))
         self.add_item(BossDamageDetailButton(disabled=participant is None, row=0))
+        self.add_item(BossGiveUpButton(row=0))
         for skill in skills[:MAX_EQUIPPED_SKILLS]:
             cooldown = participant.ability_cooldowns.get(skill.id, 0) if participant is not None else 0
             used_out = participant is not None and self.cog._ability_used_out(participant, skill)
@@ -4251,7 +4361,13 @@ class BossAbilityView(discord.ui.View):
         profile = self.cog.service.get_profile(self.user_id, self.display_name)
         skills = self.cog.service.equipped_skills(profile)
         view = None
-        if self.session.started and not self.session.completed and not self.session.failed and participant.alive:
+        if (
+            self.session.started
+            and not self.session.completed
+            and not self.session.failed
+            and not self.session.cancelled
+            and participant.alive
+        ):
             view = BossAbilityView(self.cog, self.session, self.user_id, self.display_name, skills)
         await interaction.response.edit_message(
             embed=self.cog._boss_ability_embed(self.session, participant, skills, message),

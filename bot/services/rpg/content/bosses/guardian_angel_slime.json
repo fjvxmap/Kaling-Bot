@@ -159,12 +159,6 @@
         "chance": 1,
         "min": 1,
         "max": 3
-      },
-      {
-        "id": "gold_brick",
-        "chance": 0.02,
-        "min": 1,
-        "max": 1
       }
     ]
   },
