@@ -1994,7 +1994,6 @@ class RPGCog(commands.Cog):
             value=(
                 f"Lv. **{profile.level}** · EXP **{progress}/{required}**\n"
                 f"총 EXP {profile.exp} · 골드 {profile.gold}G"
-                f"\nThis is a test message to check if github actions is working properly. If deployment succeeds, this message must be shown."
             ),
             inline=False,
         )
