@@ -156,3 +156,23 @@ README.md
 
 ## Notes
 After inviting the bot to your server, use `/ping` to test the response.
+
+## Lightsail deployment
+Keep server-only runtime differences in `.env`, not in tracked JSON files. For example, the
+production Lightsail server can use:
+
+```env
+KALING_CONDA_ENV=bot
+KALING_EXPLORE_LIMIT_ENABLED=true
+KALING_BOSS_WEEKLY_REWARD_LIMIT_ENABLED=true
+```
+
+Then deploy on the server with:
+
+```bash
+cd ~/Kaling-Bot
+./deploy.sh
+```
+
+The deploy script runs `git pull --ff-only`, installs Python requirements, runs Django
+migrations, and restarts `bot`, `backend`, and `cloudflare` through `kaling-services.sh`.

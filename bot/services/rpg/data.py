@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,33 @@ STACK_EFFECT_ACTIONS = {
 def _read_json(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as file:
         return json.load(file)
+
+
+def _env_bool(key: str, default: bool) -> bool:
+    value = os.getenv(key)
+    if value is None or value.strip() == "":
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _env_int(key: str, default: int) -> int:
+    value = os.getenv(key)
+    if value is None or value.strip() == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+def _env_float(key: str, default: float) -> float:
+    value = os.getenv(key)
+    if value is None or value.strip() == "":
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return default
 
 
 def _read_json_dir(path: Path) -> list[dict[str, Any]]:
@@ -1558,24 +1586,27 @@ def _boss(raw: dict[str, Any]) -> BossTemplate:
 
 
 _SETTINGS = CONTENT.get("settings", {})
-DAILY_EXPLORES = int(_SETTINGS.get("daily_explores", 7))
-EXPLORE_LIMIT_ENABLED = bool(_SETTINGS.get("explore_limit_enabled", False))
-BOSS_WEEKLY_REWARD_LIMIT_ENABLED = bool(_SETTINGS.get("boss_weekly_reward_limit_enabled", False))
-MAX_EQUIPPED_ITEMS = int(_SETTINGS.get("max_equipped_items", 4))
-MAX_EQUIPPED_SKILLS = int(_SETTINGS.get("max_equipped_skills", 4))
-MAX_ENHANCEMENT_STARS = int(_SETTINGS.get("max_enhancement_stars", 10))
+DAILY_EXPLORES = _env_int("KALING_DAILY_EXPLORES", int(_SETTINGS.get("daily_explores", 7)))
+EXPLORE_LIMIT_ENABLED = _env_bool("KALING_EXPLORE_LIMIT_ENABLED", bool(_SETTINGS.get("explore_limit_enabled", False)))
+BOSS_WEEKLY_REWARD_LIMIT_ENABLED = _env_bool(
+    "KALING_BOSS_WEEKLY_REWARD_LIMIT_ENABLED",
+    bool(_SETTINGS.get("boss_weekly_reward_limit_enabled", False)),
+)
+MAX_EQUIPPED_ITEMS = _env_int("KALING_MAX_EQUIPPED_ITEMS", int(_SETTINGS.get("max_equipped_items", 4)))
+MAX_EQUIPPED_SKILLS = _env_int("KALING_MAX_EQUIPPED_SKILLS", int(_SETTINGS.get("max_equipped_skills", 4)))
+MAX_ENHANCEMENT_STARS = _env_int("KALING_MAX_ENHANCEMENT_STARS", int(_SETTINGS.get("max_enhancement_stars", 10)))
 _LEVEL_UP_GROWTH = _SETTINGS.get("level_up_growth", {})
 if not isinstance(_LEVEL_UP_GROWTH, dict):
     _LEVEL_UP_GROWTH = {}
-LEVEL_UP_BASE_ATK = _safe_float(_LEVEL_UP_GROWTH.get("base_atk"), 1.0)
-LEVEL_UP_MAX_HP = _safe_float(_LEVEL_UP_GROWTH.get("max_hp"), 5.0)
-LEVEL_UP_DEFENSE = _safe_float(_LEVEL_UP_GROWTH.get("defense"), 0.025)
+LEVEL_UP_BASE_ATK = _env_float("KALING_LEVEL_UP_BASE_ATK", _safe_float(_LEVEL_UP_GROWTH.get("base_atk"), 1.0))
+LEVEL_UP_MAX_HP = _env_float("KALING_LEVEL_UP_MAX_HP", _safe_float(_LEVEL_UP_GROWTH.get("max_hp"), 5.0))
+LEVEL_UP_DEFENSE = _env_float("KALING_LEVEL_UP_DEFENSE", _safe_float(_LEVEL_UP_GROWTH.get("defense"), 0.025))
 _REWARD_MULTIPLIERS = _SETTINGS.get("reward_multipliers", {})
 if not isinstance(_REWARD_MULTIPLIERS, dict):
     _REWARD_MULTIPLIERS = {}
-REWARD_WIN_MULTIPLIER_MIN = _safe_float(_REWARD_MULTIPLIERS.get("win_min"), 1.0)
-REWARD_WIN_MULTIPLIER_MAX = _safe_float(_REWARD_MULTIPLIERS.get("win_max"), 1.2)
-REWARD_LOSS_MULTIPLIER = _safe_float(_REWARD_MULTIPLIERS.get("loss"), 0.2)
+REWARD_WIN_MULTIPLIER_MIN = _env_float("KALING_REWARD_WIN_MIN", _safe_float(_REWARD_MULTIPLIERS.get("win_min"), 1.0))
+REWARD_WIN_MULTIPLIER_MAX = _env_float("KALING_REWARD_WIN_MAX", _safe_float(_REWARD_MULTIPLIERS.get("win_max"), 1.2))
+REWARD_LOSS_MULTIPLIER = _env_float("KALING_REWARD_LOSS", _safe_float(_REWARD_MULTIPLIERS.get("loss"), 0.2))
 
 _STAT_DATA = CONTENT.get("stats", {})
 STAT_ORDER = [str(stat) for stat in _STAT_DATA.get("order", [])]
