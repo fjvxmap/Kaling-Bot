@@ -272,7 +272,6 @@ class RPGCog(commands.Cog):
             )
         embed = discord.Embed(
             title="보스 목록",
-            description="자발 횟수는 보스별 주간 1회입니다. 참전은 자발 횟수를 소모하지 않습니다.",
             color=0xFFB84D,
         )
         embed.add_field(name="보스", value="\n\n".join(lines), inline=False)
@@ -581,7 +580,6 @@ class RPGCog(commands.Cog):
     def _boss_panel_embed(self, profile: PlayerProfile, selected_boss_id: str | None = None) -> discord.Embed:
         embed = discord.Embed(
             title="보스 선택",
-            description="보스를 고른 뒤 자발 준비 또는 연습 준비를 누르면 참가/시작 패널이 열립니다.",
             color=0xFFB84D,
         )
         lines = []
@@ -603,7 +601,6 @@ class RPGCog(commands.Cog):
                 ),
                 inline=False,
             )
-        embed.set_footer(text="연습 모드는 자발 횟수와 보상을 모두 사용하지 않습니다.")
         return embed
 
     def _create_boss_session(
@@ -624,7 +621,7 @@ class RPGCog(commands.Cog):
                 "완료되거나 실패한 뒤 다른 보스전에 참가할 수 있습니다."
             )
         if not practice and self.service.boss_start_remaining(profile, template.id) == 0:
-            return None, f"{template.name} 자발 횟수를 모두 사용했습니다. 연습 모드는 가능합니다."
+            return None, f"{template.name} 자발 횟수를 모두 사용했습니다."
 
         session_id = self._next_boss_session_id
         self._next_boss_session_id += 1
@@ -651,7 +648,7 @@ class RPGCog(commands.Cog):
             return False, "자발자 정보를 찾을 수 없습니다."
         self._refresh_boss_permanent_effects(session)
         session.started = True
-        session.log.append("연습 보스전 시작" if session.practice else "보스전 시작")
+        session.log.append("보스전 시작")
         for participant in session.participants.values():
             profile = self.service.get_profile(participant.user_id, participant.display_name)
             self._reset_boss_ability_uses(participant, profile)
@@ -1967,8 +1964,8 @@ class RPGCog(commands.Cog):
             return
         if session.practice:
             for participant in session.participants.values():
-                session.rewards[participant.user_id] = "연습 모드: 보상 없음"
-            session.log.append("연습 보스전: 보상 없음")
+                session.rewards[participant.user_id] = "보상 없음"
+            session.log.append("보스전 종료")
             return
         for participant in session.participants.values():
             if not participant.alive:
@@ -1993,7 +1990,7 @@ class RPGCog(commands.Cog):
             )
             self._add_session_reward_materials(session, reward.materials)
             session.rewards[participant.user_id] = self._reward_text(reward).replace("\n", ", ")
-        session.log.append("보스 클리어 보상 지급 (자발자 드랍율 2배)")
+        session.log.append("보스 클리어 보상 지급")
 
     def _grant_boss_session_failure_rewards(self, session: BossSession) -> None:
         if session.rewards:
@@ -2344,10 +2341,10 @@ class RPGCog(commands.Cog):
         ct_max = self._current_ct_max(session)
         owner = session.participants.get(session.owner_id)
         owner_name = owner.display_name if owner is not None else "알 수 없음"
-        mode_text = "연습 모드 · 보상 없음" if session.practice else "일반 모드 · 자발자 드랍율 2배"
+        mode_text = "연습" if session.practice else "일반"
         embed = discord.Embed(
             title=f"{session.boss.name} 보스전",
-            description=f"상태: **{status}** · CT {ct_max}칸 · {mode_text} · 자발자 {owner_name}",
+            description=f"상태: **{status}** · {mode_text} · 자발자 {owner_name} · CT {ct_max}",
             color=color,
         )
         embed.add_field(
@@ -2379,7 +2376,6 @@ class RPGCog(commands.Cog):
             embed.add_field(name="보상", value=self._trim("\n".join(reward_lines), 1000), inline=False)
         if session.log:
             embed.add_field(name="로그", value=self._trim("\n".join(session.log[-8:]), 1200), inline=False)
-        embed.set_footer(text="공격/가드/어빌리티는 개인 패널에서 조작합니다.")
         return embed
 
     def _participant_public_summary_text(self, participant: BossParticipant, ct_max: int) -> str:
@@ -2486,9 +2482,10 @@ class RPGCog(commands.Cog):
     ) -> discord.Embed:
         embed = discord.Embed(
             title=f"{session.boss.name} 개인 전투 패널",
-            description=message or "내 상태를 확인하고 어빌리티를 사용할 수 있습니다. 어빌리티는 턴을 소모하지 않습니다.",
             color=0xB56BFF,
         )
+        if message:
+            embed.description = message
         ct_max = self._current_ct_max(session)
         hp_lock_text = self._boss_hp_lock_text(session, participant)
         embed.add_field(

@@ -1,165 +1,74 @@
-# Kaling Discord Bot (Python)
+# Kaling-Bot
 
-Local-run Discord bot starter using `discord.py` 2.x with a Cog-based slash command setup.
+Kaling-Bot is a Discord bot and companion Django web service for a private game/community server. It combines conversational Discord features, MapleStory combat-power lookup, schedule access through a web dashboard, and a persistent button-driven RPG system.
 
-## Prerequisites
-1) Python 3.10+ recommended
-2) Install dependencies
+The repository is designed to run as three cooperating local services:
+
+- `bot`: the Discord bot process.
+- `backend`: the Django schedule/dashboard server under `web/`.
+- `cloudflare`: a Cloudflare Tunnel process for exposing the local backend.
+
+## Features
+
+- Discord slash commands built with `discord.py`.
+- OpenAI-assisted Korean intent parsing and casual replies.
+- Nexon Open API integration for MapleStory combat-power lookup.
+- Number baseball mini-game.
+- Django schedule dashboard with optional Discord OAuth login.
+- Persistent RPG mode with dungeons, bosses, jobs, skills, equipment, crafting, enhancement, gacha, and admin-editable content.
+- RPG admin web UI for editing content JSON files.
+- tmux-based service management for local or Lightsail operation.
+- GitHub Actions friendly deployment through `deploy.sh`.
+
+## Requirements
+
+- Linux or WSL2 is recommended.
+- Python 3.11 is recommended. Python 3.10+ should work.
+- `pip`
+- `tmux` for service scripts.
+- `git`
+- `cloudflared` if you use Cloudflare Tunnel.
+- Miniconda or Anaconda if you want to use the provided conda-based service scripts.
+
+Python packages are listed in [requirements.txt](requirements.txt):
+
 ```bash
 pip install -r requirements.txt
 ```
-3) Set environment variables
-Put your Discord bot token in `.env`.
 
-## Run
-```bash
-python -m bot
+## Configuration
+
+Create a local `.env` file at the repository root. It is intentionally not committed.
+
+Common keys:
+
+```env
+DISCORD_TOKEN=
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
+
+DJANGO_SECRET_KEY=
+DJANGO_DEBUG=true
+DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost
+DJANGO_CSRF_TRUSTED_ORIGINS=
+DJANGO_BASE_URL=http://127.0.0.1:8000/
+
+NEXON_API_BASE_URL=
+NEXON_API_KEY=
+NEXON_MAPLE_OCID_PATH=
+NEXON_MAPLE_CHARACTER_STAT_PATH=
+NEXON_MAPLE_COMBAT_POWER_JSON_PATH=final_stat.전투력
+
+DISCORD_CLIENT_ID=
+DISCORD_CLIENT_SECRET=
+DISCORD_OAUTH_REDIRECT_URI=
+
+KALING_CONDA_ENV=myenv
+KALING_EXPLORE_LIMIT_ENABLED=false
+KALING_BOSS_WEEKLY_REWARD_LIMIT_ENABLED=false
 ```
 
-## MapleStory combat power (Nexon Open API + OpenAI)
-This bot listens for natural-language messages like:
-```
-카링아 누구누구 전투력 알려줘
-```
-It uses OpenAI to extract the character name, then calls Nexon Open API to fetch combat power.
-
-## Number baseball mode
-If intent is like `카링, 숫자야구하자`, the bot starts a 4-digit number baseball session.
-During the session, it listens for 4-digit numeric messages from that user in that channel
-and returns strike/ball results until win or attempts run out.
-
-## RPG mode
-The bot includes a compact slash-command RPG based on the old Python console game's combat loop.
-
-Commands:
-- `/rpg 시작`: create or view your RPG profile
-- `/rpg 프로필`: level, job, EXP, stats, daily explores, equipped weapons
-- `/rpg 던전목록`: available daily dungeons
-- `/rpg 탐색`: open a dungeon select UI; button clicks explore without a daily limit and update the same message
-- `/rpg 보스목록`: boss list and reward info
-- `/rpg 보스`: open a joinable button-based turn battle; clear rewards are unlimited during testing
-- `/rpg 전직목록`: job tree and available advancements
-- `/rpg 전직`: advance to an eligible job
-- `/rpg 인벤토리`: owned weapons and equipment UI; equip up to 4 weapons manually
-- `/rpg 장착`: open the equipment UI directly
-- `/rpg 판매`: sell selected unequipped weapons
-- `/rpg 자동판매`: configure rarities to sell immediately on drop
-- `/rpg 가챠`: spend correction crystals on a configured 10-pull reward pool
-- `/rpg 어빌리티`: equip up to 3 abilities for auto combat and boss battles
-- `/rpg 강화`: select a weapon, preview stat gain/cost/odds, then enhance
-- `/rpg 복구`: restore a destroyed weapon trace at 3 stars below its trace stars
-- Level ups now grow base attack by 1, max HP by 5, and defense by 2.5% automatically.
-
-Testing flags currently disable daily explore limits and boss reward locks.
-Boss battles are message-based sessions: players can join before start, share boss HP,
-keep separate HP/CT/warning objectives, use personal ephemeral ability buttons without
-spending a turn, and spend turns with attack or guard. Guard skips your attack and only
-for that incoming hit raises defense by 1000%. HP warnings queue per player; queued HP
-warnings take priority over CT warnings and are shown one at a time. Boss warning
-templates contain their failure effect, can be linked by HP/CT triggers, and can
-require multiple objectives at once, such as damage, hit count, and debuff count.
-
-Runtime RPG state is stored at `bot/data/rpg_state.json` and ignored by Git.
-
-## Schedule teasing when Django is down
-If a message contains "카링" and GPT decides it's a schedule-related request,
-the bot checks whether Django is running. If not, it replies with a playful tease
-using a style reference file:
-- `Kaling/bot/prompts/schedule_tease_ko.txt`
-
-## Prompt files
-You can maintain long prompts in files instead of inline code:
-- Intent classification: `Kaling/bot/prompts/intent_parser_ko.txt`
-- Casual chat style: `Kaling/bot/prompts/small_talk_ko.txt`
-- Schedule tease style: `Kaling/bot/prompts/schedule_tease_ko.txt`
-- Character speech reference lines: `Kaling/bot/prompts/reference.txt`
-- OpenAI response instructions: `Kaling/bot/prompts/respond_small_talk_instructions_ko.txt`, `Kaling/bot/prompts/respond_tease_instructions_ko.txt`, `Kaling/bot/prompts/respond_annoy_reject_instructions_ko.txt`
-
-## Character images
-Put reaction images under `Kaling/img` with subfolders:
-- `joy/`, `love/`, `scary/`, `tease/`
-
-OpenAI intent parsing now also selects the image reaction mood (`joy/love/scary/tease/none`).
-The bot randomly picks one file from the selected folder and sometimes sends it with text.
-Supported extensions include `.gif`, `.png`, `.jpg`, `.jpeg`, `.webp`.
-Control send frequency with `KALING_IMAGE_SEND_PROB` in `.env` (default `0.35`).
-
-Set `DJANGO_BASE_URL` in `.env` if your dashboard runs elsewhere.
-
-### Required env keys
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL` (default: `gpt-4o-mini`)
-- `DJANGO_BASE_URL` (default: `http://127.0.0.1:8000/`)
-- `NEXON_API_BASE_URL`
-- `NEXON_API_KEY`
-- `NEXON_MAPLE_OCID_PATH`
-- `NEXON_MAPLE_CHARACTER_STAT_PATH`
-- `NEXON_MAPLE_COMBAT_POWER_JSON_PATH` (dot path in JSON, default: `final_stat.전투력`)
-
-### Notes
-- API paths differ by game/region; set them in `.env`.
-- If combat power is nested, use dot notation like `character.combat_power`.
-
-## Web Dashboard (Django)
-This repo includes a minimal Django dashboard scaffold under `web/`.
-
-### Setup
-```bash
-pip install -r requirements.txt
-cp .env.example .env
-```
-Fill in at least:
-- `DJANGO_SECRET_KEY`
-- `DJANGO_DEBUG`
-- `NEXON_API_BASE_URL` and `NEXON_API_KEY` (optional for now)
-
-### Run
-```bash
-cd web
-python manage.py migrate
-python manage.py runserver
-```
-Open http://127.0.0.1:8000/ to view the calendar.
-
-### Admin
-```bash
-python manage.py createsuperuser
-```
-Then open http://127.0.0.1:8000/admin to manage schedules and availability.
-
-## Discord OAuth (optional)
-Enable Discord OAuth to auto-fill user identity on the schedule page.
-
-Add these to `.env`:
-- `DISCORD_CLIENT_ID`
-- `DISCORD_CLIENT_SECRET`
-- `DISCORD_OAUTH_REDIRECT_URI` (example: `http://127.0.0.1:8000/auth/discord/callback/`)
-
-Then use the "Sign in with Discord" button on the schedule page.
-
-## Folder structure
-```
-bot/                 # package root
-  bot/
-    __init__.py
-    __main__.py      # entrypoint
-    config.py        # env loader
-    logging.py       # logging setup
-    client.py        # bot instance
-    cogs/
-      __init__.py
-      core.py        # sample slash command
-.env.example
-requirements.txt
-README.md
-```
-
-## Notes
-After inviting the bot to your server, use `/ping` to test the response.
-
-## Lightsail deployment
-Keep server-only runtime differences in `.env`, not in tracked JSON files. For example, the
-production Lightsail server can use:
+Production can override behavior without changing tracked JSON files:
 
 ```env
 KALING_CONDA_ENV=bot
@@ -167,12 +76,261 @@ KALING_EXPLORE_LIMIT_ENABLED=true
 KALING_BOSS_WEEKLY_REWARD_LIMIT_ENABLED=true
 ```
 
-Then deploy on the server with:
+## Installation
+
+```bash
+git clone <repo-url>
+cd Kaling-Bot
+pip install -r requirements.txt
+```
+
+If you use conda:
+
+```bash
+conda create -n myenv python=3.11
+conda activate myenv
+pip install -r requirements.txt
+```
+
+Initialize the Django database:
+
+```bash
+cd web
+python manage.py migrate
+```
+
+## Running Locally
+
+Run the Discord bot:
+
+```bash
+python -m bot
+```
+
+Run the Django backend:
+
+```bash
+cd web
+python manage.py runserver
+```
+
+Run the Cloudflare Tunnel:
+
+```bash
+./run-cloudflare-tunnel.sh
+```
+
+## Service Management
+
+`kaling-services.sh` manages the three services in persistent tmux sessions. It reads `KALING_CONDA_ENV` from `.env`.
+
+Start all services:
+
+```bash
+./kaling-services.sh start
+```
+
+Start selected services:
+
+```bash
+./kaling-services.sh start bot backend
+```
+
+Stop selected services while keeping tmux sessions alive:
+
+```bash
+./kaling-services.sh shutdown bot cloudflare
+```
+
+Restart all services:
+
+```bash
+./kaling-services.sh restart
+```
+
+Check status:
+
+```bash
+./kaling-services.sh status
+```
+
+Compatibility wrappers are also available:
+
+```bash
+./start-services.sh
+./shutdown-services.sh
+```
+
+## Discord Usage
+
+Core checks:
+
+- `/ping`: verify that the bot is alive.
+
+RPG commands:
+
+- `/rpg 시작`: create or view your RPG profile.
+- `/rpg 프로필`: show level, job, stats, resources, and equipment.
+- `/rpg 던전목록`: list available dungeons.
+- `/rpg 탐색`: open dungeon exploration UI or run a selected dungeon.
+- `/rpg 보스목록`: list bosses and start availability.
+- `/보스` or `/rpg 보스`: open the boss selection panel.
+- `/rpg 전직목록`: show jobs and advancement information.
+- `/rpg 전직`: open job advancement UI.
+- `/rpg 인벤토리`: open inventory/equipment UI.
+- `/rpg 장착`: open equipment UI directly.
+- `/rpg 판매`: sell selected unequipped equipment.
+- `/rpg 자동판매`: configure automatic sale rules.
+- `/rpg 가챠`: open gacha UI.
+- `/rpg 어빌리티`: equip boss/dungeon abilities.
+- `/rpg 강화`: open enhancement and restoration UI.
+- `/rpg 복구`: open restoration UI for destroyed equipment traces.
+
+Natural-language features:
+
+- MapleStory combat-power lookup through Korean requests addressed to Kaling.
+- Number baseball sessions through Korean natural-language prompts.
+- Schedule-related replies when the Django backend is unavailable.
+
+## RPG Admin UI
+
+The RPG content editor is a local admin tool for JSON content under `bot/services/rpg/content/`.
+
+Run it with:
+
+```bash
+python -m tools.rpg_admin --host 127.0.0.1 --port 8787
+```
+
+Open:
+
+```text
+http://127.0.0.1:8787
+```
+
+The admin UI can edit:
+
+- Items and item stats
+- Materials
+- Jobs and job trees
+- Skills and effects
+- Stack effects
+- Dungeons and enemies
+- Bosses, warnings, HP effects, HP locks, CT rules, rewards
+- Gacha pools
+- Global RPG settings
+
+Backups are written under `.rpg_content_backups/`.
+
+## RPG Data And State
+
+Tracked RPG content:
+
+```text
+bot/services/rpg/content/
+```
+
+Runtime player state:
+
+```text
+bot/data/rpg_state.json
+```
+
+Runtime state is ignored by Git. Do not overwrite production state with local test state.
+
+Useful content references:
+
+- [bot/services/rpg/content/README.md](bot/services/rpg/content/README.md)
+- [tools/rpg_admin/README.md](tools/rpg_admin/README.md)
+- [tools/rpg_balance/README.md](tools/rpg_balance/README.md)
+
+## Django Dashboard
+
+Run migrations:
+
+```bash
+cd web
+python manage.py migrate
+```
+
+Start the server:
+
+```bash
+python manage.py runserver
+```
+
+Open:
+
+```text
+http://127.0.0.1:8000/
+```
+
+Create an admin user:
+
+```bash
+python manage.py createsuperuser
+```
+
+Open:
+
+```text
+http://127.0.0.1:8000/admin
+```
+
+## Deployment
+
+The repository includes a deployment script for a persistent Linux server such as AWS Lightsail:
 
 ```bash
 cd ~/Kaling-Bot
 ./deploy.sh
 ```
 
-The deploy script runs `git pull --ff-only`, installs Python requirements, runs Django
-migrations, and restarts `bot`, `backend`, and `cloudflare` through `kaling-services.sh`.
+`deploy.sh` performs these steps:
+
+1. Backs up `bot/data/rpg_state.json` and `web/db.sqlite3` into `.deploy_backups/`.
+2. Runs `git pull --ff-only`.
+3. Activates the conda environment from `KALING_CONDA_ENV`.
+4. Installs Python requirements.
+5. Runs Python compile checks.
+6. Runs Django migrations.
+7. Restarts `bot`, `backend`, and `cloudflare` through `kaling-services.sh`.
+
+For GitHub Actions deployment, configure repository secrets for the SSH host, username, and private key. The private key secret must include the full PEM header and footer.
+
+## Development Checks
+
+Run Python compile checks:
+
+```bash
+python -m py_compile bot/services/rpg/data.py bot/services/rpg/manager.py bot/cogs/rpg.py tools/rpg_admin/app.py
+```
+
+Validate RPG content through the admin app helpers:
+
+```bash
+python -c "from tools.rpg_admin.app import read_content, normalize_content, validate_content; c=read_content(); normalize_content(c); e=validate_content(c); print(f'errors={len(e)}'); print('\n'.join(e[:30]))"
+```
+
+## Repository Layout
+
+```text
+bot/                         Discord bot package and RPG runtime
+bot/cogs/                    Discord cogs
+bot/services/rpg/            RPG data models, content loader, manager, store
+bot/services/rpg/content/    Tracked RPG content JSON
+bot/data/                    Runtime RPG state
+web/                         Django dashboard
+tools/rpg_admin/             RPG content admin UI
+tools/rpg_balance/           RPG balance analysis tools
+docs/                        Reference documents
+img/                         Reaction images
+kaling-services.sh           tmux service manager
+deploy.sh                    Server deployment script
+```
+
+## Notes
+
+- Keep secrets and server-specific toggles in `.env`.
+- Keep production runtime state out of Git.
+- Prefer changing RPG content through the admin UI when possible.
