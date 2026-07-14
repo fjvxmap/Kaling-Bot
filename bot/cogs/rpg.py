@@ -150,6 +150,7 @@ class BossSession:
     id: int
     boss: BossTemplate
     owner_id: int
+    practice: bool = False
     boss_hp: int = 0
     boss_max_hp: int = 0
     ct_max: int = 4
@@ -263,68 +264,26 @@ class RPGCog(commands.Cog):
         lines = []
         for boss in self.service.bosses():
             gate = "도전 가능" if profile.level >= boss.level_req else f"Lv.{boss.level_req} 필요"
+            start_limit = self._boss_start_limit_text(profile, boss.id)
             lines.append(
-                f"**{boss.name}** · {gate}\n"
+                f"**{boss.name}** · {gate} · 자발 {start_limit}\n"
                 f"보상 {self.service.reward_summary(boss.rewards, base_gold=boss.gold, base_exp=boss.exp)} · {boss.description}"
             )
         embed = discord.Embed(
             title="보스 목록",
-            description="테스트 단계에서는 보스 클리어 보상 제한이 없습니다. 보스전은 버튼 턴제로 진행됩니다.",
+            description="자발 횟수는 보스별 주간 1회입니다. 참전은 자발 횟수를 소모하지 않습니다.",
             color=0xFFB84D,
         )
         embed.add_field(name="보스", value="\n\n".join(lines), inline=False)
         await interaction.response.send_message(embed=embed)
 
-    @rpg.command(name="보스", description="보스를 선택해 버튼 턴제 전투를 시작합니다.")
-    @app_commands.rename(boss="보스")
-    @app_commands.describe(boss="도전할 보스")
-    @app_commands.choices(boss=BOSS_CHOICES)
-    async def boss(
-        self,
-        interaction: discord.Interaction,
-        boss: app_commands.Choice[str],
-    ) -> None:
-        profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
-        template = BOSS_BY_ID.get(boss.value)
-        if template is None:
-            await interaction.response.send_message(
-                embed=discord.Embed(title="보스 도전 실패", description="알 수 없는 보스입니다.", color=0xED4245)
-            )
-            return
-        if profile.level < template.level_req:
-            await interaction.response.send_message(
-                embed=discord.Embed(
-                    title="보스 도전 실패",
-                    description=f"{template.name}은 Lv.{template.level_req}부터 도전할 수 있습니다.",
-                    color=0xED4245,
-                )
-            )
-            return
-        active_session = self._active_boss_session_for_user(interaction.user.id)
-        if active_session is not None:
-            await interaction.response.send_message(
-                embed=discord.Embed(
-                    title="보스 도전 실패",
-                    description=(
-                        f"이미 **{active_session.boss.name}** 보스전에 참가 중입니다. "
-                        "완료되거나 실패한 뒤 다른 보스전에 참가할 수 있습니다."
-                    ),
-                    color=0xED4245,
-                ),
-                ephemeral=True,
-            )
-            return
+    @rpg.command(name="보스", description="보스 선택 패널을 엽니다.")
+    async def boss(self, interaction: discord.Interaction) -> None:
+        await self._send_boss_panel(interaction)
 
-        session_id = self._next_boss_session_id
-        self._next_boss_session_id += 1
-        session = BossSession(session_id, template, interaction.user.id)
-        self._add_boss_participant(session, interaction.user.id, interaction.user.display_name)
-        self.boss_sessions[session_id] = session
-        await interaction.response.send_message(
-            embed=self._boss_session_embed(session),
-            view=BossSessionView(self, session),
-        )
-        session.message = await interaction.original_response()
+    @app_commands.command(name="보스", description="보스 선택 패널을 엽니다.")
+    async def boss_top_level(self, interaction: discord.Interaction) -> None:
+        await self._send_boss_panel(interaction)
 
     @rpg.command(name="전직목록", description="현재 직업에서 가능한 전직과 전체 직업 정보를 봅니다.")
     async def job_list(self, interaction: discord.Interaction) -> None:
@@ -605,6 +564,77 @@ class RPGCog(commands.Cog):
                 return session
         return None
 
+    def _boss_start_limit_text(self, profile: PlayerProfile, boss_id: str) -> str:
+        remaining = self.service.boss_start_remaining(profile, boss_id)
+        if remaining < 0:
+            return "무제한"
+        return f"{remaining}/1"
+
+    async def _send_boss_panel(self, interaction: discord.Interaction) -> None:
+        profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
+        selected_boss_id = next((boss.id for boss in self.service.bosses() if profile.level >= boss.level_req), None)
+        await interaction.response.send_message(
+            embed=self._boss_panel_embed(profile, selected_boss_id),
+            view=BossPanelView(self, interaction.user.id, interaction.user.display_name, selected_boss_id),
+        )
+
+    def _boss_panel_embed(self, profile: PlayerProfile, selected_boss_id: str | None = None) -> discord.Embed:
+        embed = discord.Embed(
+            title="보스 선택",
+            description="보스를 고른 뒤 자발 준비 또는 연습 준비를 누르면 참가/시작 패널이 열립니다.",
+            color=0xFFB84D,
+        )
+        lines = []
+        for boss in self.service.bosses():
+            gate = "도전 가능" if profile.level >= boss.level_req else f"Lv.{boss.level_req} 필요"
+            selected = " ← 선택됨" if boss.id == selected_boss_id else ""
+            lines.append(
+                f"**{boss.name}** · {gate} · 자발 {self._boss_start_limit_text(profile, boss.id)}{selected}"
+            )
+        embed.add_field(name="목록", value=self._trim("\n".join(lines), 1200), inline=False)
+        selected = BOSS_BY_ID.get(selected_boss_id or "")
+        if selected is not None:
+            embed.add_field(
+                name="선택한 보스",
+                value=(
+                    f"**{selected.name}** · Lv.{selected.level_req}+ · 자발 {self._boss_start_limit_text(profile, selected.id)}\n"
+                    f"보상 {self.service.reward_summary(selected.rewards, base_gold=selected.gold, base_exp=selected.exp)}\n"
+                    f"{selected.description or '설명 없음'}"
+                ),
+                inline=False,
+            )
+        embed.set_footer(text="연습 모드는 자발 횟수와 보상을 모두 사용하지 않습니다.")
+        return embed
+
+    def _create_boss_session(
+        self,
+        template: BossTemplate,
+        user_id: int,
+        display_name: str,
+        *,
+        practice: bool = False,
+    ) -> tuple[BossSession | None, str]:
+        profile = self.service.get_profile(user_id, display_name)
+        if profile.level < template.level_req:
+            return None, f"{template.name}은 Lv.{template.level_req}부터 도전할 수 있습니다."
+        active_session = self._active_boss_session_for_user(user_id)
+        if active_session is not None:
+            return None, (
+                f"이미 {active_session.boss.name} 보스전에 참가 중입니다. "
+                "완료되거나 실패한 뒤 다른 보스전에 참가할 수 있습니다."
+            )
+        if not practice and self.service.boss_start_remaining(profile, template.id) == 0:
+            return None, f"{template.name} 자발 횟수를 모두 사용했습니다. 연습 모드는 가능합니다."
+
+        session_id = self._next_boss_session_id
+        self._next_boss_session_id += 1
+        session = BossSession(session_id, template, user_id, practice=practice)
+        ok, message = self._add_boss_participant(session, user_id, display_name)
+        if not ok:
+            return None, message
+        self.boss_sessions[session_id] = session
+        return session, "보스전 패널을 열었습니다."
+
     def _start_boss_session(self, session: BossSession, user_id: int) -> tuple[bool, str]:
         if user_id != session.owner_id:
             return False, "보스전을 만든 사람만 시작할 수 있습니다."
@@ -612,9 +642,16 @@ class RPGCog(commands.Cog):
             return True, "이미 시작되었습니다."
         if not session.participants:
             return False, "참가자가 없습니다."
+        owner = session.participants.get(session.owner_id)
+        if owner is None:
+            return False, "자발자 정보를 찾을 수 없습니다."
+        if not session.practice:
+            ok, message = self.service.consume_boss_start(owner.user_id, owner.display_name, session.boss.id)
+            if not ok:
+                return False, message
         self._refresh_boss_permanent_effects(session)
         session.started = True
-        session.log.append("보스전 시작")
+        session.log.append("연습 보스전 시작" if session.practice else "보스전 시작")
         for participant in session.participants.values():
             profile = self.service.get_profile(participant.user_id, participant.display_name)
             self._reset_boss_ability_uses(participant, profile)
@@ -1878,6 +1915,11 @@ class RPGCog(commands.Cog):
     def _grant_boss_session_rewards(self, session: BossSession) -> None:
         if session.rewards:
             return
+        if session.practice:
+            for participant in session.participants.values():
+                session.rewards[participant.user_id] = "연습 모드: 보상 없음"
+            session.log.append("연습 보스전: 보상 없음")
+            return
         for participant in session.participants.values():
             if not participant.alive:
                 continue
@@ -1886,10 +1928,11 @@ class RPGCog(commands.Cog):
                 participant.display_name,
                 session.boss.id,
                 victory=True,
+                drop_rate_multiplier=2.0 if participant.user_id == session.owner_id else 1.0,
             )
             self._add_session_reward_materials(session, reward.materials)
             session.rewards[participant.user_id] = self._reward_text(reward).replace("\n", ", ")
-        session.log.append("보스 클리어 보상 지급")
+        session.log.append("보스 클리어 보상 지급 (자발자 드랍율 2배)")
 
     def _grant_boss_session_failure_rewards(self, session: BossSession) -> None:
         if session.rewards:
@@ -2235,9 +2278,12 @@ class RPGCog(commands.Cog):
             color = 0x5865F2
             status = "대기 중"
         ct_max = self._current_ct_max(session)
+        owner = session.participants.get(session.owner_id)
+        owner_name = owner.display_name if owner is not None else "알 수 없음"
+        mode_text = "연습 모드 · 보상 없음" if session.practice else "일반 모드 · 자발자 드랍율 2배"
         embed = discord.Embed(
             title=f"{session.boss.name} 보스전",
-            description=f"상태: **{status}** · CT {ct_max}칸 · 보상 제한 없음",
+            description=f"상태: **{status}** · CT {ct_max}칸 · {mode_text} · 자발자 {owner_name}",
             color=color,
         )
         embed.add_field(
@@ -3901,6 +3947,83 @@ class CraftingConfirmButton(discord.ui.Button):
             embed=self.view.cog._crafting_embed(result.profile, self.view.selected_recipe_id, result),
             view=CraftingView(self.view.cog, self.view.user_id, self.view.display_name, self.view.selected_recipe_id),
         )
+
+
+class BossPanelView(discord.ui.View):
+    def __init__(self, cog: RPGCog, user_id: int, display_name: str, selected_boss_id: str | None = None) -> None:
+        super().__init__(timeout=300)
+        self.cog = cog
+        self.user_id = user_id
+        self.display_name = display_name
+        self.selected_boss_id = selected_boss_id
+        self.add_item(BossPanelSelect())
+        self.add_item(BossPanelOpenButton(practice=False, disabled=selected_boss_id is None))
+        self.add_item(BossPanelOpenButton(practice=True, disabled=selected_boss_id is None))
+
+    async def _reject_other_user(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.user_id:
+            return False
+        await interaction.response.send_message("이 보스 선택 패널을 연 사람만 조작할 수 있습니다.", ephemeral=True)
+        return True
+
+    async def _edit_panel(self, interaction: discord.Interaction) -> None:
+        profile = self.cog.service.get_profile(self.user_id, self.display_name)
+        await interaction.response.edit_message(
+            embed=self.cog._boss_panel_embed(profile, self.selected_boss_id),
+            view=BossPanelView(self.cog, self.user_id, self.display_name, self.selected_boss_id),
+        )
+
+
+class BossPanelSelect(discord.ui.Select):
+    def __init__(self) -> None:
+        options = [
+            discord.SelectOption(
+                label=boss.name[:100],
+                value=boss.id,
+                description=f"Lv.{boss.level_req}+",
+            )
+            for boss in BOSSES[:25]
+        ]
+        super().__init__(placeholder="보스 선택", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, BossPanelView)
+        if await self.view._reject_other_user(interaction):
+            return
+        self.view.selected_boss_id = self.values[0]
+        await self.view._edit_panel(interaction)
+
+
+class BossPanelOpenButton(discord.ui.Button):
+    def __init__(self, *, practice: bool, disabled: bool = False) -> None:
+        self.practice = practice
+        label = "연습 준비" if practice else "자발 준비"
+        style = discord.ButtonStyle.secondary if practice else discord.ButtonStyle.primary
+        super().__init__(label=label, style=style, disabled=disabled)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, BossPanelView)
+        if await self.view._reject_other_user(interaction):
+            return
+        template = BOSS_BY_ID.get(self.view.selected_boss_id or "")
+        if template is None:
+            await interaction.response.send_message("보스를 먼저 선택하세요.", ephemeral=True)
+            return
+        session, message = self.view.cog._create_boss_session(
+            template,
+            self.view.user_id,
+            self.view.display_name,
+            practice=self.practice,
+        )
+        if session is None:
+            await interaction.response.send_message(message, ephemeral=True)
+            return
+        await interaction.response.edit_message(
+            embed=self.view.cog._boss_session_embed(session),
+            view=BossSessionView(self.view.cog, session),
+        )
+        if interaction.message is not None:
+            session.message = interaction.message
 
 
 class BossSessionView(discord.ui.View):

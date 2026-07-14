@@ -334,6 +334,15 @@ class RPGService:
     def boss_reward_limit_enabled(self) -> bool:
         return BOSS_WEEKLY_REWARD_LIMIT_ENABLED
 
+    def boss_start_limit_enabled(self) -> bool:
+        return BOSS_WEEKLY_REWARD_LIMIT_ENABLED
+
+    def boss_start_remaining(self, profile: PlayerProfile, boss_id: str) -> int:
+        if not BOSS_WEEKLY_REWARD_LIMIT_ENABLED:
+            return -1
+        weekly_key = self._week_key()
+        return 0 if profile.weekly_boss_clears.get(boss_id) == weekly_key else 1
+
     def daily_remaining(self, profile: PlayerProfile) -> int:
         if not EXPLORE_LIMIT_ENABLED:
             return -1
@@ -698,13 +707,21 @@ class RPGService:
             return BossResult(False, f"{boss.name}은 Lv.{boss.level_req}부터 도전할 수 있습니다.", profile, boss)
 
         weekly_key = self._week_key()
+        if not self._consume_boss_start_for_profile(profile, boss.id, weekly_key):
+            return BossResult(False, f"{boss.name} 자발 횟수를 모두 사용했습니다.", profile, boss, weekly_key=weekly_key)
         battle = self._simulate_battle(
             profile,
             boss.name,
             self._enemy_stats(boss.stats),
             boss=boss,
         )
-        reward = self._grant_boss_reward_to_profile(profile, boss, victory=battle.won, weekly_key=weekly_key)
+        reward = self._grant_boss_reward_to_profile(
+            profile,
+            boss,
+            victory=battle.won,
+            weekly_key=weekly_key,
+            drop_rate_multiplier=2.0,
+        )
         self._save()
         return BossResult(True, "보스 도전 완료", profile, boss, battle, reward, weekly_key)
 
@@ -715,15 +732,40 @@ class RPGService:
         boss_id: str,
         *,
         victory: bool = True,
+        drop_rate_multiplier: float = 1.0,
     ) -> RewardReport:
         profile = self.get_profile(user_id, display_name)
         boss = BOSS_BY_ID[boss_id]
         weekly_key = self._week_key()
-        reward = self._grant_boss_reward_to_profile(profile, boss, victory=victory, weekly_key=weekly_key)
+        reward = self._grant_boss_reward_to_profile(
+            profile,
+            boss,
+            victory=victory,
+            weekly_key=weekly_key,
+            drop_rate_multiplier=drop_rate_multiplier,
+        )
         self._save()
         return reward
 
-    def _boss_reward_locked(self, profile: PlayerProfile, boss_id: str, weekly_key: str) -> bool:
+    def consume_boss_start(self, user_id: int, display_name: str, boss_id: str) -> tuple[bool, str]:
+        profile = self.get_profile(user_id, display_name)
+        boss = BOSS_BY_ID.get(boss_id)
+        if boss is None:
+            return False, "알 수 없는 보스입니다."
+        if not self._consume_boss_start_for_profile(profile, boss_id, self._week_key()):
+            return False, f"{boss.name} 자발 횟수를 모두 사용했습니다."
+        self._save()
+        return True, "자발 횟수를 사용했습니다."
+
+    def _consume_boss_start_for_profile(self, profile: PlayerProfile, boss_id: str, weekly_key: str) -> bool:
+        if not BOSS_WEEKLY_REWARD_LIMIT_ENABLED:
+            return True
+        if profile.weekly_boss_clears.get(boss_id) == weekly_key:
+            return False
+        profile.weekly_boss_clears[boss_id] = weekly_key
+        return True
+
+    def _boss_start_locked(self, profile: PlayerProfile, boss_id: str, weekly_key: str) -> bool:
         return (
             BOSS_WEEKLY_REWARD_LIMIT_ENABLED
             and profile.weekly_boss_clears.get(boss_id) == weekly_key
@@ -736,12 +778,10 @@ class RPGService:
         *,
         victory: bool,
         weekly_key: str,
+        drop_rate_multiplier: float = 1.0,
     ) -> RewardReport:
         if not victory:
             return RewardReport()
-        reward_locked = self._boss_reward_locked(profile, boss.id, weekly_key)
-        if reward_locked:
-            return RewardReport(weekly_reward_locked=True)
 
         reward = self._grant_reward(
             profile,
@@ -749,12 +789,10 @@ class RPGService:
             boss.exp,
             boss.rewards if victory else None,
             victory=victory,
+            drop_rate_multiplier=drop_rate_multiplier,
         )
         if victory:
-            reward.weekly_reward_claimed = True
             profile.boss_clear_count += 1
-            if BOSS_WEEKLY_REWARD_LIMIT_ENABLED:
-                profile.weekly_boss_clears[boss.id] = weekly_key
         return reward
 
     def enhancement_preview(self, user_id: int, display_name: str, item_uid: int) -> EnhancementPreview:
@@ -3200,6 +3238,7 @@ class RPGService:
         drops: RewardTemplate | None,
         *,
         victory: bool,
+        drop_rate_multiplier: float = 1.0,
     ) -> RewardReport:
         reward = RewardReport(consolation=not victory)
         reward.multiplier = self._reward_multiplier(victory)
@@ -3207,13 +3246,14 @@ class RPGService:
         reward.exp = max(0, int(round(max(0, base_exp) * reward.multiplier)))
         if drops is not None:
             for drop in drops.item_drops:
-                item = self._roll_reward_item(profile, drop)
+                item = self._roll_reward_item(profile, drop, chance_multiplier=drop_rate_multiplier)
                 if item is not None:
                     reward.dropped_items.append(item)
             if reward.dropped_items:
                 reward.dropped_item = reward.dropped_items[0]
             for drop in drops.material_drops:
-                if drop.id not in MATERIAL_BY_ID or self.rng.random() > drop.chance:
+                chance = min(1.0, max(0.0, float(drop.chance) * max(0.0, drop_rate_multiplier)))
+                if drop.id not in MATERIAL_BY_ID or self.rng.random() > chance:
                     continue
                 amount = self.rng.randint(drop.min, drop.max)
                 if amount <= 0:
@@ -3285,8 +3325,15 @@ class RPGService:
         grant.materials[selected_id] = amount
         return grant
 
-    def _roll_reward_item(self, profile: PlayerProfile, drop: RewardItemDrop) -> ItemInstance | None:
-        if self.rng.random() > drop.chance:
+    def _roll_reward_item(
+        self,
+        profile: PlayerProfile,
+        drop: RewardItemDrop,
+        *,
+        chance_multiplier: float = 1.0,
+    ) -> ItemInstance | None:
+        chance = min(1.0, max(0.0, float(drop.chance) * max(0.0, chance_multiplier)))
+        if self.rng.random() > chance:
             return None
         if drop.template_id:
             return self._grant_item(profile, drop.template_id, drop.stars)
