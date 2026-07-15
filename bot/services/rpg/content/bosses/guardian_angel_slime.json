@@ -94,7 +94,7 @@
             "stat": "atk",
             "target": "self",
             "value": 0.5,
-            "duration": 0,
+            "duration": 3,
             "undispellable": false
           }
         ],
