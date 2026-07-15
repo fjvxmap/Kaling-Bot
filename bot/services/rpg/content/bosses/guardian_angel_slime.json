@@ -144,21 +144,31 @@
       {
         "chance": 0.02,
         "template_id": "guardian_angel_ring",
-        "rarity": "epic"
+        "rarity": "epic",
+        "min": 1,
+        "max": 1,
+        "owner_chance": 0.05,
+        "stars": 0
       }
     ],
     "materials": [
       {
         "id": "boss_power_crystal",
-        "chance": 1,
+        "chance": 1.0,
         "min": 1,
-        "max": 1
+        "max": 1,
+        "participant_chance": 0.0,
+        "participant_min": 1,
+        "participant_max": 1
       },
       {
         "id": "guardian_angel_slime_ball",
-        "chance": 1,
+        "chance": 1.0,
         "min": 1,
-        "max": 3
+        "max": 3,
+        "owner_chance": 1.0,
+        "owner_min": 3,
+        "owner_max": 5
       }
     ]
   },

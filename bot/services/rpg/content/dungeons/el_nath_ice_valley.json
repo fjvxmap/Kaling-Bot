@@ -20,13 +20,16 @@
         "items": [
           {
             "chance": 0.7,
-            "rarity": "rare"
+            "rarity": "rare",
+            "stars": 0,
+            "min": 1,
+            "max": 1
           }
         ],
         "materials": [
           {
             "id": "crystal",
-            "chance": 1,
+            "chance": 1.0,
             "min": 212,
             "max": 275
           }
@@ -50,7 +53,10 @@
         "items": [
           {
             "chance": 0.75,
-            "rarity": "rare"
+            "rarity": "rare",
+            "stars": 0,
+            "min": 1,
+            "max": 1
           }
         ],
         "materials": [
@@ -62,7 +68,7 @@
           },
           {
             "id": "crystal",
-            "chance": 1,
+            "chance": 1.0,
             "min": 238,
             "max": 300
           }
@@ -87,19 +93,22 @@
         "items": [
           {
             "chance": 0.28,
-            "rarity": "epic"
+            "rarity": "epic",
+            "stars": 0,
+            "min": 1,
+            "max": 1
           }
         ],
         "materials": [
           {
             "id": "rare_power_crystal",
-            "chance": 1,
+            "chance": 1.0,
             "min": 5,
             "max": 8
           },
           {
             "id": "crystal",
-            "chance": 1,
+            "chance": 1.0,
             "min": 288,
             "max": 375
           }

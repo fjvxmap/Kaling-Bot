@@ -20,13 +20,16 @@
         "items": [
           {
             "chance": 0.65,
-            "rarity": "rare"
+            "rarity": "rare",
+            "stars": 0,
+            "min": 1,
+            "max": 1
           }
         ],
         "materials": [
           {
             "id": "crystal",
-            "chance": 1,
+            "chance": 1.0,
             "min": 188,
             "max": 238
           }
@@ -50,7 +53,10 @@
         "items": [
           {
             "chance": 0.7,
-            "rarity": "rare"
+            "rarity": "rare",
+            "stars": 0,
+            "min": 1,
+            "max": 1
           }
         ],
         "materials": [
@@ -62,7 +68,7 @@
           },
           {
             "id": "crystal",
-            "chance": 1,
+            "chance": 1.0,
             "min": 212,
             "max": 262
           }
@@ -86,19 +92,22 @@
         "items": [
           {
             "chance": 0.75,
-            "rarity": "rare"
+            "rarity": "rare",
+            "stars": 0,
+            "min": 1,
+            "max": 1
           }
         ],
         "materials": [
           {
             "id": "rare_power_crystal",
-            "chance": 1,
+            "chance": 1.0,
             "min": 3,
             "max": 5
           },
           {
             "id": "crystal",
-            "chance": 1,
+            "chance": 1.0,
             "min": 238,
             "max": 300
           }
@@ -123,19 +132,22 @@
         "items": [
           {
             "chance": 0.25,
-            "rarity": "epic"
+            "rarity": "epic",
+            "stars": 0,
+            "min": 1,
+            "max": 1
           }
         ],
         "materials": [
           {
             "id": "rare_power_crystal",
-            "chance": 1,
+            "chance": 1.0,
             "min": 4,
             "max": 6
           },
           {
             "id": "crystal",
-            "chance": 1,
+            "chance": 1.0,
             "min": 288,
             "max": 362
           }

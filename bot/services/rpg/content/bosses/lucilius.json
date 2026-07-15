@@ -342,21 +342,28 @@
     "materials": [
       {
         "id": "boss_power_crystal",
-        "chance": 1,
+        "chance": 1.0,
         "min": 1,
-        "max": 1
+        "max": 1,
+        "participant_chance": 0.0,
+        "participant_min": 1,
+        "participant_max": 1
       },
       {
         "id": "gold_brick",
         "chance": 0.05,
         "min": 1,
-        "max": 1
+        "max": 1,
+        "participant_chance": 0.025
       },
       {
         "id": "tears_of_the_apocalypse",
-        "chance": 1,
+        "chance": 1.0,
         "min": 3,
-        "max": 5
+        "max": 5,
+        "participant_chance": 1.0,
+        "participant_min": 1,
+        "participant_max": 3
       }
     ]
   },
