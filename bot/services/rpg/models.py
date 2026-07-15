@@ -160,6 +160,7 @@ class PlayerProfile:
 class CombatStats:
     base_atk: int
     max_hp: int
+    level: int = 1
     hp_bonus: float = 0.0
     atk: float = 0.0
     defense: float = 0.0

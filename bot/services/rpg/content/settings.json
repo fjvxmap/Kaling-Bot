@@ -10,6 +10,14 @@
     "max_hp": 5,
     "defense": 0.01
   },
+  "level_damage_multipliers": [
+    1,
+    1.05,
+    1.1,
+    1.15,
+    1.2,
+    1.25
+  ],
   "reward_multipliers": {
     "win_min": 1,
     "win_max": 1.2,

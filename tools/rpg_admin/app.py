@@ -1520,6 +1520,16 @@ def validate_settings(settings: Any, errors: list[str]) -> None:
             errors.append(f"settings {key} is not a number")
         elif value < 1:
             errors.append(f"settings {key} must be at least 1")
+    level_multipliers = settings.get("level_damage_multipliers", [])
+    if not isinstance(level_multipliers, list):
+        errors.append("settings level_damage_multipliers is not an array")
+    else:
+        for index, raw_value in enumerate(level_multipliers):
+            value = safe_float(raw_value, None)
+            if value is None:
+                errors.append(f"settings level_damage_multipliers {index} is not a number")
+            elif value < 0:
+                errors.append(f"settings level_damage_multipliers {index} must be non-negative")
     multipliers = settings.get("reward_multipliers", {})
     if not isinstance(multipliers, dict):
         errors.append("settings reward_multipliers is not an object")

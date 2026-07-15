@@ -30,6 +30,7 @@ from .data import (
     LEVEL_UP_BASE_ATK,
     LEVEL_UP_DEFENSE,
     LEVEL_UP_MAX_HP,
+    LEVEL_DAMAGE_MULTIPLIERS,
     MATERIAL_BY_ID,
     MATERIALS,
     MATERIALS_BY_RARITY,
@@ -493,8 +494,6 @@ class RPGService:
             return CraftResult(False, "알 수 없는 제작법입니다.", profile)
         if recipe.result_item_id not in ITEM_BY_ID:
             return CraftResult(False, "제작 결과 장비 설정이 올바르지 않습니다.", profile, recipe)
-        if profile.level < recipe.level_req:
-            return CraftResult(False, f"Lv.{recipe.level_req}부터 제작할 수 있습니다.", profile, recipe)
         missing_materials = self.missing_crafting_materials(profile, recipe)
         missing_gold = max(0, recipe.gold - profile.gold)
         if missing_materials or missing_gold > 0:
@@ -584,8 +583,7 @@ class RPGService:
 
     def can_craft(self, profile: PlayerProfile, recipe: CraftingRecipe) -> bool:
         return (
-            profile.level >= recipe.level_req
-            and profile.gold >= recipe.gold
+            profile.gold >= recipe.gold
             and not self.missing_crafting_materials(profile, recipe)
             and recipe.result_item_id in ITEM_BY_ID
         )
@@ -625,16 +623,6 @@ class RPGService:
             count = min(requested_count, remaining)
         else:
             count = requested_count
-        if profile.level < dungeon.level_req:
-            return ExploreBatchResult(
-                False,
-                f"{dungeon.name}은 Lv.{dungeon.level_req}부터 입장할 수 있습니다.",
-                profile,
-                dungeon,
-                requested_count=requested_count,
-                daily_remaining=self.daily_remaining(profile),
-            )
-
         results: list[ExploreResult] = []
         for _ in range(count):
             result = self._explore_once(profile, dungeon_id)
@@ -675,13 +663,10 @@ class RPGService:
             remaining = self.daily_remaining(profile)
             if remaining <= 0:
                 return ExploreResult(False, f"오늘 탐색 횟수를 모두 사용했습니다. 하루 {DAILY_EXPLORES}회까지 가능합니다.", profile, dungeon, daily_remaining=0)
-        if profile.level < dungeon.level_req:
-            return ExploreResult(False, f"{dungeon.name}은 Lv.{dungeon.level_req}부터 입장할 수 있습니다.", profile, dungeon, daily_remaining=remaining)
-
         enemy = self._choose_enemy(dungeon)
         if EXPLORE_LIMIT_ENABLED:
             profile.daily_explores_used += 1
-        battle = self._simulate_battle(profile, enemy.name, self._enemy_stats(enemy.stats))
+        battle = self._simulate_battle(profile, enemy.name, self._enemy_stats(enemy.stats, level=dungeon.level_req))
         reward = RewardReport()
         if battle.won:
             profile.dungeon_clear_count += 1
@@ -704,8 +689,6 @@ class RPGService:
         boss = BOSS_BY_ID.get(boss_id)
         if boss is None:
             return BossResult(False, "알 수 없는 보스입니다.", profile)
-        if profile.level < boss.level_req:
-            return BossResult(False, f"{boss.name}은 Lv.{boss.level_req}부터 도전할 수 있습니다.", profile, boss)
         if self.boss_start_remaining(profile, boss.id) == 0:
             return BossResult(False, f"{boss.name} 자발 횟수를 모두 사용했습니다.", profile, boss, weekly_key=self._week_key())
 
@@ -713,7 +696,7 @@ class RPGService:
         battle = self._simulate_battle(
             profile,
             boss.name,
-            self._enemy_stats(boss.stats),
+            self._enemy_stats(boss.stats, level=boss.level_req),
             boss=boss,
         )
         if battle.won and not self._consume_boss_start_for_profile(profile, boss.id, weekly_key):
@@ -1237,8 +1220,6 @@ class RPGService:
     def recipe_status_text(self, profile: PlayerProfile, recipe: CraftingRecipe) -> str:
         if recipe.result_item_id not in ITEM_BY_ID:
             return "설정 오류"
-        if profile.level < recipe.level_req:
-            return f"Lv.{recipe.level_req} 필요"
         missing_materials = self.missing_crafting_materials(profile, recipe)
         missing_gold = max(0, recipe.gold - profile.gold)
         if not missing_materials and missing_gold <= 0:
@@ -1933,6 +1914,7 @@ class RPGService:
         stats = CombatStats(
             base_atk=self._level_base_atk(profile.level),
             max_hp=self._level_max_hp(profile.level),
+            level=max(1, int(profile.level)),
             hp_bonus=float(profile.hp_bonus),
             atk=float(profile.atk),
             defense=self._level_defense(profile.level),
@@ -1966,10 +1948,11 @@ class RPGService:
         stats.life_steal_cap = max(0.0, float(stats.life_steal_cap))
         return stats
 
-    def _enemy_stats(self, raw_stats: dict[str, float]) -> CombatStats:
+    def _enemy_stats(self, raw_stats: dict[str, float], *, level: int = 1) -> CombatStats:
         stats = CombatStats(
             base_atk=int(raw_stats.get("base_atk", 1)),
             max_hp=int(raw_stats.get("max_hp", 1)),
+            level=max(1, int(level)),
             hp_bonus=float(raw_stats.get("hp_bonus", 0.0)),
             atk=float(raw_stats.get("atk", 0.0)),
             defense=float(raw_stats.get("defense", 0.0)),
@@ -2118,7 +2101,7 @@ class RPGService:
             effects[:] = [effect for effect in effects if effect.source_id != source_id]
 
     def _apply_stat(self, stats: CombatStats, key: str, value: float) -> None:
-        if not hasattr(stats, key):
+        if key == "level" or not hasattr(stats, key):
             return
         setattr(stats, key, getattr(stats, key) + value)
 
@@ -2770,6 +2753,20 @@ class RPGService:
                 multiplier *= max(0.0, 1 + final_effect.ratio)
         return multiplier
 
+    def _level_damage_multiplier(self, attacker: CombatStats, defender: CombatStats) -> float:
+        multipliers = LEVEL_DAMAGE_MULTIPLIERS or (1.0,)
+        diff = max(0, int(attacker.level) - int(defender.level))
+        index = min(diff, len(multipliers) - 1)
+        return max(0.0, float(multipliers[index]))
+
+    def _combined_final_damage_multiplier(
+        self,
+        effects: list[ActiveEffect] | None,
+        attacker: CombatStats,
+        defender: CombatStats,
+    ) -> float:
+        return self._final_damage_multiplier(effects) * self._level_damage_multiplier(attacker, defender)
+
     def _critical_reinforce_multiplier(self, stats: CombatStats, effects: list[ActiveEffect] | None) -> float:
         overflow = max(0.0, stats.critical_rate - 1.0)
         if overflow <= 0 or not effects:
@@ -2806,7 +2803,7 @@ class RPGService:
         multiplier: float = 1.0,
     ) -> AttackOutcome:
         flurry_count, actions, bonus_effects, post_attack_effects = self._attack_specials(attacker_effects)
-        final_damage_multiplier = self._final_damage_multiplier(attacker_effects)
+        final_damage_multiplier = self._combined_final_damage_multiplier(attacker_effects, attacker, defender)
         outcome = AttackOutcome(actions=actions, flurry_count=flurry_count)
         for action_index in range(1, actions + 1):
             action_damage = 0
@@ -2901,7 +2898,7 @@ class RPGService:
         multiplier: float = 1.0,
     ) -> float:
         flurry_count, actions, bonus_effects, post_attack_effects = self._attack_specials(attacker_effects)
-        final_damage_multiplier = self._final_damage_multiplier(attacker_effects)
+        final_damage_multiplier = self._combined_final_damage_multiplier(attacker_effects, attacker, defender)
         base_damage = self._estimated_damage(
             attacker,
             attacker_hp,
@@ -3108,7 +3105,7 @@ class RPGService:
         if include_skill_supplement:
             final += self._skill_supplement_damage(attacker)
         if include_final_damage:
-            final *= self._final_damage_multiplier(attacker_effects)
+            final *= self._combined_final_damage_multiplier(attacker_effects, attacker, defender)
         if include_flat_mitigation:
             final = self._estimated_flat_mitigated_damage(final, defender)
         return final
@@ -3137,7 +3134,7 @@ class RPGService:
             final += self._supplement_damage(attacker)
             final += self._skill_supplement_damage(attacker)
         if include_final_damage:
-            final *= self._final_damage_multiplier(attacker_effects)
+            final *= self._combined_final_damage_multiplier(attacker_effects, attacker, defender)
         if include_flat_mitigation:
             final = self._estimated_flat_mitigated_damage(final, defender)
         return final
@@ -3173,7 +3170,7 @@ class RPGService:
             supplement += self._skill_supplement_damage(attacker)
         result = max(1, int(estimated * spread)) + supplement
         if include_final_damage:
-            result = max(1, int(round(result * self._final_damage_multiplier(attacker_effects))))
+            result = max(1, int(round(result * self._combined_final_damage_multiplier(attacker_effects, attacker, defender))))
         if include_flat_mitigation:
             result = self._flat_mitigated_damage(result, defender)
         return result
@@ -3205,7 +3202,7 @@ class RPGService:
             supplement += self._skill_supplement_damage(attacker)
         result = max(1, int(estimated * spread)) + supplement
         if include_final_damage:
-            result = max(1, int(round(result * self._final_damage_multiplier(attacker_effects))))
+            result = max(1, int(round(result * self._combined_final_damage_multiplier(attacker_effects, attacker, defender))))
         if include_flat_mitigation:
             result = self._flat_mitigated_damage(result, defender)
         return result

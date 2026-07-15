@@ -1661,6 +1661,14 @@ if not isinstance(_LEVEL_UP_GROWTH, dict):
 LEVEL_UP_BASE_ATK = _env_float("KALING_LEVEL_UP_BASE_ATK", _safe_float(_LEVEL_UP_GROWTH.get("base_atk"), 1.0))
 LEVEL_UP_MAX_HP = _env_float("KALING_LEVEL_UP_MAX_HP", _safe_float(_LEVEL_UP_GROWTH.get("max_hp"), 5.0))
 LEVEL_UP_DEFENSE = _env_float("KALING_LEVEL_UP_DEFENSE", _safe_float(_LEVEL_UP_GROWTH.get("defense"), 0.025))
+_DEFAULT_LEVEL_DAMAGE_MULTIPLIERS = (1.0, 1.05, 1.1, 1.15, 1.2, 1.25)
+_LEVEL_DAMAGE_MULTIPLIERS_RAW = _SETTINGS.get("level_damage_multipliers", _DEFAULT_LEVEL_DAMAGE_MULTIPLIERS)
+if not isinstance(_LEVEL_DAMAGE_MULTIPLIERS_RAW, list) or not _LEVEL_DAMAGE_MULTIPLIERS_RAW:
+    _LEVEL_DAMAGE_MULTIPLIERS_RAW = list(_DEFAULT_LEVEL_DAMAGE_MULTIPLIERS)
+LEVEL_DAMAGE_MULTIPLIERS = tuple(
+    max(0.0, _safe_float(value, _DEFAULT_LEVEL_DAMAGE_MULTIPLIERS[min(index, len(_DEFAULT_LEVEL_DAMAGE_MULTIPLIERS) - 1)]))
+    for index, value in enumerate(_LEVEL_DAMAGE_MULTIPLIERS_RAW)
+)
 _REWARD_MULTIPLIERS = _SETTINGS.get("reward_multipliers", {})
 if not isinstance(_REWARD_MULTIPLIERS, dict):
     _REWARD_MULTIPLIERS = {}

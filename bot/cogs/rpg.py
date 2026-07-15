@@ -50,15 +50,15 @@ from bot.services.rpg.models import PlayerProfile
 
 
 DUNGEON_CHOICES = [
-    app_commands.Choice(name=f"{dungeon.name} · Lv.{dungeon.level_req}+", value=dungeon.id)
+    app_commands.Choice(name=dungeon.name[:100], value=dungeon.id)
     for dungeon in DUNGEONS
 ]
 BOSS_CHOICES = [
-    app_commands.Choice(name=f"{boss.name} · Lv.{boss.level_req}+", value=boss.id)
+    app_commands.Choice(name=boss.name[:100], value=boss.id)
     for boss in BOSSES
 ]
 CRAFT_CHOICES = [
-    app_commands.Choice(name=f"{recipe.name} · Lv.{recipe.level_req}+", value=recipe.id)
+    app_commands.Choice(name=recipe.name[:100], value=recipe.id)
     for recipe in CRAFTING_RECIPES[:25]
 ]
 GACHA_CHOICES = [
@@ -204,14 +204,13 @@ class RPGCog(commands.Cog):
         profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
         lines = []
         for dungeon in self.service.dungeons():
-            state = "입장 가능" if profile.level >= dungeon.level_req else f"Lv.{dungeon.level_req} 필요"
             rare_names = ", ".join(enemy.name for enemy in dungeon.enemies if enemy.rare) or "없음"
             reward_lines = ", ".join(
                 f"{enemy.name}: {self.service.reward_summary(enemy.rewards, base_gold=enemy.gold, base_exp=enemy.exp)}"
                 for enemy in dungeon.enemies[:3]
             )
             lines.append(
-                f"**{dungeon.name}** · {state}\n"
+                f"**{dungeon.name}**\n"
                 f"{self._trim(reward_lines, 700)} · 희귀 {rare_names}\n"
                 f"{dungeon.description}"
             )
@@ -259,15 +258,14 @@ class RPGCog(commands.Cog):
         )
         await interaction.response.send_message(embed=self._explore_embed(result), view=view)
 
-    @rpg.command(name="보스목록", description="도전 가능한 보스와 보상 정보를 봅니다.")
+    @rpg.command(name="보스목록", description="보스와 보상 정보를 봅니다.")
     async def boss_list(self, interaction: discord.Interaction) -> None:
         profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
         lines = []
         for boss in self.service.bosses():
-            gate = "도전 가능" if profile.level >= boss.level_req else f"Lv.{boss.level_req} 필요"
             start_limit = self._boss_start_limit_text(profile, boss.id)
             lines.append(
-                f"**{boss.name}** · {gate} · 자발 {start_limit}\n"
+                f"**{boss.name}** · 자발 {start_limit}\n"
                 f"보상 {self.service.reward_summary(boss.rewards, base_gold=boss.gold, base_exp=boss.exp)} · {boss.description}"
             )
         embed = discord.Embed(
@@ -532,8 +530,6 @@ class RPGCog(commands.Cog):
         if active_session is not None:
             return False, f"이미 {active_session.boss.name} 보스전에 참가 중입니다."
         profile = self.service.get_profile(user_id, display_name)
-        if profile.level < session.boss.level_req:
-            return False, f"{session.boss.name}은 Lv.{session.boss.level_req}부터 참가할 수 있습니다."
         stats = self.service.profile_stats(profile)
         session.participants[user_id] = BossParticipant(
             user_id=user_id,
@@ -584,10 +580,9 @@ class RPGCog(commands.Cog):
         )
         lines = []
         for boss in self.service.bosses():
-            gate = "도전 가능" if profile.level >= boss.level_req else f"Lv.{boss.level_req} 필요"
             selected = " ← 선택됨" if boss.id == selected_boss_id else ""
             lines.append(
-                f"**{boss.name}** · {gate} · 자발 {self._boss_start_limit_text(profile, boss.id)}{selected}"
+                f"**{boss.name}** · 자발 {self._boss_start_limit_text(profile, boss.id)}{selected}"
             )
         embed.add_field(name="목록", value=self._trim("\n".join(lines), 1200), inline=False)
         selected = BOSS_BY_ID.get(selected_boss_id or "")
@@ -595,7 +590,7 @@ class RPGCog(commands.Cog):
             embed.add_field(
                 name="선택한 보스",
                 value=(
-                    f"**{selected.name}** · Lv.{selected.level_req}+ · 자발 {self._boss_start_limit_text(profile, selected.id)}\n"
+                    f"**{selected.name}** · 자발 {self._boss_start_limit_text(profile, selected.id)}\n"
                     f"보상 {self.service.reward_summary(selected.rewards, base_gold=selected.gold, base_exp=selected.exp)}\n"
                     f"{selected.description or '설명 없음'}"
                 ),
@@ -612,8 +607,6 @@ class RPGCog(commands.Cog):
         practice: bool = False,
     ) -> tuple[BossSession | None, str]:
         profile = self.service.get_profile(user_id, display_name)
-        if profile.level < template.level_req:
-            return None, f"{template.name}은 Lv.{template.level_req}부터 도전할 수 있습니다."
         active_session = self._active_boss_session_for_user(user_id)
         if active_session is not None:
             return None, (
@@ -783,7 +776,7 @@ class RPGCog(commands.Cog):
         had_warning = participant.pending_warning is not None
         player_base = self.service.profile_stats(profile)
         player_stats = self.service._stats_with_effects(player_base, participant.player_effects, participant.player_stack_effects)
-        boss_base = self.service._enemy_stats(session.boss.stats)
+        boss_base = self.service._enemy_stats(session.boss.stats, level=session.boss.level_req)
         boss_stats = self.service._stats_with_effects(boss_base, participant.boss_effects, participant.boss_stack_effects)
         boss_effect_lists = self._boss_effect_lists(session)
         boss_stack_lists = self._boss_stack_lists(session)
@@ -899,7 +892,7 @@ class RPGCog(commands.Cog):
         profile = self.service.get_profile(user_id, display_name)
         player_base = self.service.profile_stats(profile)
         player_stats = self.service._stats_with_effects(player_base, participant.player_effects, participant.player_stack_effects)
-        boss_base = self.service._enemy_stats(session.boss.stats)
+        boss_base = self.service._enemy_stats(session.boss.stats, level=session.boss.level_req)
         boss_stats = self.service._stats_with_effects(boss_base, participant.boss_effects, participant.boss_stack_effects)
 
         attack = self.service._basic_attack(
@@ -1021,7 +1014,7 @@ class RPGCog(commands.Cog):
         profile = self.service.get_profile(user_id, display_name)
 
         player_base = self.service.profile_stats(profile)
-        boss_base = self.service._enemy_stats(session.boss.stats)
+        boss_base = self.service._enemy_stats(session.boss.stats, level=session.boss.level_req)
         boss_stats = self.service._stats_with_effects(boss_base, participant.boss_effects, participant.boss_stack_effects)
         guard_stats = self.service._stats_with_effects(player_base, participant.player_effects, participant.player_stack_effects)
         self.service._apply_stat(guard_stats, "defense", 10.0)
@@ -1281,7 +1274,7 @@ class RPGCog(commands.Cog):
     ) -> None:
         if profile is None:
             profile = self.service.get_profile(participant.user_id, participant.display_name)
-        boss_base = self.service._enemy_stats(session.boss.stats)
+        boss_base = self.service._enemy_stats(session.boss.stats, level=session.boss.level_req)
         player_base = self.service.profile_stats(profile)
         boss_stats = self.service._stats_with_effects(boss_base, participant.boss_effects, participant.boss_stack_effects)
         player_stats = self.service._stats_with_effects(player_base, participant.player_effects, participant.player_stack_effects)
@@ -2282,9 +2275,8 @@ class RPGCog(commands.Cog):
         if selected is None:
             lines = []
             for dungeon in self.service.dungeons():
-                gate = "입장 가능" if profile.level >= dungeon.level_req else f"Lv.{dungeon.level_req} 필요"
                 rare_names = ", ".join(enemy.name for enemy in dungeon.enemies if enemy.rare) or "없음"
-                lines.append(f"**{dungeon.name}** · {gate} · 희귀 {rare_names}")
+                lines.append(f"**{dungeon.name}** · 희귀 {rare_names}")
             embed.add_field(name="탐색지", value=self._trim("\n".join(lines), 1000), inline=False)
             embed.set_footer(text="아래 메뉴에서 던전을 고른 뒤 탐색 버튼을 누르세요.")
             return embed
@@ -2295,11 +2287,9 @@ class RPGCog(commands.Cog):
             enemy_lines.append(
                 f"`{marker}` **{enemy.name}** · {self.service.reward_summary(enemy.rewards, base_gold=enemy.gold, base_exp=enemy.exp)}"
             )
-        gate = "입장 가능" if profile.level >= selected.level_req else f"Lv.{selected.level_req} 필요"
         embed.add_field(
             name=selected.name,
             value=(
-                f"{gate}\n"
                 f"{self._trim('; '.join(enemy_lines), 700)}\n"
                 f"{selected.description}"
             ),
@@ -3507,8 +3497,6 @@ class RPGCog(commands.Cog):
             recipes,
             key=lambda recipe: (
                 not self.service.can_craft(profile, recipe),
-                profile.level < recipe.level_req,
-                recipe.level_req,
                 recipe.sort_order,
                 recipe.name,
             ),
@@ -3820,13 +3808,12 @@ class ExplorationView(discord.ui.View):
 
         options = []
         for dungeon in self.cog.service.dungeons():
-            gate = "입장 가능" if profile.level >= dungeon.level_req else f"Lv.{dungeon.level_req} 필요"
             rare_names = ", ".join(enemy.name for enemy in dungeon.enemies if enemy.rare) or "희귀 없음"
             options.append(
                 discord.SelectOption(
-                    label=f"{dungeon.name} · Lv.{dungeon.level_req}+",
+                    label=dungeon.name[:100],
                     value=dungeon.id,
-                    description=f"{gate} · {rare_names}"[:100],
+                    description=rare_names[:100],
                     default=dungeon.id == selected_dungeon_id,
                 )
             )
@@ -3953,7 +3940,7 @@ class CraftingView(discord.ui.View):
             rarity = RARITY_LABELS.get(template.rarity, template.rarity) if template is not None else "오류"
             options.append(
                 discord.SelectOption(
-                    label=f"{recipe.name} · Lv.{recipe.level_req}+",
+                    label=recipe.name[:100],
                     value=recipe.id,
                     description=f"{status} · {rarity} · {recipe.gold}G"[:100],
                     default=recipe.id == self.selected_recipe_id,
@@ -4041,7 +4028,7 @@ class BossPanelSelect(discord.ui.Select):
             discord.SelectOption(
                 label=boss.name[:100],
                 value=boss.id,
-                description=f"Lv.{boss.level_req}+",
+                description=boss.description[:100],
             )
             for boss in BOSSES[:25]
         ]

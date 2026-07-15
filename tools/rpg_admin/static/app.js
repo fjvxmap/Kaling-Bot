@@ -123,6 +123,8 @@ const JOB_LEVEL_BY_TIER = {
   5: 50,
 };
 
+const DEFAULT_LEVEL_DAMAGE_MULTIPLIERS = [1, 1.05, 1.1, 1.15, 1.2, 1.25];
+
 const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 function normalizeIdValue(value) {
@@ -586,7 +588,7 @@ function renderRecipes() {
     }),
     summary: (recipe) => {
       const item = findById("items", recipe.result_item_id);
-      return `${item?.name ?? recipe.result_item_id} · Lv.${recipe.level_req ?? 1}`;
+      return item?.name ?? recipe.result_item_id;
     },
     detail: renderRecipeDetail,
   });
@@ -599,7 +601,6 @@ function renderRecipeDetail(recipe) {
       idField("crafting_recipes", recipe),
       textField("이름", recipe, "name"),
       selectField("결과 장비", recipe, "result_item_id", itemOptions(), { rerender: true }),
-      numberField("필요 레벨", recipe, "level_req", { step: 1 }),
       numberField("골드 비용", recipe, "gold", { step: 1 }),
       numberField("정렬 순서", recipe, "sort_order", { step: 1 }),
       textAreaField("설명", recipe, "description", { full: true }),
@@ -892,7 +893,7 @@ function renderDungeons() {
       description: "",
       sort_order: nextSort(state.content.dungeons),
     }),
-    summary: (dungeon) => `Lv.${dungeon.level_req ?? 1} · 몬스터 ${dungeon.enemies?.length ?? 0}`,
+    summary: (dungeon) => `전투 Lv.${dungeon.level_req ?? 1} · 몬스터 ${dungeon.enemies?.length ?? 0}`,
     detail: renderDungeonDetail,
   });
 }
@@ -904,7 +905,7 @@ function renderDungeonDetail(dungeon) {
     el("div", { className: "form-grid three" }, [
       idField("dungeons", dungeon),
       textField("이름", dungeon, "name"),
-      numberField("필요 레벨", dungeon, "level_req", { step: 1 }),
+      numberField("전투 레벨", dungeon, "level_req", { step: 1 }),
       numberField("정렬 순서", dungeon, "sort_order", { step: 1 }),
       textAreaField("설명", dungeon, "description", { full: true }),
     ]),
@@ -935,7 +936,7 @@ function renderBosses() {
       description: "",
       sort_order: nextSort(state.content.bosses),
     }),
-    summary: (boss) => `Lv.${boss.level_req ?? 1} · HP ${boss.stats?.max_hp ?? 0}`,
+    summary: (boss) => `전투 Lv.${boss.level_req ?? 1} · HP ${boss.stats?.max_hp ?? 0}`,
     detail: renderBossDetail,
   });
 }
@@ -957,7 +958,7 @@ function renderBossDetail(boss) {
     el("div", { className: "form-grid three" }, [
       idField("bosses", boss),
       textField("이름", boss, "name"),
-      numberField("필요 레벨", boss, "level_req", { step: 1 }),
+      numberField("전투 레벨", boss, "level_req", { step: 1 }),
       numberField("정렬 순서", boss, "sort_order", { step: 1 }),
       numberField("기본 골드", boss, "gold", { step: 1 }),
       numberField("기본 경험치", boss, "exp", { step: 1 }),
@@ -1402,6 +1403,7 @@ function settingsControls() {
   const settings = state.content.settings ||= {};
   settings.reward_multipliers ||= {};
   settings.level_up_growth ||= {};
+  settings.level_damage_multipliers = normalizeLevelDamageMultipliers(settings.level_damage_multipliers);
   settings.max_equipped_skills ??= 4;
   return el("section", { className: "panel" }, [
     el("div", { className: "panel-header" }, [
@@ -1418,12 +1420,28 @@ function settingsControls() {
         numberField("레벨업 공격력", settings.level_up_growth, "base_atk", { step: 0.1 }),
         numberField("레벨업 체력", settings.level_up_growth, "max_hp", { step: 1 }),
         numberField("레벨업 방어", settings.level_up_growth, "defense", { step: 0.001 }),
+        ...settings.level_damage_multipliers.map((_, index) => (
+          numberField(
+            index >= DEFAULT_LEVEL_DAMAGE_MULTIPLIERS.length - 1 ? "레벨 차 5+ 배율" : `레벨 차 ${index} 배율`,
+            settings.level_damage_multipliers,
+            index,
+            { step: 0.01 },
+          )
+        )),
         numberField("승리 보상 최소", settings.reward_multipliers, "win_min", { step: 0.01 }),
         numberField("승리 보상 최대", settings.reward_multipliers, "win_max", { step: 0.01 }),
         numberField("패배 보상 배율", settings.reward_multipliers, "loss", { step: 0.01 }),
       ]),
     ]),
   ]);
+}
+
+function normalizeLevelDamageMultipliers(raw) {
+  const source = Array.isArray(raw) ? raw : [];
+  return DEFAULT_LEVEL_DAMAGE_MULTIPLIERS.map((fallback, index) => {
+    const value = Number(source[index]);
+    return Number.isFinite(value) && value >= 0 ? value : fallback;
+  });
 }
 
 function renderEntityEditor(config) {
