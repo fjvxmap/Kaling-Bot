@@ -61,6 +61,7 @@ from .data import (
     JobTemplate,
     MaterialTemplate,
     RewardItemDrop,
+    RewardMaterialDrop,
     RewardTemplate,
     SkillTemplate,
     StatEffect,
@@ -723,7 +724,7 @@ class RPGService:
                 boss,
                 victory=battle.won,
                 weekly_key=weekly_key,
-                drop_rate_multiplier=2.0,
+                reward_role="owner",
             )
         self._save()
         return BossResult(True, "보스 도전 완료", profile, boss, battle, reward, weekly_key)
@@ -735,7 +736,7 @@ class RPGService:
         boss_id: str,
         *,
         victory: bool = True,
-        drop_rate_multiplier: float = 1.0,
+        reward_role: str | None = None,
     ) -> RewardReport:
         profile = self.get_profile(user_id, display_name)
         boss = BOSS_BY_ID[boss_id]
@@ -745,7 +746,7 @@ class RPGService:
             boss,
             victory=victory,
             weekly_key=weekly_key,
-            drop_rate_multiplier=drop_rate_multiplier,
+            reward_role=reward_role,
         )
         self._save()
         return reward
@@ -781,7 +782,7 @@ class RPGService:
         *,
         victory: bool,
         weekly_key: str,
-        drop_rate_multiplier: float = 1.0,
+        reward_role: str | None = None,
     ) -> RewardReport:
         if not victory:
             return RewardReport()
@@ -792,7 +793,7 @@ class RPGService:
             boss.exp,
             boss.rewards if victory else None,
             victory=victory,
-            drop_rate_multiplier=drop_rate_multiplier,
+            reward_role=reward_role,
         )
         if victory:
             profile.boss_clear_count += 1
@@ -3241,7 +3242,7 @@ class RPGService:
         drops: RewardTemplate | None,
         *,
         victory: bool,
-        drop_rate_multiplier: float = 1.0,
+        reward_role: str | None = None,
     ) -> RewardReport:
         reward = RewardReport(consolation=not victory)
         reward.multiplier = self._reward_multiplier(victory)
@@ -3249,16 +3250,15 @@ class RPGService:
         reward.exp = max(0, int(round(max(0, base_exp) * reward.multiplier)))
         if drops is not None:
             for drop in drops.item_drops:
-                item = self._roll_reward_item(profile, drop, chance_multiplier=drop_rate_multiplier)
-                if item is not None:
-                    reward.dropped_items.append(item)
+                reward.dropped_items.extend(self._roll_reward_items(profile, drop, reward_role=reward_role))
             if reward.dropped_items:
                 reward.dropped_item = reward.dropped_items[0]
             for drop in drops.material_drops:
-                chance = min(1.0, max(0.0, float(drop.chance) * max(0.0, drop_rate_multiplier)))
+                chance = self._drop_chance(drop, reward_role)
                 if drop.id not in MATERIAL_BY_ID or self.rng.random() > chance:
                     continue
-                amount = self.rng.randint(drop.min, drop.max)
+                minimum, maximum = self._drop_count_range(drop, reward_role)
+                amount = self.rng.randint(minimum, maximum)
                 if amount <= 0:
                     continue
                 profile.materials[drop.id] = profile.materials.get(drop.id, 0) + amount
@@ -3328,25 +3328,65 @@ class RPGService:
         grant.materials[selected_id] = amount
         return grant
 
-    def _roll_reward_item(
+    def _drop_chance(
+        self,
+        drop: RewardItemDrop | RewardMaterialDrop,
+        reward_role: str | None,
+    ) -> float:
+        chance = drop.chance
+        if reward_role == "owner" and drop.owner_chance is not None:
+            chance = drop.owner_chance
+        elif reward_role == "participant" and drop.participant_chance is not None:
+            chance = drop.participant_chance
+        return min(1.0, max(0.0, float(chance)))
+
+    def _drop_count_range(
+        self,
+        drop: RewardItemDrop | RewardMaterialDrop,
+        reward_role: str | None,
+    ) -> tuple[int, int]:
+        minimum = drop.min
+        maximum = drop.max
+        if reward_role == "owner":
+            minimum = drop.owner_min if drop.owner_min is not None else minimum
+            maximum = drop.owner_max if drop.owner_max is not None else maximum
+        elif reward_role == "participant":
+            minimum = drop.participant_min if drop.participant_min is not None else minimum
+            maximum = drop.participant_max if drop.participant_max is not None else maximum
+        minimum = max(1, int(minimum))
+        maximum = max(minimum, int(maximum))
+        return minimum, maximum
+
+    def _roll_reward_items(
         self,
         profile: PlayerProfile,
         drop: RewardItemDrop,
         *,
-        chance_multiplier: float = 1.0,
-    ) -> ItemInstance | None:
-        chance = min(1.0, max(0.0, float(drop.chance) * max(0.0, chance_multiplier)))
+        reward_role: str | None = None,
+    ) -> list[ItemInstance]:
+        chance = self._drop_chance(drop, reward_role)
         if self.rng.random() > chance:
-            return None
+            return []
+        minimum, maximum = self._drop_count_range(drop, reward_role)
+        count = self.rng.randint(minimum, maximum)
+        granted: list[ItemInstance] = []
         if drop.template_id:
-            return self._grant_item(profile, drop.template_id, drop.stars)
-        if drop.rarity:
-            items = ITEMS_BY_RARITY.get(drop.rarity, [])
-            if not items:
-                return None
+            for _ in range(count):
+                item = self._grant_item(profile, drop.template_id, drop.stars)
+                if item is not None:
+                    granted.append(item)
+            return granted
+        if not drop.rarity:
+            return granted
+        items = ITEMS_BY_RARITY.get(drop.rarity, [])
+        if not items:
+            return granted
+        for _ in range(count):
             template = self.rng.choice(items)
-            return self._grant_item(profile, template.id, drop.stars)
-        return None
+            item = self._grant_item(profile, template.id, drop.stars)
+            if item is not None:
+                granted.append(item)
+        return granted
 
     def _grant_item(self, profile: PlayerProfile, template_id: str, stars: int = 0) -> ItemInstance | None:
         if template_id not in ITEM_BY_ID:

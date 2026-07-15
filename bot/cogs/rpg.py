@@ -1970,7 +1970,7 @@ class RPGCog(commands.Cog):
         for participant in session.participants.values():
             if not participant.alive:
                 continue
-            drop_rate_multiplier = 1.0
+            reward_role = "participant"
             if participant.user_id == session.owner_id:
                 ok, message = self.service.consume_boss_start(
                     participant.user_id,
@@ -1980,13 +1980,13 @@ class RPGCog(commands.Cog):
                 if not ok:
                     session.rewards[participant.user_id] = message
                     continue
-                drop_rate_multiplier = 2.0
+                reward_role = "owner"
             reward = self.service.grant_boss_reward(
                 participant.user_id,
                 participant.display_name,
                 session.boss.id,
                 victory=True,
-                drop_rate_multiplier=drop_rate_multiplier,
+                reward_role=reward_role,
             )
             self._add_session_reward_materials(session, reward.materials)
             session.rewards[participant.user_id] = self._reward_text(reward).replace("\n", ", ")

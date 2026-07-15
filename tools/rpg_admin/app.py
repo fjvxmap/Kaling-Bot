@@ -888,11 +888,62 @@ def normalize_reward(reward: Any) -> None:
         for drop in reward.get("items", [])
         if isinstance(drop, dict) and normalize_reward_item_drop(drop)
     ]
+    reward["materials"] = [
+        drop
+        for drop in reward.get("materials", [])
+        if isinstance(drop, dict) and normalize_reward_material_drop(drop)
+    ]
 
 
 def normalize_reward_item_drop(drop: dict[str, Any]) -> bool:
     drop.pop("rank", None)
+    drop["chance"] = normalize_chance(drop.get("chance"), 0.0)
+    drop["stars"] = max(0, safe_int(drop.get("stars"), 0))
+    normalize_reward_count_fields(drop, default_min=1, default_max=1)
     return bool(drop.get("template_id") or drop.get("item_id") or drop.get("rarity"))
+
+
+def normalize_reward_material_drop(drop: dict[str, Any]) -> bool:
+    if not drop.get("id"):
+        return False
+    drop["chance"] = normalize_chance(drop.get("chance"), 1.0)
+    normalize_reward_count_fields(drop, default_min=1, default_max=1)
+    return True
+
+
+def normalize_reward_count_fields(drop: dict[str, Any], *, default_min: int, default_max: int) -> None:
+    minimum = max(1, safe_int(drop.get("min", drop.get("amount")), default_min))
+    maximum = max(minimum, safe_int(drop.get("max"), default_max))
+    drop["min"] = minimum
+    drop["max"] = maximum
+    drop.pop("amount", None)
+    for prefix in ("owner", "participant"):
+        chance_key = f"{prefix}_chance"
+        if chance_key in drop:
+            if drop[chance_key] in (None, ""):
+                drop.pop(chance_key, None)
+            else:
+                drop[chance_key] = normalize_chance(drop.get(chance_key), 0.0)
+        min_key = f"{prefix}_min"
+        max_key = f"{prefix}_max"
+        role_min = drop.get(min_key)
+        role_max = drop.get(max_key)
+        if role_min in (None, ""):
+            drop.pop(min_key, None)
+        else:
+            drop[min_key] = max(1, safe_int(role_min, minimum))
+        if role_max in (None, ""):
+            drop.pop(max_key, None)
+        else:
+            lower = max(1, safe_int(drop.get(min_key), minimum))
+            drop[max_key] = max(lower, safe_int(role_max, lower))
+
+
+def normalize_chance(value: Any, default: float) -> float:
+    chance = safe_float(value, default)
+    if chance is None:
+        chance = default
+    return max(0.0, min(1.0, chance))
 
 
 def backup_content(retention: int = DEFAULT_BACKUP_RETENTION) -> Path:

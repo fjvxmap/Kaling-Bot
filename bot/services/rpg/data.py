@@ -428,6 +428,14 @@ class RewardItemDrop:
     template_id: str = ""
     rarity: str = ""
     stars: int = 0
+    min: int = 1
+    max: int = 1
+    owner_chance: float | None = None
+    owner_min: int | None = None
+    owner_max: int | None = None
+    participant_chance: float | None = None
+    participant_min: int | None = None
+    participant_max: int | None = None
 
 
 @dataclass(frozen=True)
@@ -436,6 +444,12 @@ class RewardMaterialDrop:
     chance: float
     min: int = 1
     max: int = 1
+    owner_chance: float | None = None
+    owner_min: int | None = None
+    owner_max: int | None = None
+    participant_chance: float | None = None
+    participant_min: int | None = None
+    participant_max: int | None = None
 
 
 @dataclass(frozen=True)
@@ -548,6 +562,24 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def _clamped_chance(value: Any, default: float = 0.0) -> float:
+    return max(0.0, min(1.0, _safe_float(value, default)))
+
+
+def _optional_chance(raw: dict[str, Any], key: str) -> float | None:
+    value = raw.get(key)
+    if value is None or value == "":
+        return None
+    return _clamped_chance(value, 0.0)
+
+
+def _optional_positive_int(raw: dict[str, Any], key: str) -> int | None:
+    value = raw.get(key)
+    if value is None or value == "":
+        return None
+    return max(1, _safe_int(value, 1))
 
 
 def _effect_duration(raw: dict[str, Any] | None, default_duration: int) -> int:
@@ -1111,22 +1143,38 @@ def _material(raw: dict[str, Any]) -> MaterialTemplate:
 
 
 def _reward_item_drop(raw: dict[str, Any]) -> RewardItemDrop:
+    minimum = max(1, _safe_int(raw.get("min", raw.get("amount", 1)), 1))
+    maximum = max(minimum, _safe_int(raw.get("max", minimum), minimum))
     return RewardItemDrop(
-        chance=max(0.0, min(1.0, float(raw.get("chance", 0.0)))),
+        chance=_clamped_chance(raw.get("chance", 0.0), 0.0),
         template_id=str(raw.get("template_id", raw.get("item_id", ""))),
         rarity=str(raw.get("rarity", "")),
-        stars=max(0, int(raw.get("stars", 0))),
+        stars=max(0, _safe_int(raw.get("stars", 0), 0)),
+        min=minimum,
+        max=maximum,
+        owner_chance=_optional_chance(raw, "owner_chance"),
+        owner_min=_optional_positive_int(raw, "owner_min"),
+        owner_max=_optional_positive_int(raw, "owner_max"),
+        participant_chance=_optional_chance(raw, "participant_chance"),
+        participant_min=_optional_positive_int(raw, "participant_min"),
+        participant_max=_optional_positive_int(raw, "participant_max"),
     )
 
 
 def _reward_material_drop(raw: dict[str, Any]) -> RewardMaterialDrop:
-    minimum = max(1, int(raw.get("min", raw.get("amount", 1))))
-    maximum = max(minimum, int(raw.get("max", minimum)))
+    minimum = max(1, _safe_int(raw.get("min", raw.get("amount", 1)), 1))
+    maximum = max(minimum, _safe_int(raw.get("max", minimum), minimum))
     return RewardMaterialDrop(
         id=str(raw["id"]),
-        chance=max(0.0, min(1.0, float(raw.get("chance", 1.0)))),
+        chance=_clamped_chance(raw.get("chance", 1.0), 1.0),
         min=minimum,
         max=maximum,
+        owner_chance=_optional_chance(raw, "owner_chance"),
+        owner_min=_optional_positive_int(raw, "owner_min"),
+        owner_max=_optional_positive_int(raw, "owner_max"),
+        participant_chance=_optional_chance(raw, "participant_chance"),
+        participant_min=_optional_positive_int(raw, "participant_min"),
+        participant_max=_optional_positive_int(raw, "participant_max"),
     )
 
 

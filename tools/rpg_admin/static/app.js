@@ -2729,7 +2729,15 @@ function normalizeReward(reward) {
       return false;
     }
     delete drop.rank;
+    normalizeRewardDropFields(drop, { defaultChance: 0, defaultMin: 1, defaultMax: 1 });
     return Boolean(drop.template_id || drop.item_id || drop.rarity);
+  });
+  reward.materials = (reward.materials || []).filter((drop) => {
+    if (!drop || typeof drop !== "object" || !drop.id) {
+      return false;
+    }
+    normalizeRewardDropFields(drop, { defaultChance: 1, defaultMin: 1, defaultMax: 1 });
+    return true;
   });
 }
 
@@ -2738,7 +2746,9 @@ function itemDropEditor(reward) {
     type: "button",
     onclick: () => {
       const firstItemId = state.content.items[0]?.id;
-      reward.items.push(firstItemId ? { chance: 1, template_id: firstItemId } : { chance: 1, rarity: firstRarity() });
+      if (firstItemId) {
+        reward.items.push({ chance: 1, template_id: firstItemId, min: 1, max: 1 });
+      }
       markDirty();
       render();
     },
@@ -2747,11 +2757,9 @@ function itemDropEditor(reward) {
     const itemId = drop.template_id ?? drop.item_id ?? "";
     const target = {
       item_id: itemId,
-      chance: drop.chance ?? 1,
-      rarity: drop.rarity ?? "",
     };
-    return el("div", { className: "row" }, [
-      selectField("장비", target, "item_id", [["", "등급 랜덤"], ...itemOptions()], {
+    const targetField = itemId
+      ? selectField("장비", target, "item_id", itemOptions(), {
         onChange: (value) => {
           delete drop.item_id;
           delete drop.template_id;
@@ -2759,17 +2767,12 @@ function itemDropEditor(reward) {
             drop.template_id = value;
           }
         },
-      }),
-      selectField("등급", target, "rarity", [["", "지정 안 함"], ...rarityOptions()], {
-        onChange: (value) => {
-          if (value) {
-            drop.rarity = value;
-          } else {
-            delete drop.rarity;
-          }
-        },
-      }),
-      numberField("확률", drop, "chance", { step: 0.01 }),
+      })
+      : fieldWrap("장비", el("div", { className: "readonly-value" }, `기존 랜덤: ${rarityLabel(drop.rarity) || drop.rarity}`));
+    return el("div", { className: "row" }, [
+      targetField,
+      ...rewardDropChanceFields(drop),
+      numberField("별", drop, "stars", { step: 1 }),
       deleteButton(() => {
         reward.items.splice(index, 1);
         markDirty();
@@ -2802,9 +2805,7 @@ function materialDropEditor(reward) {
   }, "재료 드랍 추가");
   const rows = reward.materials.map((drop, index) => el("div", { className: "row" }, [
     selectField("재료", drop, "id", materialOptions()),
-    numberField("확률", drop, "chance", { step: 0.01 }),
-    numberField("최소", drop, "min", { step: 1 }),
-    numberField("최대", drop, "max", { step: 1 }),
+    ...rewardDropChanceFields(drop),
     deleteButton(() => {
       reward.materials.splice(index, 1);
       markDirty();
@@ -2818,6 +2819,50 @@ function materialDropEditor(reward) {
     ]),
     el("div", { className: "rows" }, rows.length ? rows : [el("div", { className: "empty" }, "재료 드랍 없음")]),
   ]);
+}
+
+function normalizeRewardDropFields(drop, { defaultChance, defaultMin, defaultMax }) {
+  drop.chance = clampChance(drop.chance ?? defaultChance);
+  drop.min = Math.max(1, Number(drop.min ?? drop.amount ?? defaultMin) || defaultMin);
+  drop.max = Math.max(drop.min, Number(drop.max ?? defaultMax) || defaultMax);
+  delete drop.amount;
+  for (const prefix of ["owner", "participant"]) {
+    const chanceKey = `${prefix}_chance`;
+    if (drop[chanceKey] != null && drop[chanceKey] !== "") {
+      drop[chanceKey] = clampChance(drop[chanceKey]);
+    }
+    const minKey = `${prefix}_min`;
+    const maxKey = `${prefix}_max`;
+    if (drop[minKey] != null && drop[minKey] !== "") {
+      drop[minKey] = Math.max(1, Number(drop[minKey]) || drop.min);
+    }
+    if (drop[maxKey] != null && drop[maxKey] !== "") {
+      const lower = Math.max(1, Number(drop[minKey] ?? drop.min) || drop.min);
+      drop[maxKey] = Math.max(lower, Number(drop[maxKey]) || lower);
+    }
+  }
+}
+
+function clampChance(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(1, number));
+}
+
+function rewardDropChanceFields(drop) {
+  return [
+    numberField("기본 확률", drop, "chance", { step: 0.01 }),
+    numberField("기본 최소", drop, "min", { step: 1 }),
+    numberField("기본 최대", drop, "max", { step: 1 }),
+    optionalNumberField("자발 확률", drop, "owner_chance", { step: 0.01 }),
+    optionalNumberField("자발 최소", drop, "owner_min", { step: 1 }),
+    optionalNumberField("자발 최대", drop, "owner_max", { step: 1 }),
+    optionalNumberField("참전 확률", drop, "participant_chance", { step: 0.01 }),
+    optionalNumberField("참전 최소", drop, "participant_min", { step: 1 }),
+    optionalNumberField("참전 최대", drop, "participant_max", { step: 1 }),
+  ];
 }
 
 function materialCostEditor(recipe) {
@@ -4251,6 +4296,26 @@ function numberField(label, obj, key, options = {}) {
     oninput: (event) => {
       const value = event.target.value === "" ? 0 : Number(event.target.value);
       obj[key] = Number.isFinite(value) ? value : 0;
+      markDirty();
+      options.onChange?.(obj[key]);
+    },
+  });
+  return fieldWrap(label, input, options.full);
+}
+
+function optionalNumberField(label, obj, key, options = {}) {
+  const input = el("input", {
+    type: "number",
+    step: options.step ?? 1,
+    value: obj[key] ?? "",
+    placeholder: options.placeholder ?? "기본값",
+    oninput: (event) => {
+      if (event.target.value === "") {
+        delete obj[key];
+      } else {
+        const value = Number(event.target.value);
+        obj[key] = Number.isFinite(value) ? value : 0;
+      }
       markDirty();
       options.onChange?.(obj[key]);
     },

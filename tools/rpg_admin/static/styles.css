@@ -363,6 +363,18 @@ textarea {
   font-weight: 650;
 }
 
+.readonly-value {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .section {
   margin-top: 16px;
   padding-top: 14px;
