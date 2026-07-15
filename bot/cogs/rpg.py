@@ -50,7 +50,7 @@ from bot.services.rpg.models import PlayerProfile
 
 
 DUNGEON_CHOICES = [
-    app_commands.Choice(name=dungeon.name[:100], value=dungeon.id)
+    app_commands.Choice(name=f"{dungeon.name} · Lv.{dungeon.level_req}"[:100], value=dungeon.id)
     for dungeon in DUNGEONS
 ]
 BOSS_CHOICES = [
@@ -125,6 +125,7 @@ class BossDamageDetail:
 class BossParticipant:
     user_id: int
     display_name: str
+    level: int
     hp: int
     max_hp: int
     ct: int = 0
@@ -210,13 +211,13 @@ class RPGCog(commands.Cog):
                 for enemy in dungeon.enemies[:3]
             )
             lines.append(
-                f"**{dungeon.name}**\n"
+                f"**{dungeon.name}** · Lv.{dungeon.level_req}\n"
                 f"{self._trim(reward_lines, 700)} · 희귀 {rare_names}\n"
                 f"{dungeon.description}"
             )
         embed = discord.Embed(
             title="던전 목록",
-            description=f"탐색 제한: **{self._explore_limit_text(profile)}**",
+            description=f"내 레벨: **Lv.{profile.level}** · 탐색 제한: **{self._explore_limit_text(profile)}**",
             color=0x4BA3FF,
         )
         embed.add_field(name="탐색지", value="\n\n".join(lines), inline=False)
@@ -534,6 +535,7 @@ class RPGCog(commands.Cog):
         session.participants[user_id] = BossParticipant(
             user_id=user_id,
             display_name=display_name,
+            level=profile.level,
             hp=stats.final_hp,
             max_hp=stats.final_hp,
             boss_stack_effects=self._initial_boss_stack_effects(session.boss),
@@ -2267,14 +2269,14 @@ class RPGCog(commands.Cog):
         selected = next((dungeon for dungeon in self.service.dungeons() if dungeon.id == selected_dungeon_id), None)
         embed = discord.Embed(
             title="던전 탐색",
-            description=f"탐색 제한: **{self._explore_limit_text(profile)}**",
+            description=f"내 레벨: **Lv.{profile.level}** · 탐색 제한: **{self._explore_limit_text(profile)}**",
             color=0x4BA3FF,
         )
         if selected is None:
             lines = []
             for dungeon in self.service.dungeons():
                 rare_names = ", ".join(enemy.name for enemy in dungeon.enemies if enemy.rare) or "없음"
-                lines.append(f"**{dungeon.name}** · 희귀 {rare_names}")
+                lines.append(f"**{dungeon.name}** · Lv.{dungeon.level_req} · 희귀 {rare_names}")
             embed.add_field(name="탐색지", value=self._trim("\n".join(lines), 1000), inline=False)
             embed.set_footer(text="아래 메뉴에서 던전을 고른 뒤 탐색 버튼을 누르세요.")
             return embed
@@ -2286,7 +2288,7 @@ class RPGCog(commands.Cog):
                 f"`{marker}` **{enemy.name}** · {self.service.reward_summary(enemy.rewards, base_gold=enemy.gold, base_exp=enemy.exp)}"
             )
         embed.add_field(
-            name=selected.name,
+            name=f"{selected.name} · Lv.{selected.level_req}",
             value=(
                 f"{self._trim('; '.join(enemy_lines), 700)}\n"
                 f"{selected.description}"
@@ -2375,7 +2377,7 @@ class RPGCog(commands.Cog):
             warning = f"전조 대기 {len(participant.queued_warnings)}"
         else:
             warning = "전조 없음"
-        return f"**{participant.display_name}** · {state} · CT {participant_ct}/{ct_max} · {warning}"
+        return f"**{participant.display_name}** · Lv.{participant.level} · {state} · CT {participant_ct}/{ct_max} · {warning}"
 
     def _participant_status_text(
         self,
@@ -2384,7 +2386,7 @@ class RPGCog(commands.Cog):
         include_cooldowns: bool = True,
     ) -> str:
         state = "전투 불능" if not participant.alive else f"HP {participant.hp}/{participant.max_hp}"
-        lines = [f"상태: {state}"]
+        lines = [f"상태: Lv.{participant.level} · {state}"]
         if include_cooldowns:
             cooldowns = self._participant_ability_cooldown_text(participant, multiline=True)
             lines.append(f"어빌리티 쿨\n{cooldowns}")
@@ -2766,7 +2768,8 @@ class RPGCog(commands.Cog):
             embed.add_field(
                 name="전투",
                 value=(
-                    f"{battle.turns}턴 · 내 HP {battle.player_hp}/{battle.player_max_hp} · "
+                    f"{battle.turns}턴 · 내 Lv.{result.profile.level} · "
+                    f"내 HP {battle.player_hp}/{battle.player_max_hp} · "
                     f"적 HP {battle.enemy_hp}/{battle.enemy_max_hp}"
                 ),
                 inline=False,
@@ -3809,7 +3812,7 @@ class ExplorationView(discord.ui.View):
             rare_names = ", ".join(enemy.name for enemy in dungeon.enemies if enemy.rare) or "희귀 없음"
             options.append(
                 discord.SelectOption(
-                    label=dungeon.name[:100],
+                    label=f"{dungeon.name} · Lv.{dungeon.level_req}"[:100],
                     value=dungeon.id,
                     description=rare_names[:100],
                     default=dungeon.id == selected_dungeon_id,
