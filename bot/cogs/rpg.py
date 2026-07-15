@@ -1961,8 +1961,6 @@ class RPGCog(commands.Cog):
             session.log.append("보스전 종료")
             return
         for participant in session.participants.values():
-            if not participant.alive:
-                continue
             reward_role = "participant"
             if participant.user_id == session.owner_id:
                 ok, message = self.service.consume_boss_start(
