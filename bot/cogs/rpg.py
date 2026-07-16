@@ -841,6 +841,8 @@ class RPGCog(commands.Cog):
         bits = []
         if skill_result.damage > 0:
             bits.append(f"{skill_result.damage} 피해")
+            if skill_result.critical:
+                bits.append("크리")
         if skill_result.hit_damages:
             bits.append(f"{len(skill_result.hit_damages)}타")
         if debuff_count:

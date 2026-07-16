@@ -137,6 +137,7 @@ class AttackOutcome:
 class SkillUseResult:
     damage: int = 0
     hit_damages: list[int] = field(default_factory=list)
+    critical: bool = False
     heal: int = 0
     raw_heal: int = 0
     dispels: int = 0
@@ -1777,6 +1778,7 @@ class RPGService:
         result = SkillUseResult()
         active_player_effects = self._effects_with_stacks(player_effects, player_stack_effects)
         if skill.damage_multiplier > 0 and skill.hits > 0:
+            result.critical = self._roll_critical(player_stats)
             for _ in range(skill.hits):
                 hit_damage = self._actual_skill_damage(
                     player_stats,
@@ -1785,11 +1787,13 @@ class RPGService:
                     enemy_hp,
                     skill.damage_multiplier,
                     active_player_effects,
+                    forced_critical=result.critical,
                 )
                 result.damage += hit_damage
                 result.hit_damages.append(hit_damage)
             result.detail_lines.append(
-                f"어빌리티({skill.name}): {self._damage_values_text(result.hit_damages)}"
+                f"어빌리티({skill.name}{' 크리' if result.critical else ''}): "
+                f"{self._damage_values_text(result.hit_damages)}"
             )
 
         if skill.heal_power > 0:
