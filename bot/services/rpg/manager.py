@@ -2559,7 +2559,7 @@ class RPGService:
                 stacks.append(ActiveStackEffect(template.id, next_stacks))
             return
         if next_stacks <= 0:
-            if current.persistent:
+            if current.persistent or current.condition_progress or template.conditions:
                 current.stacks = 0
                 return
             stacks[:] = [effect for effect in stacks if effect.template_id != template.id]
