@@ -1792,7 +1792,8 @@ class RPGService:
 
         result = SkillUseResult()
         active_player_effects = self._effects_with_stacks(player_effects, player_stack_effects)
-        result.recasts = self._ability_recast_count(active_player_effects)
+        deals_damage = skill.damage_multiplier > 0 and skill.hits > 0
+        result.recasts = self._ability_recast_count(active_player_effects) if deals_damage else 0
         result.activations = 1 + result.recasts
         for activation_index in range(1, result.activations + 1):
             activation_hit_damages: list[int] = []
