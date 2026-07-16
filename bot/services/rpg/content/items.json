@@ -1848,5 +1848,212 @@
       "base_atk",
       "defense"
     ]
+  },
+  {
+    "id": "leather_guard_sword",
+    "name": "레더 가드 소드",
+    "rarity": "normal",
+    "stats": {
+      "hp_bonus": 0.025,
+      "max_hp": 12
+    },
+    "base_price": 198,
+    "description": "가죽 손잡이에 작은 수호 부적을 감은 검이다. 오래 버티는 법을 배우는 초보 모험가에게 어울린다."
+  },
+  {
+    "id": "wicker_guard_bow",
+    "name": "위커 가드 보우",
+    "rarity": "normal",
+    "stats": {
+      "hp_bonus": 0.02,
+      "defense": 0.02
+    },
+    "base_price": 201,
+    "description": "등나무를 덧대어 몸을 가릴 수 있게 만든 활이다. 공격보다는 생존에 조금 더 마음을 쓴 장비다."
+  },
+  {
+    "id": "field_medic_wand",
+    "name": "필드 메딕 완드",
+    "rarity": "normal",
+    "stats": {
+      "hp_bonus": 0.02,
+      "healing_bonus": 0.035,
+      "heal_cap_bonus": 0.035
+    },
+    "base_price": 204,
+    "description": "응급 처치용 약초 냄새가 희미하게 배어 있는 완드다. 회복술의 기초를 안정적으로 보조한다."
+  },
+  {
+    "id": "pine_bulwark_staff",
+    "name": "파인 불워크 스태프",
+    "rarity": "normal",
+    "stats": {
+      "max_hp": 16,
+      "garrison": 0.025
+    },
+    "base_price": 207,
+    "description": "소나무 심재로 만든 두꺼운 스태프다. 위급할수록 몸을 단단히 지탱하게 해준다."
+  },
+  {
+    "id": "cotton_charm_rod",
+    "name": "코튼 참 로드",
+    "rarity": "normal",
+    "stats": {
+      "max_hp": 14,
+      "healing_bonus": 0.03,
+      "heal_cap_bonus": 0.03
+    },
+    "base_price": 210,
+    "description": "부드러운 천 장식이 감긴 로드다. 약한 치유 마력을 오래 머금도록 만들어졌다."
+  },
+  {
+    "id": "simple_sanctuary_mace",
+    "name": "심플 생추어리 메이스",
+    "rarity": "normal",
+    "stats": {
+      "defense": 0.025,
+      "healing_bonus": 0.03,
+      "heal_cap_bonus": 0.025
+    },
+    "base_price": 213,
+    "description": "작은 성소의 종 모양을 본뜬 메이스다. 방어 자세와 회복 기도를 함께 돕는다."
+  },
+  {
+    "id": "mithril_guard_blade",
+    "name": "미스릴 가드 블레이드",
+    "rarity": "rare",
+    "stats": {
+      "hp_bonus": 0.06,
+      "max_hp": 32
+    },
+    "base_price": 375,
+    "description": "가벼운 미스릴 장식이 박힌 검이다. 몸의 균형을 잡아 주어 더 오래 싸울 수 있다."
+  },
+  {
+    "id": "blue_aegis_bow",
+    "name": "블루 이지스 보우",
+    "rarity": "rare",
+    "stats": {
+      "hp_bonus": 0.055,
+      "defense": 0.045
+    },
+    "base_price": 382,
+    "description": "청색 금속판으로 활대를 보강한 활이다. 숨을 고르며 버티는 전투에 강하다."
+  },
+  {
+    "id": "holy_cedar_wand",
+    "name": "홀리 시더 완드",
+    "rarity": "rare",
+    "stats": {
+      "hp_bonus": 0.055,
+      "healing_bonus": 0.07,
+      "heal_cap_bonus": 0.065
+    },
+    "base_price": 389,
+    "description": "성목의 향이 남아 있는 완드다. 사용자의 생명력을 다독이며 회복 마법의 그릇을 넓힌다."
+  },
+  {
+    "id": "keeper_halberd",
+    "name": "키퍼 할버드",
+    "rarity": "rare",
+    "stats": {
+      "max_hp": 42,
+      "garrison": 0.055
+    },
+    "base_price": 396,
+    "description": "방어 진형을 지키던 병사들이 쓰던 할버드다. 밀려날수록 더욱 단단하게 버티게 해준다."
+  },
+  {
+    "id": "merciful_staff",
+    "name": "머시풀 스태프",
+    "rarity": "rare",
+    "stats": {
+      "max_hp": 38,
+      "healing_bonus": 0.075,
+      "heal_cap_bonus": 0.07
+    },
+    "base_price": 403,
+    "description": "치유사의 손에 오래 머물렀던 스태프다. 작은 회복도 더 넉넉하게 닿도록 도와준다."
+  },
+  {
+    "id": "sentinel_mace",
+    "name": "센티널 메이스",
+    "rarity": "rare",
+    "stats": {
+      "defense": 0.055,
+      "healing_bonus": 0.065,
+      "heal_cap_bonus": 0.06
+    },
+    "base_price": 410,
+    "description": "초소의 수호자들이 쓰던 메이스다. 맞서 버티며 동료를 추스를 때 진가를 드러낸다."
+  },
+  {
+    "id": "maple_guardian_blade",
+    "name": "메이플 가디언 블레이드",
+    "rarity": "epic",
+    "stats": {
+      "hp_bonus": 0.1,
+      "max_hp": 68
+    },
+    "base_price": 1440,
+    "description": "단풍잎 문양의 보호 각인이 새겨진 검이다. 공격보다 생존을 중시하는 모험가에게 신뢰받는다."
+  },
+  {
+    "id": "pharaoh_guard_spear",
+    "name": "파라오 가드 스피어",
+    "rarity": "epic",
+    "stats": {
+      "hp_bonus": 0.095,
+      "garrison": 0.09
+    },
+    "base_price": 1460,
+    "description": "고대 왕릉의 호위병이 들었다고 전해지는 창이다. 체력이 낮아질수록 묵직한 수호력이 깨어난다."
+  },
+  {
+    "id": "blooming_lama_staff",
+    "name": "블루밍 라마 스태프",
+    "rarity": "epic",
+    "stats": {
+      "hp_bonus": 0.09,
+      "healing_bonus": 0.13,
+      "heal_cap_bonus": 0.12
+    },
+    "base_price": 1480,
+    "description": "꽃잎처럼 펼쳐진 마력 장식이 달린 스태프다. 회복 마법이 퍼져 나갈 공간을 크게 넓힌다."
+  },
+  {
+    "id": "lionheart_bulwark",
+    "name": "라이온하트 불워크",
+    "rarity": "epic",
+    "stats": {
+      "max_hp": 82,
+      "defense": 0.09
+    },
+    "base_price": 1500,
+    "description": "사자의 문장이 새겨진 대형 무기다. 묵직하지만, 그만큼 전열을 버티는 힘이 강하다."
+  },
+  {
+    "id": "eligos_mercy_staff",
+    "name": "엘리고스 메르시 스태프",
+    "rarity": "epic",
+    "stats": {
+      "max_hp": 72,
+      "healing_bonus": 0.14,
+      "heal_cap_bonus": 0.13
+    },
+    "base_price": 1520,
+    "description": "차가운 보랏빛 결정이 박힌 스태프다. 위태로운 생명을 붙잡는 회복술에 특화되어 있다."
+  },
+  {
+    "id": "sanctuary_rohen",
+    "name": "생추어리 로헨",
+    "rarity": "epic",
+    "stats": {
+      "garrison": 0.1,
+      "healing_bonus": 0.12,
+      "heal_cap_bonus": 0.115
+    },
+    "base_price": 1540,
+    "description": "성역을 지키던 검의 복제품이다. 오래 버티는 전투에서 회복과 방호가 함께 빛난다."
   }
 ]
