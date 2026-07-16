@@ -1854,8 +1854,8 @@
     "name": "레더 가드 소드",
     "rarity": "normal",
     "stats": {
-      "hp_bonus": 0.025,
-      "max_hp": 12
+      "max_hp": 12,
+      "hp_bonus": 0.025
     },
     "base_price": 198,
     "description": "가죽 손잡이에 작은 수호 부적을 감은 검이다. 오래 버티는 법을 배우는 초보 모험가에게 어울린다."
@@ -1923,8 +1923,8 @@
     "name": "미스릴 가드 블레이드",
     "rarity": "rare",
     "stats": {
-      "hp_bonus": 0.06,
-      "max_hp": 32
+      "max_hp": 32,
+      "hp_bonus": 0.06
     },
     "base_price": 375,
     "description": "가벼운 미스릴 장식이 박힌 검이다. 몸의 균형을 잡아 주어 더 오래 싸울 수 있다."
@@ -1992,8 +1992,8 @@
     "name": "메이플 가디언 블레이드",
     "rarity": "epic",
     "stats": {
-      "hp_bonus": 0.1,
-      "max_hp": 68
+      "max_hp": 68,
+      "hp_bonus": 0.1
     },
     "base_price": 1440,
     "description": "단풍잎 문양의 보호 각인이 새겨진 검이다. 공격보다 생존을 중시하는 모험가에게 신뢰받는다."
@@ -2055,5 +2055,22 @@
     },
     "base_price": 1540,
     "description": "성역을 지키던 검의 복제품이다. 오래 버티는 전투에서 회복과 방호가 함께 빛난다."
+  },
+  {
+    "id": "vertrauen",
+    "name": "페아트라우엔",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 25,
+      "hp_bonus": 0.2,
+      "garrison": 0.06,
+      "heal_cap_bonus": 0.3
+    },
+    "base_price": 1,
+    "excluded_from_gacha": false,
+    "description": "제옌의 여사제가 긴 순례의 여정 내내 손에 쥐었던 지팡이.\n그 끝에 깃든 푸른 보석은 하늘 아래 살아가는 모든 이에게 차별 없는 축복이 내리기를 바라는 염원을 상징한다.",
+    "fixed_stats": [
+      "base_atk"
+    ]
   }
 ]
