@@ -157,6 +157,14 @@ class PostAttackAbilityDamageEffect:
 
 
 @dataclass(frozen=True)
+class AbilityRecastEffect:
+    count: int
+    duration: int
+    undispellable: bool = False
+    target: str = "self"
+
+
+@dataclass(frozen=True)
 class DispelGuardEffect:
     duration: int
     count: int = 0
@@ -210,6 +218,7 @@ class CombatSpecialEffects:
     critical_reinforce: list[CriticalReinforceEffect] = field(default_factory=list)
     final_damage: list[FinalDamageEffect] = field(default_factory=list)
     post_attack_ability_damage: list[PostAttackAbilityDamageEffect] = field(default_factory=list)
+    ability_recast: list[AbilityRecastEffect] = field(default_factory=list)
     dispel_guard: list[DispelGuardEffect] = field(default_factory=list)
     veil: list[VeilEffect] = field(default_factory=list)
 
@@ -222,6 +231,7 @@ class CombatSpecialEffects:
             or bool(self.critical_reinforce)
             or bool(self.final_damage)
             or bool(self.post_attack_ability_damage)
+            or bool(self.ability_recast)
             or bool(self.dispel_guard)
             or bool(self.veil)
         )
@@ -800,6 +810,31 @@ def _combat_effects(
             )
         )
 
+    ability_recast: list[AbilityRecastEffect] = []
+    recast_raw = raw.get("ability_recast", raw.get("ability_reactivation", raw.get("ability_repeat", [])))
+    recast_rows = recast_raw if isinstance(recast_raw, list) else [recast_raw]
+    for recast in recast_rows:
+        if isinstance(recast, dict):
+            count = max(1, _safe_int(recast.get("count", recast.get("recasts", recast.get("times", 1))), 1))
+            duration = _effect_duration(recast, default_duration)
+            undispellable = _effect_undispellable(recast, fallback_undispellable)
+            target = _effect_target(recast)
+        elif recast:
+            count = max(1, _safe_int(recast, 1))
+            duration = _effect_duration(None, default_duration)
+            undispellable = fallback_undispellable
+            target = "self"
+        else:
+            continue
+        ability_recast.append(
+            AbilityRecastEffect(
+                count=count,
+                duration=duration,
+                undispellable=undispellable,
+                target=target,
+            )
+        )
+
     dispel_guard: list[DispelGuardEffect] = []
     for guard in _guard_rows(raw.get("dispel_guard")):
         dispel_guard.append(
@@ -829,6 +864,7 @@ def _combat_effects(
         critical_reinforce=critical_reinforce,
         final_damage=final_damage,
         post_attack_ability_damage=post_attack_ability_damage,
+        ability_recast=ability_recast,
         dispel_guard=dispel_guard,
         veil=veil,
     )

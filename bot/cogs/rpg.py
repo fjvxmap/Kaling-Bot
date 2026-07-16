@@ -820,8 +820,8 @@ class RPGCog(commands.Cog):
                 actual_dealt_damage,
                 actual_dealt_segments,
             )
-        skill_heal = self._apply_boss_skill_heal(session, participant, skill, skill_result.raw_heal)
-        debuff_count = self._debuff_effect_count(skill)
+        skill_heal = self._apply_boss_skill_heal(session, participant, skill, skill_result.raw_heals)
+        debuff_count = self._debuff_effect_count(skill) * skill_result.activations
         self._add_warning_progress(participant, "damage", skill_result.damage)
         self._add_warning_progress(participant, "ability_damage", skill_result.damage)
         self._add_warning_hit_progress(participant, skill_result.hit_damages)
@@ -841,8 +841,12 @@ class RPGCog(commands.Cog):
         bits = []
         if skill_result.damage > 0:
             bits.append(f"{skill_result.damage} 피해")
-            if skill_result.critical:
+            if skill_result.critical_activations > 1:
+                bits.append(f"크리 {skill_result.critical_activations}회")
+            elif skill_result.critical:
                 bits.append("크리")
+        if skill_result.recasts:
+            bits.append(f"재발동 {skill_result.recasts}회")
         if skill_result.hit_damages:
             bits.append(f"{len(skill_result.hit_damages)}타")
         if debuff_count:
@@ -1582,9 +1586,13 @@ class RPGCog(commands.Cog):
         session: BossSession,
         participant: BossParticipant,
         skill: SkillTemplate,
-        raw_heal: int,
+        raw_heals: list[int] | int,
     ) -> int:
-        if skill.heal_power <= 0 or raw_heal <= 0:
+        if isinstance(raw_heals, int):
+            raw_heal_values = [raw_heals] if raw_heals > 0 else []
+        else:
+            raw_heal_values = [raw_heal for raw_heal in raw_heals if raw_heal > 0]
+        if skill.heal_power <= 0 or not raw_heal_values:
             return 0
         targets = [
             ally for ally in session.participants.values()
@@ -1598,12 +1606,13 @@ class RPGCog(commands.Cog):
                 target.player_effects,
                 target.player_stack_effects,
             )
-            heal = self.service._apply_heal_cap(raw_heal, skill.heal_cap, stats.final_hp)
-            if heal <= 0:
-                continue
-            before = target.hp
-            target.hp = min(stats.final_hp, target.hp + heal)
-            total_heal += max(0, target.hp - before)
+            for raw_heal in raw_heal_values:
+                heal = self.service._apply_heal_cap(raw_heal, skill.heal_cap, stats.final_hp)
+                if heal <= 0:
+                    continue
+                before = target.hp
+                target.hp = min(stats.final_hp, target.hp + heal)
+                total_heal += max(0, target.hp - before)
         return total_heal
 
     def _apply_boss_life_steal(
@@ -1849,6 +1858,15 @@ class RPGCog(commands.Cog):
                     post_attack.undispellable,
                 )
             )
+        for recast in effects.ability_recast:
+            parts.append(
+                self._pattern_special_effect_text(
+                    allies_label if recast.target == "allies" else self_label,
+                    f"어빌리티 재발동 {recast.count}회",
+                    recast.duration,
+                    recast.undispellable,
+                )
+            )
         for guard in effects.dispel_guard:
             parts.append(
                 self._pattern_guard_effect_text(
@@ -2085,6 +2103,7 @@ class RPGCog(commands.Cog):
             tuple(effect.special.critical_reinforce),
             tuple(effect.special.final_damage),
             tuple(effect.special.post_attack_ability_damage),
+            tuple(effect.special.ability_recast),
             tuple(effect.special.dispel_guard),
             tuple(effect.special.veil),
             effect.undispellable,
@@ -3419,6 +3438,8 @@ class RPGCog(commands.Cog):
             parts.append(f"최종 데미지 {self.service._signed_effect_ratio_text(final_effect.ratio)}")
         for post_attack in effect.special.post_attack_ability_damage:
             parts.append(f"공격 후 어빌 피해 {post_attack.ratio * 100:.0f}% {post_attack.count}타")
+        for recast in effect.special.ability_recast:
+            parts.append(f"어빌리티 재발동 {recast.count}회")
         for guard in effect.special.dispel_guard:
             suffix = f" {guard.count}회" if guard.count > 0 else ""
             parts.append(f"디스펠 가드{suffix}")

@@ -234,6 +234,7 @@ def force_self_combat_effect_targets(effects: Any) -> None:
         "critical_reinforce",
         "final_damage",
         "post_attack_ability_damage",
+        "ability_recast",
         "dispel_guard",
         "veil",
     ):
@@ -746,6 +747,23 @@ def normalize_combat_effects(
             effects.pop("post_attack_ability_damage", None)
     elif post_attack in (None, [], {}):
         effects.pop("post_attack_ability_damage", None)
+    recast = effects.get("ability_recast")
+    if isinstance(recast, (list, dict)):
+        recast_rows = recast if isinstance(recast, list) else [recast]
+        for item in recast_rows:
+            if isinstance(item, dict):
+                item.setdefault("undispellable", fallback_undispellable)
+                item.setdefault("duration", default_duration)
+                item["target"] = normalize_stat_effect_target(item.get("target"))
+                item["count"] = max(1, safe_int(item.get("count", item.get("recasts", item.get("times", 1))), 1))
+        effects["ability_recast"] = [
+            item for item in recast_rows
+            if isinstance(item, dict) and safe_int(item.get("count", item.get("recasts", item.get("times", 1))), 0) > 0
+        ]
+        if not effects["ability_recast"]:
+            effects.pop("ability_recast", None)
+    elif recast in (None, [], {}):
+        effects.pop("ability_recast", None)
     normalize_guard_effects(effects, "dispel_guard", fallback_undispellable, default_duration)
     normalize_guard_effects(effects, "veil", fallback_undispellable, default_duration)
     normalize_guard_effects(effects, "mount", fallback_undispellable, default_duration)
@@ -1590,6 +1608,11 @@ def validate_combat_effects(effects: Any, label: str, errors: list[str]) -> None
         if isinstance(effect, dict) and safe_int(effect.get("count", effect.get("hits", 1)), 0) < 1:
             errors.append(f"{label} post attack ability damage {index} count must be at least 1")
 
+    ability_recast = effects.get("ability_recast", [])
+    recast_rows = ability_recast if isinstance(ability_recast, list) else [ability_recast]
+    for index, effect in enumerate(recast_rows, start=1):
+        validate_count_effect(effect, f"{label} ability recast {index}", errors)
+
     for key, text in (("dispel_guard", "dispel guard"), ("veil", "veil"), ("mount", "veil")):
         rows = effects.get(key, [])
         guard_rows = rows if isinstance(rows, list) else [rows]
@@ -1613,6 +1636,21 @@ def validate_ratio_effect(effect: Any, label: str, errors: list[str]) -> None:
         errors.append(f"{label} ratio is not a number")
     elif ratio <= 0:
         errors.append(f"{label} ratio must be positive")
+
+
+def validate_count_effect(effect: Any, label: str, errors: list[str]) -> None:
+    if effect in (None, [], {}):
+        return
+    if isinstance(effect, dict):
+        validate_effect_duration(effect, label, errors)
+        validate_effect_target(effect, label, errors)
+        count = safe_int(effect.get("count", effect.get("recasts", effect.get("times"))), None)
+    else:
+        count = safe_int(effect, None)
+    if count is None:
+        errors.append(f"{label} count is not a number")
+    elif count < 1:
+        errors.append(f"{label} count must be at least 1")
 
 
 def validate_signed_ratio_effect(effect: Any, label: str, errors: list[str]) -> None:

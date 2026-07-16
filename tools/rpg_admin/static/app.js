@@ -1104,7 +1104,7 @@ function forceSelfSpecialEffectTargets(effects) {
       effects[key].target = "self";
     }
   }
-  for (const key of ["bonus_damage", "critical_reinforce", "final_damage", "post_attack_ability_damage", "dispel_guard", "veil"]) {
+  for (const key of ["bonus_damage", "critical_reinforce", "final_damage", "post_attack_ability_damage", "ability_recast", "dispel_guard", "veil"]) {
     for (const effect of effects[key] || []) {
       effect.target = "self";
     }
@@ -1121,7 +1121,7 @@ function forceSpecialEffectMeta(effects, duration, undispellable) {
       effects[key].undispellable = undispellable;
     }
   }
-  for (const key of ["bonus_damage", "critical_reinforce", "final_damage", "post_attack_ability_damage", "dispel_guard", "veil"]) {
+  for (const key of ["bonus_damage", "critical_reinforce", "final_damage", "post_attack_ability_damage", "ability_recast", "dispel_guard", "veil"]) {
     for (const effect of effects[key] || []) {
       effect.duration = duration;
       effect.undispellable = undispellable;
@@ -3518,6 +3518,22 @@ function specialEffectsEditor(owner, key, title, defaultDuration = 1, fallbackUn
     ]));
   }
 
+  for (const [index, recast] of (effects.ability_recast || []).entries()) {
+    rows.push(el("div", { className: "row five" }, [
+      el("strong", {}, "어빌리티 재발동"),
+      ...targetField(recast),
+      numberField("재발동 횟수", recast, "count", { step: 1 }),
+      ...durationField(recast),
+      ...undispellableField(recast),
+      deleteButton(() => {
+        effects.ability_recast.splice(index, 1);
+        pruneSpecialEffects(owner, key);
+        markDirty();
+        render();
+      }),
+    ]));
+  }
+
   for (const [index, guard] of (effects.dispel_guard || []).entries()) {
     rows.push(el("div", { className: "row six" }, [
       el("strong", {}, "디스펠 가드"),
@@ -3626,6 +3642,21 @@ function specialEffectsEditor(owner, key, title, defaultDuration = 1, fallbackUn
             render();
           },
         }, "공격 후 어빌 피해 추가"),
+        el("button", {
+          type: "button",
+          onclick: () => {
+            owner[key] ||= {};
+            owner[key].ability_recast ||= [];
+            owner[key].ability_recast.push({
+              count: 1,
+              target: "self",
+              duration: options.forceDuration ?? defaultDuration,
+              undispellable: options.forceUndispellable ?? fallbackUndispellable,
+            });
+            markDirty();
+            render();
+          },
+        }, "어빌리티 재발동 추가"),
         el("button", {
           type: "button",
           onclick: () => {
@@ -3758,6 +3789,25 @@ function normalizeSpecialEffects(effects, defaultDuration, fallbackUndispellable
   if (!effects.post_attack_ability_damage.length) {
     delete effects.post_attack_ability_damage;
   }
+  if (effects.ability_recast && !Array.isArray(effects.ability_recast)) {
+    effects.ability_recast = [typeof effects.ability_recast === "object"
+      ? effects.ability_recast
+      : { count: Number(effects.ability_recast) || 1, duration: defaultDuration, undispellable: fallbackUndispellable }];
+  }
+  effects.ability_recast ||= [];
+  effects.ability_recast = effects.ability_recast.filter((recast) => recast && typeof recast === "object");
+  for (const recast of effects.ability_recast) {
+    const count = Number(recast.count ?? recast.recasts ?? recast.times ?? 1);
+    recast.count = Number.isFinite(count) ? Math.floor(Math.max(1, count)) : 1;
+    delete recast.recasts;
+    delete recast.times;
+    recast.target = normalizeStatEffectTarget(recast.target);
+    recast.duration ??= defaultDuration;
+    recast.undispellable ??= fallbackUndispellable;
+  }
+  if (!effects.ability_recast.length) {
+    delete effects.ability_recast;
+  }
   normalizeGuardEffects(effects, "dispel_guard", defaultDuration, fallbackUndispellable);
   normalizeGuardEffects(effects, "veil", defaultDuration, fallbackUndispellable);
   if (effects.mount) {
@@ -3801,9 +3851,10 @@ function pruneSpecialEffects(owner, key) {
   const hasReinforce = Array.isArray(effects.critical_reinforce) && effects.critical_reinforce.length > 0;
   const hasFinalDamage = Array.isArray(effects.final_damage) && effects.final_damage.length > 0;
   const hasPostAttack = Array.isArray(effects.post_attack_ability_damage) && effects.post_attack_ability_damage.length > 0;
+  const hasAbilityRecast = Array.isArray(effects.ability_recast) && effects.ability_recast.length > 0;
   const hasDispelGuard = Array.isArray(effects.dispel_guard) && effects.dispel_guard.length > 0;
   const hasVeil = Array.isArray(effects.veil) && effects.veil.length > 0;
-  if (!effects.flurry && !effects.double_strike && !hasBonus && !hasReinforce && !hasFinalDamage && !hasPostAttack && !hasDispelGuard && !hasVeil) {
+  if (!effects.flurry && !effects.double_strike && !hasBonus && !hasReinforce && !hasFinalDamage && !hasPostAttack && !hasAbilityRecast && !hasDispelGuard && !hasVeil) {
     delete owner[key];
   }
 }

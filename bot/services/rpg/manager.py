@@ -138,8 +138,12 @@ class SkillUseResult:
     damage: int = 0
     hit_damages: list[int] = field(default_factory=list)
     critical: bool = False
+    critical_activations: int = 0
+    activations: int = 1
+    recasts: int = 0
     heal: int = 0
     raw_heal: int = 0
+    raw_heals: list[int] = field(default_factory=list)
     dispels: int = 0
     clear_alls: int = 0
     detail_lines: list[str] = field(default_factory=list)
@@ -1377,6 +1381,11 @@ class RPGService:
                 f"{allies_label if post_attack.target == 'allies' else self_label} 공격 후 어빌 피해 {post_attack.ratio * 100:.0f}% {post_attack.count}타"
                 f"{self._effect_meta_summary(post_attack.duration, post_attack.undispellable)}"
             )
+        for recast in effects.ability_recast:
+            parts.append(
+                f"{allies_label if recast.target == 'allies' else self_label} 어빌리티 재발동 {recast.count}회"
+                f"{self._effect_meta_summary(recast.duration, recast.undispellable)}"
+            )
         for guard in effects.dispel_guard:
             parts.append(
                 f"{allies_label if guard.target == 'allies' else self_label} 디스펠 가드"
@@ -1529,6 +1538,12 @@ class RPGService:
                 action_bits = []
                 if skill_result.damage > 0:
                     action_bits.append(f"{skill_result.damage} 피해")
+                    if skill_result.critical_activations > 1:
+                        action_bits.append(f"크리 {skill_result.critical_activations}회")
+                    elif skill_result.critical:
+                        action_bits.append("크리")
+                if skill_result.recasts:
+                    action_bits.append(f"재발동 {skill_result.recasts}회")
                 if skill_result.dispels:
                     action_bits.append(f"디스펠 {skill_result.dispels}회")
                 if skill_result.clear_alls:
@@ -1777,45 +1792,61 @@ class RPGService:
 
         result = SkillUseResult()
         active_player_effects = self._effects_with_stacks(player_effects, player_stack_effects)
-        if skill.damage_multiplier > 0 and skill.hits > 0:
-            result.critical = self._roll_critical(player_stats)
-            for _ in range(skill.hits):
-                hit_damage = self._actual_skill_damage(
-                    player_stats,
-                    player_hp,
-                    enemy_stats,
-                    enemy_hp,
-                    skill.damage_multiplier,
-                    active_player_effects,
-                    forced_critical=result.critical,
+        result.recasts = self._ability_recast_count(active_player_effects)
+        result.activations = 1 + result.recasts
+        for activation_index in range(1, result.activations + 1):
+            activation_hit_damages: list[int] = []
+            critical = False
+            if skill.damage_multiplier > 0 and skill.hits > 0:
+                critical = self._roll_critical(player_stats)
+                if critical:
+                    result.critical = True
+                    result.critical_activations += 1
+                for _ in range(skill.hits):
+                    hit_damage = self._actual_skill_damage(
+                        player_stats,
+                        player_hp,
+                        enemy_stats,
+                        enemy_hp,
+                        skill.damage_multiplier,
+                        active_player_effects,
+                        forced_critical=critical,
+                    )
+                    result.damage += hit_damage
+                    result.hit_damages.append(hit_damage)
+                    activation_hit_damages.append(hit_damage)
+                result.detail_lines.append(
+                    f"{self._skill_activation_label(skill.name, activation_index)}"
+                    f"{' 크리' if critical else ''}: {self._damage_values_text(activation_hit_damages)}"
                 )
-                result.damage += hit_damage
-                result.hit_damages.append(hit_damage)
-            result.detail_lines.append(
-                f"어빌리티({skill.name}{' 크리' if result.critical else ''}): "
-                f"{self._damage_values_text(result.hit_damages)}"
-            )
 
-        if skill.heal_power > 0:
-            outgoing = self._outgoing_damage(player_stats, player_hp)
-            raw_heal = max(1, int(outgoing * skill.heal_power))
-            result.raw_heal = raw_heal
-            result.heal = self._apply_heal_cap(raw_heal, skill.heal_cap, player_stats.final_hp)
-        dispels, clear_alls = self._apply_effect_actions(
-            skill.effect_actions,
-            self_effects=player_effects,
-            enemy_effects=enemy_effects,
-            ally_effects=ally_effects,
-            opponent_effects=opponent_effects,
-            self_stacks=player_stack_effects,
-            enemy_stacks=enemy_stack_effects,
-            ally_stacks=ally_stack_effects,
-            opponent_stacks=opponent_stack_effects,
-            source_role="player",
-        )
-        result.dispels += dispels
-        result.clear_alls += clear_alls
+            if skill.heal_power > 0:
+                outgoing = self._outgoing_damage(player_stats, player_hp)
+                raw_heal = max(1, int(outgoing * skill.heal_power))
+                result.raw_heal += raw_heal
+                result.raw_heals.append(raw_heal)
+                result.heal += self._apply_heal_cap(raw_heal, skill.heal_cap, player_stats.final_hp)
+
+            dispels, clear_alls = self._apply_effect_actions(
+                skill.effect_actions,
+                self_effects=player_effects,
+                enemy_effects=enemy_effects,
+                ally_effects=ally_effects,
+                opponent_effects=opponent_effects,
+                self_stacks=player_stack_effects,
+                enemy_stacks=enemy_stack_effects,
+                ally_stacks=ally_stack_effects,
+                opponent_stacks=opponent_stack_effects,
+                source_role="player",
+            )
+            result.dispels += dispels
+            result.clear_alls += clear_alls
         return result
+
+    def _skill_activation_label(self, skill_name: str, activation_index: int) -> str:
+        if activation_index <= 1:
+            return f"어빌리티({skill_name})"
+        return f"어빌리티 재발동 {activation_index - 1}({skill_name})"
 
     def _next_boss_pattern(
         self,
@@ -2254,6 +2285,18 @@ class RPGService:
                         source_id,
                         CombatSpecialEffects(post_attack_ability_damage=[post_attack]),
                         post_attack.undispellable,
+                    )
+                )
+        for recast in special.ability_recast:
+            for effect_target in effect_targets(recast.target):
+                self._append_active_effect(
+                    effect_target,
+                    ActiveEffect(
+                        self._effect_turns(recast.duration),
+                        {},
+                        source_id,
+                        CombatSpecialEffects(ability_recast=[recast]),
+                        recast.undispellable,
                     )
                 )
         for guard in special.dispel_guard:
@@ -2764,6 +2807,8 @@ class RPGService:
             ratios.append(1.0)
         if effect.special.double_strike is not None:
             ratios.append(1.0)
+        if effect.special.ability_recast:
+            ratios.append(1.0)
         if effect.special.dispel_guard:
             ratios.append(1.0)
         if effect.special.veil:
@@ -2806,6 +2851,16 @@ class RPGService:
             for reinforce in effect.special.critical_reinforce:
                 multiplier *= 1 + overflow * reinforce.ratio
         return multiplier
+
+    def _ability_recast_count(self, effects: list[ActiveEffect] | None) -> int:
+        if not effects:
+            return 0
+        count = 0
+        for effect in effects:
+            if not self._effect_active(effect):
+                continue
+            count += sum(max(0, int(recast.count)) for recast in effect.special.ability_recast)
+        return count
 
     def _roll_attack_repeats(self, stats: CombatStats) -> int:
         triple_rate = max(0.0, min(1.0, stats.triple_attack_rate))
