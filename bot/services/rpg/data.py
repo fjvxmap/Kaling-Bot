@@ -494,6 +494,22 @@ class GachaPool:
 
 
 @dataclass(frozen=True)
+class EnhancementMethod:
+    id: str
+    name: str
+    description: str = ""
+    gold_cost_mode: str = "formula"
+    gold_cost: int = 0
+    material_costs: dict[str, int] = field(default_factory=dict)
+    odds_mode: str = "formula"
+    success: float | None = None
+    fail: float | None = None
+    destroy: float | None = None
+    min_stars: int = 0
+    max_stars: int = 999
+
+
+@dataclass(frozen=True)
 class CraftingRecipe:
     id: str
     name: str
@@ -1286,6 +1302,64 @@ def _gacha_pool(raw: dict[str, Any], defaults: dict[str, Any]) -> GachaPool:
     )
 
 
+def _cost_materials(raw: Any) -> dict[str, int]:
+    if isinstance(raw, dict):
+        return {
+            str(material_id): max(1, _safe_int(amount, 1))
+            for material_id, amount in raw.items()
+            if str(material_id)
+        }
+    if isinstance(raw, list):
+        costs: dict[str, int] = {}
+        for entry in raw:
+            if not isinstance(entry, dict):
+                continue
+            material_id = str(entry.get("id", entry.get("material_id", "")))
+            if not material_id:
+                continue
+            costs[material_id] = costs.get(material_id, 0) + max(1, _safe_int(entry.get("amount", 1), 1))
+        return costs
+    return {}
+
+
+def _enhancement_method(raw: dict[str, Any], index: int) -> EnhancementMethod:
+    gold_raw = raw.get("gold", raw.get("gold_cost", {}))
+    if isinstance(gold_raw, dict):
+        gold_mode = str(gold_raw.get("mode", "formula") or "formula")
+        gold_amount = max(0, _safe_int(gold_raw.get("amount", gold_raw.get("value", 0)), 0))
+    else:
+        gold_mode = "fixed"
+        gold_amount = max(0, _safe_int(gold_raw, 0))
+    if gold_mode not in {"formula", "fixed", "none"}:
+        gold_mode = "formula"
+
+    odds_raw = raw.get("odds", {})
+    odds_raw = odds_raw if isinstance(odds_raw, dict) else {}
+    odds_mode = str(odds_raw.get("mode", "formula") or "formula")
+    if odds_mode not in {"formula", "fixed"}:
+        odds_mode = "formula"
+
+    def optional_chance(key: str) -> float | None:
+        if key not in odds_raw or odds_raw.get(key) in (None, ""):
+            return None
+        return _clamped_chance(odds_raw.get(key), 0.0)
+
+    return EnhancementMethod(
+        id=str(raw.get("id", f"method_{index}")),
+        name=str(raw.get("name", raw.get("id", f"강화 방식 {index}"))),
+        description=str(raw.get("description", "")),
+        gold_cost_mode=gold_mode,
+        gold_cost=gold_amount,
+        material_costs=_cost_materials(raw.get("materials", raw.get("material_costs", {}))),
+        odds_mode=odds_mode,
+        success=optional_chance("success"),
+        fail=optional_chance("fail"),
+        destroy=optional_chance("destroy"),
+        min_stars=max(0, _safe_int(raw.get("min_stars", 0), 0)),
+        max_stars=max(1, _safe_int(raw.get("max_stars", MAX_ENHANCEMENT_STARS), MAX_ENHANCEMENT_STARS)),
+    )
+
+
 def _crafting_recipe(raw: dict[str, Any]) -> CraftingRecipe:
     return CraftingRecipe(
         id=str(raw["id"]),
@@ -1728,6 +1802,7 @@ RARITY_PRICE_MULTIPLIERS = {
     str(key): float(value)
     for key, value in _RARITY_DATA.get("price_multipliers", {}).items()
 }
+_ENHANCEMENT = CONTENT.get("enhancement", {})
 
 ITEM_CATALOG = [_item(item) for item in CONTENT.get("items", [])]
 ITEM_BY_ID = {item.id: item for item in ITEM_CATALOG}
@@ -1748,6 +1823,25 @@ MATERIALS_BY_RARITY = {
     rarity: [material for material in MATERIALS if material.rarity == rarity]
     for rarity in RARITIES
 }
+
+_ENHANCEMENT_METHOD_ROWS = _ENHANCEMENT.get("methods", [])
+if not isinstance(_ENHANCEMENT_METHOD_ROWS, list) or not _ENHANCEMENT_METHOD_ROWS:
+    _ENHANCEMENT_METHOD_ROWS = [
+        {
+            "id": "gold",
+            "name": "일반 강화",
+            "gold": {"mode": "formula", "amount": 0},
+            "materials": {},
+            "odds": {"mode": "formula"},
+        }
+    ]
+ENHANCEMENT_METHODS = [
+    _enhancement_method(method, index)
+    for index, method in enumerate(_ENHANCEMENT_METHOD_ROWS, start=1)
+    if isinstance(method, dict)
+]
+ENHANCEMENT_METHOD_BY_ID = {method.id: method for method in ENHANCEMENT_METHODS}
+DEFAULT_ENHANCEMENT_METHOD_ID = ENHANCEMENT_METHODS[0].id if ENHANCEMENT_METHODS else "gold"
 
 _GACHA_DATA = CONTENT.get("gacha", {})
 GACHA_POOLS = [
@@ -1805,6 +1899,19 @@ def _validate_content() -> None:
         for material_id in recipe.materials:
             if material_id not in MATERIAL_BY_ID:
                 errors.append(f"crafting recipe {recipe.id} material not found: {material_id}")
+    method_ids = [method.id for method in ENHANCEMENT_METHODS if method.id]
+    if len(method_ids) != len(set(method_ids)):
+        errors.append("enhancement methods have duplicate ids")
+    for method in ENHANCEMENT_METHODS:
+        if not method.id:
+            errors.append("enhancement method id is required")
+        if method.min_stars < 0:
+            errors.append(f"enhancement method {method.id} min stars must be non-negative")
+        if method.max_stars <= method.min_stars:
+            errors.append(f"enhancement method {method.id} max stars must be greater than min stars")
+        for material_id in method.material_costs:
+            if material_id not in MATERIAL_BY_ID:
+                errors.append(f"enhancement method {method.id} material not found: {material_id}")
     for dungeon in DUNGEONS:
         for enemy in dungeon.enemies:
             errors.extend(_validate_reward(enemy.rewards, f"enemy {enemy.id} rewards"))
@@ -1962,7 +2069,6 @@ def _validate_gacha_entry(entry: GachaEntry, label: str) -> list[str]:
 _validate_content()
 
 _LEVEL_CURVE = CONTENT.get("level_curve", {})
-_ENHANCEMENT = CONTENT.get("enhancement", {})
 PLAYER_START = dict(CONTENT.get("player", {}).get("start", {}))
 STAT_ALLOCATIONS = {
     str(stat_id): dict(rule)
@@ -2023,6 +2129,53 @@ def stat_delta(base_stats: dict[str, float], upgraded_stats: dict[str, float]) -
 
 def enhancement_cost(rarity: str, stars: int) -> int:
     return ENHANCE_BASE_COST[rarity] * (stars + 1) * (stars + 1)
+
+
+def enhancement_method(method_id: str | None = None) -> EnhancementMethod:
+    if method_id and method_id in ENHANCEMENT_METHOD_BY_ID:
+        return ENHANCEMENT_METHOD_BY_ID[method_id]
+    if DEFAULT_ENHANCEMENT_METHOD_ID in ENHANCEMENT_METHOD_BY_ID:
+        return ENHANCEMENT_METHOD_BY_ID[DEFAULT_ENHANCEMENT_METHOD_ID]
+    return EnhancementMethod(
+        id="gold",
+        name="일반 강화",
+        gold_cost_mode="formula",
+        odds_mode="formula",
+        max_stars=MAX_ENHANCEMENT_STARS,
+    )
+
+
+def enhancement_method_available(method: EnhancementMethod, stars: int) -> bool:
+    stars = max(0, int(stars))
+    return method.min_stars <= stars < min(method.max_stars, MAX_ENHANCEMENT_STARS)
+
+
+def enhancement_method_gold_cost(method: EnhancementMethod, rarity: str, stars: int) -> int:
+    if method.gold_cost_mode == "none":
+        return 0
+    if method.gold_cost_mode == "fixed":
+        return max(0, int(method.gold_cost))
+    return enhancement_cost(rarity, stars)
+
+
+def enhancement_method_odds(method: EnhancementMethod, rarity: str, stars: int) -> tuple[float, float, float]:
+    base_success, base_fail, base_destroy = enhancement_odds(rarity, stars)
+    if method.odds_mode == "fixed":
+        success = 0.0 if method.success is None else method.success
+        destroy = 0.0 if method.destroy is None else method.destroy
+        fail = method.fail if method.fail is not None else max(0.0, 1.0 - success - destroy)
+    else:
+        success = base_success if method.success is None else method.success
+        destroy = base_destroy if method.destroy is None else method.destroy
+        fail = method.fail if method.fail is not None else max(0.0, 1.0 - success - destroy)
+        if method.success is None and method.destroy is None and method.fail is None:
+            fail = base_fail
+    total = success + fail + destroy
+    if total > 1.0:
+        success /= total
+        fail /= total
+        destroy /= total
+    return success, fail, destroy
 
 
 def restore_cost(rarity: str) -> int:

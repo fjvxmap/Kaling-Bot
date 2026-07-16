@@ -17,6 +17,7 @@ from .data import (
     DUNGEON_BY_ID,
     DUNGEONS,
     EffectAction,
+    ENHANCEMENT_METHODS,
     EXPLORE_LIMIT_ENABLED,
     GACHA_DEFAULT_POOL_ID,
     GACHA_POOL_BY_ID,
@@ -59,6 +60,7 @@ from .data import (
     GachaEntry,
     GachaPool,
     HealCap,
+    EnhancementMethod,
     JobTemplate,
     MaterialTemplate,
     RewardItemDrop,
@@ -66,8 +68,10 @@ from .data import (
     RewardTemplate,
     SkillTemplate,
     StatEffect,
-    enhancement_cost,
-    enhancement_odds,
+    enhancement_method,
+    enhancement_method_available,
+    enhancement_method_gold_cost,
+    enhancement_method_odds,
     next_level_exp,
     previous_level_exp,
     restore_cost,
@@ -226,6 +230,9 @@ class EnhancementPreview:
     before_stars: int = 0
     after_stars: int = 0
     spare_item: ItemInstance | None = None
+    method_id: str = ""
+    method_name: str = ""
+    material_costs: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -240,6 +247,9 @@ class EnhancementResult:
     outcome: str = ""
     odds: tuple[float, float, float] = (0.0, 0.0, 0.0)
     spare_item: ItemInstance | None = None
+    method_id: str = ""
+    method_name: str = ""
+    material_costs: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -370,6 +380,9 @@ class RPGService:
 
     def materials(self) -> list[MaterialTemplate]:
         return list(MATERIALS)
+
+    def enhancement_methods(self) -> list[EnhancementMethod]:
+        return list(ENHANCEMENT_METHODS)
 
     def crafting_recipes(self) -> list[CraftingRecipe]:
         return list(CRAFTING_RECIPES)
@@ -787,8 +800,56 @@ class RPGService:
             profile.boss_clear_count += 1
         return reward
 
-    def enhancement_preview(self, user_id: int, display_name: str, item_uid: int) -> EnhancementPreview:
+    def _enhancement_costs(
+        self,
+        method: EnhancementMethod,
+        rarity: str,
+        stars: int,
+    ) -> tuple[int, dict[str, int], tuple[float, float, float]]:
+        return (
+            enhancement_method_gold_cost(method, rarity, stars),
+            dict(method.material_costs),
+            enhancement_method_odds(method, rarity, stars),
+        )
+
+    def _enhancement_requirement_message(
+        self,
+        profile: PlayerProfile,
+        gold_cost: int,
+        material_costs: dict[str, int],
+    ) -> str:
+        missing: list[str] = []
+        if gold_cost > profile.gold:
+            missing.append(f"골드 {gold_cost}G 필요, 보유 {profile.gold}G")
+        for material_id, amount in material_costs.items():
+            owned = int(profile.materials.get(material_id, 0))
+            if owned < amount:
+                missing.append(f"{self.material_name(material_id)} x{amount} 필요, 보유 x{owned}")
+        return "\n".join(missing)
+
+    def _consume_enhancement_costs(
+        self,
+        profile: PlayerProfile,
+        gold_cost: int,
+        material_costs: dict[str, int],
+    ) -> None:
+        profile.gold -= max(0, int(gold_cost))
+        for material_id, amount in material_costs.items():
+            remaining = int(profile.materials.get(material_id, 0)) - max(0, int(amount))
+            if remaining > 0:
+                profile.materials[material_id] = remaining
+            else:
+                profile.materials.pop(material_id, None)
+
+    def enhancement_preview(
+        self,
+        user_id: int,
+        display_name: str,
+        item_uid: int,
+        method_id: str | None = None,
+    ) -> EnhancementPreview:
         profile = self.get_profile(user_id, display_name)
+        method = enhancement_method(method_id)
         item = self._find_item(profile, item_uid)
         if item is None:
             return EnhancementPreview(False, "해당 장비를 찾지 못했습니다.", profile)
@@ -797,20 +858,37 @@ class RPGService:
         template = ITEM_BY_ID[item.template_id]
         if item.stars >= MAX_ENHANCEMENT_STARS:
             return EnhancementPreview(False, "이미 최대 강화 단계입니다.", profile, item)
+        if not enhancement_method_available(method, item.stars):
+            return EnhancementPreview(
+                False,
+                f"{method.name}은 현재 성급에서 사용할 수 없습니다.",
+                profile,
+                item,
+                method_id=method.id,
+                method_name=method.name,
+                material_costs=dict(method.material_costs),
+                before_stars=item.stars,
+                after_stars=min(MAX_ENHANCEMENT_STARS, item.stars + 1),
+            )
         before_stats = scaled_item_stats(item.template_id, item.stars)
         after_stats = scaled_item_stats(item.template_id, item.stars + 1)
+        gold_cost, material_costs, odds = self._enhancement_costs(method, template.rarity, item.stars)
+        missing = self._enhancement_requirement_message(profile, gold_cost, material_costs)
         return EnhancementPreview(
-            True,
-            "강화할 장비를 확인하세요.",
+            not missing,
+            missing if missing else "강화할 장비를 확인하세요.",
             profile,
             item,
-            enhancement_cost(template.rarity, item.stars),
-            enhancement_odds(template.rarity, item.stars),
+            gold_cost,
+            odds,
             before_stats,
             after_stats,
             stat_delta(before_stats, after_stats),
             item.stars,
             item.stars + 1,
+            method_id=method.id,
+            method_name=method.name,
+            material_costs=material_costs,
         )
 
     def restore_preview(
@@ -876,8 +954,15 @@ class RPGService:
             spare_item=spare,
         )
 
-    def enhance(self, user_id: int, display_name: str, item_uid: int) -> EnhancementResult:
+    def enhance(
+        self,
+        user_id: int,
+        display_name: str,
+        item_uid: int,
+        method_id: str | None = None,
+    ) -> EnhancementResult:
         profile = self.get_profile(user_id, display_name)
+        method = enhancement_method(method_id)
         item = self._find_item(profile, item_uid)
         if item is None:
             return EnhancementResult(False, "해당 장비를 찾지 못했습니다.", profile)
@@ -886,14 +971,40 @@ class RPGService:
         template = ITEM_BY_ID[item.template_id]
         if item.stars >= MAX_ENHANCEMENT_STARS:
             return EnhancementResult(False, "이미 최대 강화 단계입니다.", profile, item)
+        if not enhancement_method_available(method, item.stars):
+            return EnhancementResult(
+                False,
+                f"{method.name}은 현재 성급에서 사용할 수 없습니다.",
+                profile,
+                item,
+                before_stars=item.stars,
+                after_stars=item.stars,
+                outcome="unavailable",
+                method_id=method.id,
+                method_name=method.name,
+                material_costs=dict(method.material_costs),
+            )
 
-        cost = enhancement_cost(template.rarity, item.stars)
-        odds = enhancement_odds(template.rarity, item.stars)
+        cost, material_costs, odds = self._enhancement_costs(method, template.rarity, item.stars)
         before = item.stars
-        if profile.gold < cost:
-            return EnhancementResult(False, f"골드가 부족합니다. 필요: {cost}G, 보유: {profile.gold}G", profile, item, cost, before, before, "no_gold", odds)
+        missing = self._enhancement_requirement_message(profile, cost, material_costs)
+        if missing:
+            return EnhancementResult(
+                False,
+                missing,
+                profile,
+                item,
+                cost,
+                before,
+                before,
+                "missing_cost",
+                odds,
+                method_id=method.id,
+                method_name=method.name,
+                material_costs=material_costs,
+            )
 
-        profile.gold -= cost
+        self._consume_enhancement_costs(profile, cost, material_costs)
         roll = self.rng.random()
         success, _fail, destroy = odds
         if roll < success:
@@ -909,7 +1020,20 @@ class RPGService:
         else:
             outcome = "failed"
         self._save()
-        return EnhancementResult(True, "강화 완료", profile, item, cost, before, item.stars, outcome, odds)
+        return EnhancementResult(
+            True,
+            "강화 완료",
+            profile,
+            item,
+            cost,
+            before,
+            item.stars,
+            outcome,
+            odds,
+            method_id=method.id,
+            method_name=method.name,
+            material_costs=material_costs,
+        )
 
     def restore(
         self,

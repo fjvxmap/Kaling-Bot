@@ -2,6 +2,7 @@ const TABS = [
   { id: "items", label: "장비" },
   { id: "materials", label: "재료" },
   { id: "crafting_recipes", label: "제작" },
+  { id: "enhancement", label: "강화" },
   { id: "gacha", label: "가챠" },
   { id: "dungeons", label: "던전" },
   { id: "bosses", label: "보스" },
@@ -18,8 +19,18 @@ const ADVANCED_KEYS = [
   "level_curve",
   "player",
   "stat_allocation",
-  "enhancement",
   "gacha",
+];
+
+const GOLD_COST_MODES = [
+  ["formula", "등급/성급 공식"],
+  ["fixed", "고정 골드"],
+  ["none", "골드 없음"],
+];
+
+const ENHANCEMENT_ODDS_MODES = [
+  ["formula", "기본 확률 공식"],
+  ["fixed", "직접 지정"],
 ];
 
 const GACHA_ENTRY_TYPES = [
@@ -307,6 +318,8 @@ function render(options = {}) {
     renderMaterials();
   } else if (state.tab === "crafting_recipes") {
     renderRecipes();
+  } else if (state.tab === "enhancement") {
+    renderEnhancement();
   } else if (state.tab === "gacha") {
     renderGacha();
   } else if (state.tab === "dungeons") {
@@ -617,6 +630,164 @@ function renderRecipeDetail(recipe) {
     materialCostEditor(recipe),
   ]);
   mainDetail("제작식 편집", recipe, body);
+}
+
+function renderEnhancement() {
+  const enhancement = normalizeEnhancementConfig();
+  const star = enhancement.star_multiplier;
+  const odds = enhancement.odds;
+  const sell = enhancement.sell_rates;
+  const globalPanel = el("section", { className: "panel" }, [
+    el("div", { className: "panel-header" }, [
+      el("h2", {}, "강화 설정"),
+      el("button", {
+        type: "button",
+        onclick: () => {
+          enhancement.methods.push(blankEnhancementMethod(enhancement));
+          markDirty();
+          render();
+        },
+      }, "강화 방식 추가"),
+    ]),
+    el("div", { className: "panel-body" }, [
+      el("section", { className: "section subtle" }, [
+        el("div", { className: "section-head" }, [el("h3", {}, "성급 능력치 배율")]),
+        el("div", { className: "form-grid four" }, [
+          numberField("선형 증가", star, "linear", { step: 0.01 }),
+          numberField("제곱 증가", star, "quadratic", { step: 0.01 }),
+          numberField("초반 보너스", star, "early_bonus", { step: 0.01 }),
+          numberField("초반 보너스 한계", star, "early_bonus_cap", { step: 1 }),
+        ]),
+      ]),
+      el("section", { className: "section subtle" }, [
+        el("div", { className: "section-head" }, [el("h3", {}, "기본 강화 확률")]),
+        el("div", { className: "form-grid four" }, [
+          numberField("성공 기본값", odds, "success_base", { step: 0.01 }),
+          numberField("성급 성공 감소", odds, "success_star_penalty", { step: 0.001 }),
+          numberField("등급 성공 감소", odds, "success_tier_penalty", { step: 0.001 }),
+          numberField("성공 하한", odds, "success_floor", { step: 0.01 }),
+          numberField("파괴 시작 성급", odds, "destroy_min_stars", { step: 1 }),
+          numberField("파괴 증가량", odds, "destroy_scale", { step: 0.001 }),
+          numberField("파괴 상한", odds, "destroy_cap", { step: 0.01 }),
+        ]),
+      ]),
+      el("section", { className: "section subtle" }, [
+        el("div", { className: "section-head" }, [el("h3", {}, "판매율")]),
+        el("div", { className: "form-grid two" }, [
+          numberField("일반 판매율", sell, "normal", { step: 0.01 }),
+          numberField("흔적 판매율", sell, "destroyed", { step: 0.01 }),
+        ]),
+      ]),
+    ]),
+  ]);
+  const methodPanels = enhancement.methods.map((method, index) => enhancementMethodEditor(enhancement, method, index));
+  main.replaceChildren(el("div", { className: "rows" }, [globalPanel, ...methodPanels]));
+}
+
+function enhancementMethodEditor(enhancement, method, index) {
+  normalizeEnhancementMethod(method, index + 1);
+  return el("section", { className: "panel" }, [
+    el("div", { className: "panel-header" }, [
+      el("h2", {}, method.name || method.id),
+      el("button", {
+        type: "button",
+        className: "danger",
+        onclick: () => {
+          if (!confirm(`${method.name || method.id} 삭제?`)) {
+            return;
+          }
+          enhancement.methods.splice(index, 1);
+          markDirty();
+          render();
+        },
+      }, "삭제"),
+    ]),
+    el("div", { className: "panel-body" }, [
+      el("div", { className: "form-grid three" }, [
+        nestedIdField("방식 ID", method, enhancement.methods),
+        textField("이름", method, "name"),
+        textAreaField("설명", method, "description", { full: true }),
+        numberField("사용 가능 최소 성급", method, "min_stars", { step: 1 }),
+        numberField("도달 가능 최대 성급", method, "max_stars", { step: 1 }),
+      ]),
+      el("section", { className: "section subtle" }, [
+        el("div", { className: "section-head" }, [el("h3", {}, "골드 비용")]),
+        el("div", { className: "form-grid two" }, [
+          selectField("방식", method.gold, "mode", GOLD_COST_MODES, { rerender: true }),
+          ...(method.gold.mode === "fixed" ? [numberField("고정 골드", method.gold, "amount", { step: 1 })] : []),
+        ]),
+      ]),
+      materialCostEditor(method, "강화 재료"),
+      el("section", { className: "section subtle" }, [
+        el("div", { className: "section-head" }, [el("h3", {}, "강화 확률")]),
+        el("div", { className: "form-grid four" }, [
+          selectField("방식", method.odds, "mode", ENHANCEMENT_ODDS_MODES, { rerender: true }),
+          optionalNumberField("성공 확률", method.odds, "success", { step: 0.01 }),
+          optionalNumberField("실패 확률", method.odds, "fail", { step: 0.01 }),
+          optionalNumberField("파괴 확률", method.odds, "destroy", { step: 0.01 }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+function normalizeEnhancementConfig() {
+  const enhancement = state.content.enhancement ||= {};
+  enhancement.star_multiplier ||= {};
+  enhancement.odds ||= {};
+  enhancement.sell_rates ||= {};
+  enhancement.star_multiplier.linear ??= 0.24;
+  enhancement.star_multiplier.quadratic ??= 0.03;
+  enhancement.star_multiplier.early_bonus ??= 0.03;
+  enhancement.star_multiplier.early_bonus_cap ??= 3;
+  enhancement.odds.success_base ??= 0.86;
+  enhancement.odds.success_star_penalty ??= 0.055;
+  enhancement.odds.success_tier_penalty ??= 0.045;
+  enhancement.odds.success_floor ??= 0.15;
+  enhancement.odds.destroy_min_stars ??= 2;
+  enhancement.odds.destroy_scale ??= 0.008;
+  enhancement.odds.destroy_cap ??= 0.38;
+  enhancement.sell_rates.normal ??= 0.38;
+  enhancement.sell_rates.destroyed ??= 0.16;
+  enhancement.methods = Array.isArray(enhancement.methods) && enhancement.methods.length
+    ? enhancement.methods
+    : [blankEnhancementMethod(enhancement, "gold")];
+  enhancement.methods.forEach((method, index) => normalizeEnhancementMethod(method, index + 1));
+  return enhancement;
+}
+
+function normalizeEnhancementMethod(method, index = 1) {
+  method.id ||= nextId(`method_${index}`, state.content.enhancement?.methods || []);
+  method.name ||= method.id;
+  method.description ||= "";
+  method.gold = method.gold && typeof method.gold === "object"
+    ? method.gold
+    : { mode: "fixed", amount: Number(method.gold || method.gold_cost || 0) };
+  method.gold.mode = GOLD_COST_MODES.some(([mode]) => mode === method.gold.mode) ? method.gold.mode : "formula";
+  method.gold.amount = Number(method.gold.amount || 0);
+  method.materials = method.materials && typeof method.materials === "object" ? method.materials : {};
+  method.odds = method.odds && typeof method.odds === "object" ? method.odds : { mode: "formula" };
+  method.odds.mode = ENHANCEMENT_ODDS_MODES.some(([mode]) => mode === method.odds.mode) ? method.odds.mode : "formula";
+  method.min_stars = Number(method.min_stars || 0);
+  method.max_stars = Math.max(method.min_stars + 1, Number(method.max_stars || state.content.settings?.max_enhancement_stars || 10));
+  delete method.gold_cost;
+  delete method.material_costs;
+}
+
+function blankEnhancementMethod(enhancement, preferredId = "") {
+  const id = preferredId && !(enhancement.methods || []).some((method) => method.id === preferredId)
+    ? preferredId
+    : nextId("method", enhancement.methods || []);
+  return {
+    id,
+    name: preferredId === "gold" ? "일반 강화" : "새 강화 방식",
+    description: "",
+    gold: { mode: preferredId === "gold" ? "formula" : "fixed", amount: 0 },
+    materials: {},
+    odds: { mode: preferredId === "gold" ? "formula" : "fixed", success: 1, fail: 0, destroy: 0 },
+    min_stars: 0,
+    max_stars: state.content.settings?.max_enhancement_stars || 10,
+  };
 }
 
 function renderGacha() {
@@ -2883,7 +3054,7 @@ function rewardDropChanceFields(drop) {
   ];
 }
 
-function materialCostEditor(recipe) {
+function materialCostEditor(recipe, title = "제작 재료") {
   recipe.materials ||= {};
   const entries = Object.entries(recipe.materials);
   const addButton = el("button", {
@@ -2926,10 +3097,10 @@ function materialCostEditor(recipe) {
 
   return el("section", { className: "section" }, [
     el("div", { className: "section-head" }, [
-      el("h3", {}, "제작 재료"),
+      el("h3", {}, title),
       addButton,
     ]),
-    el("div", { className: "rows" }, rows.length ? rows : [el("div", { className: "empty" }, "제작 재료 없음")]),
+    el("div", { className: "rows" }, rows.length ? rows : [el("div", { className: "empty" }, `${title} 없음`)]),
   ]);
 }
 
@@ -4260,6 +4431,15 @@ function renameMaterialReferences(oldId, newId) {
         drop.id = newId;
         changed += 1;
       }
+    }
+  }
+  for (const method of state.content.enhancement?.methods || []) {
+    if (method.materials && Object.prototype.hasOwnProperty.call(method.materials, oldId)) {
+      const oldAmount = Number(method.materials[oldId] || 0);
+      const newAmount = Number(method.materials[newId] || 0);
+      delete method.materials[oldId];
+      method.materials[newId] = oldAmount + newAmount;
+      changed += 1;
     }
   }
   return changed;

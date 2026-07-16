@@ -14,6 +14,39 @@
     "destroy_scale": 0.008,
     "destroy_cap": 0.38
   },
+  "methods": [
+    {
+      "id": "gold",
+      "name": "일반 강화",
+      "description": "골드를 소모해 기존 강화 확률을 적용합니다.",
+      "gold": {
+        "mode": "formula",
+        "amount": 0
+      },
+      "materials": {},
+      "odds": {
+        "mode": "formula"
+      }
+    },
+    {
+      "id": "gold_brick",
+      "name": "히히이로카네 강화",
+      "description": "히히이로카네를 소모해 성급을 반드시 1 올립니다.",
+      "gold": {
+        "mode": "fixed",
+        "amount": 0
+      },
+      "materials": {
+        "gold_brick": 1
+      },
+      "odds": {
+        "mode": "fixed",
+        "success": 1.0,
+        "fail": 0.0,
+        "destroy": 0.0
+      }
+    }
+  ],
   "sell_rates": {
     "normal": 0.38,
     "destroyed": 0.16

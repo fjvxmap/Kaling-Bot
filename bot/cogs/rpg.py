@@ -3174,7 +3174,7 @@ class RPGCog(commands.Cog):
         embed.add_field(name="장비", value="\n".join(lines) if lines else "강화할 장비 없음", inline=False)
         if trace_count:
             embed.add_field(name="파괴 흔적", value=f"{trace_count}개 · 아래 `흔적 복구` 버튼에서 복구할 수 있습니다.", inline=False)
-        footer = f"보유 골드 {profile.gold}G"
+        footer = self._enhancement_footer(profile)
         if enhance_count > len(display_items):
             footer += " · 선택 UI는 높은 등급과 전투력 기준 25개만 표시"
         embed.set_footer(text=footer)
@@ -3188,21 +3188,38 @@ class RPGCog(commands.Cog):
         if preview.item is None:
             return embed
         embed.add_field(name="장비", value=self._item_display_title(preview.item), inline=False)
+        if preview.method_name:
+            embed.add_field(name="강화 방식", value=preview.method_name, inline=True)
         embed.add_field(name="현재 스탯", value=self.service.format_stats(preview.before_stats, signed=True), inline=False)
+        method_lines = []
+        for method in self.service.enhancement_methods()[:6]:
+            method_preview = self.service.enhancement_preview(
+                preview.profile.user_id,
+                preview.profile.display_name,
+                preview.item.uid,
+                method.id,
+            )
+            marker = "가능" if method_preview.ok else "불가"
+            method_lines.append(
+                f"`{marker}` {method.name}: "
+                f"{self._enhancement_cost_text(method_preview.cost, method_preview.material_costs)}"
+            )
+        if method_lines:
+            embed.add_field(name="강화 방식 목록", value="\n".join(method_lines), inline=False)
         effect_text = self.service.item_template_effects_text(preview.item.template_id)
         if effect_text:
             embed.add_field(name="영속 효과", value=self._trim(effect_text, 1024), inline=False)
-        if preview.ok:
+        if preview.delta_stats:
             success, fail, destroy = preview.odds
             embed.add_field(name="증가 스탯", value=self.service.format_stats(preview.delta_stats, signed=True), inline=False)
-            embed.add_field(name="비용", value=f"{preview.cost}G", inline=True)
+            embed.add_field(name="비용", value=self._enhancement_cost_text(preview.cost, preview.material_costs), inline=True)
             embed.add_field(
                 name="확률",
                 value=f"성공 {success * 100:.1f}% · 실패 {fail * 100:.1f}% · 파괴 {destroy * 100:.1f}%",
                 inline=False,
             )
             embed.add_field(name="강화 후", value=self.service.format_stats(preview.after_stats, signed=True), inline=False)
-        embed.set_footer(text=f"보유 골드 {preview.profile.gold}G")
+        embed.set_footer(text=self._enhancement_footer(preview.profile, preview.material_costs))
         return embed
 
     def _restore_preview_embed(self, preview: EnhancementPreview) -> discord.Embed:
@@ -3271,12 +3288,14 @@ class RPGCog(commands.Cog):
         embed = discord.Embed(title="장비 강화", description=result.message, color=color)
         if result.item is not None:
             embed.add_field(name="장비", value=self._item_display_title(result.item), inline=False)
+            if result.method_name:
+                embed.add_field(name="강화 방식", value=result.method_name, inline=True)
             if result.item.destroyed:
                 embed.add_field(name="흔적 정보", value=f"파괴 당시 +{result.item.stars}", inline=False)
             else:
                 embed.add_field(name="스탯", value=self.service.item_stats_text(result.item), inline=False)
-        if result.cost:
-            embed.add_field(name="비용", value=f"{result.cost}G", inline=True)
+        if result.cost or result.material_costs:
+            embed.add_field(name="비용", value=self._enhancement_cost_text(result.cost, result.material_costs), inline=True)
         if result.spare_item is not None:
             embed.add_field(name="소모 스페어", value=self._item_display_title(result.spare_item), inline=True)
         if result.outcome:
@@ -3286,7 +3305,9 @@ class RPGCog(commands.Cog):
                 "destroyed": "파괴",
                 "restored": "복구",
                 "no_gold": "골드 부족",
+                "missing_cost": "재화 부족",
                 "no_spare": "스페어 부족",
+                "unavailable": "사용 불가",
             }.get(result.outcome, result.outcome)
             if result.outcome == "destroyed":
                 result_text = f"{outcome_text} · +{result.before_stars} 흔적 생성"
@@ -3308,7 +3329,7 @@ class RPGCog(commands.Cog):
                 embed.add_field(
                     name="다음 강화",
                     value=(
-                        f"비용 {next_preview.cost}G\n"
+                        f"비용 {self._enhancement_cost_text(next_preview.cost, next_preview.material_costs)}\n"
                         f"성공 {success * 100:.1f}% · 실패 {fail * 100:.1f}% · 파괴 {destroy * 100:.1f}%"
                     ),
                     inline=False,
@@ -3320,8 +3341,25 @@ class RPGCog(commands.Cog):
                 )
             else:
                 embed.add_field(name="다음 강화", value=next_preview.message, inline=False)
-        embed.set_footer(text=f"보유 골드 {result.profile.gold}G")
+        embed.set_footer(text=self._enhancement_footer(result.profile, result.material_costs))
         return embed
+
+    def _enhancement_cost_text(self, gold: int, material_costs: dict[str, int] | None = None) -> str:
+        parts: list[str] = []
+        if gold:
+            parts.append(f"{gold}G")
+        for material_id, amount in (material_costs or {}).items():
+            parts.append(f"{self.service.material_name(material_id)} x{amount}")
+        return "\n".join(parts) if parts else "없음"
+
+    def _enhancement_footer(self, profile: PlayerProfile, material_costs: dict[str, int] | None = None) -> str:
+        parts = [f"보유 골드 {profile.gold}G"]
+        material_ids = set(material_costs or {})
+        for method in self.service.enhancement_methods():
+            material_ids.update(method.material_costs)
+        for material_id in sorted(material_ids):
+            parts.append(f"{self.service.material_name(material_id)} x{profile.materials.get(material_id, 0)}")
+        return " · ".join(parts)
 
     def _reward_text(self, reward) -> str:
         parts = []
@@ -4758,7 +4796,24 @@ class EnhancementView(discord.ui.View):
             )
         if options:
             self.add_item(EnhancementSelect(options))
-        self.add_item(EnhancementConfirmButton(disabled=selected_item is None))
+        methods = self.cog.service.enhancement_methods()[:4]
+        if methods:
+            for index, method in enumerate(methods):
+                preview = (
+                    self.cog.service.enhancement_preview(user_id, display_name, selected_item.uid, method.id)
+                    if selected_item is not None
+                    else None
+                )
+                self.add_item(
+                    EnhancementConfirmButton(
+                        method.id,
+                        method.name,
+                        primary=index == 0,
+                        disabled=selected_item is None or preview is None or not preview.ok,
+                    )
+                )
+        else:
+            self.add_item(EnhancementConfirmButton("gold", "강화", primary=True, disabled=selected_item is None))
         self.add_item(OpenRestoreViewButton(disabled=not self.cog._restore_trace_display_items(profile)))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -4790,10 +4845,18 @@ class EnhancementSelect(discord.ui.Select):
 
 
 class EnhancementConfirmButton(discord.ui.Button):
-    def __init__(self, *, disabled: bool = False) -> None:
+    def __init__(
+        self,
+        method_id: str,
+        method_name: str,
+        *,
+        primary: bool = False,
+        disabled: bool = False,
+    ) -> None:
+        self.method_id = method_id
         super().__init__(
-            label="강화",
-            style=discord.ButtonStyle.primary,
+            label=method_name[:80] if method_name else "강화",
+            style=discord.ButtonStyle.primary if primary else discord.ButtonStyle.secondary,
             disabled=disabled,
         )
 
@@ -4806,6 +4869,7 @@ class EnhancementConfirmButton(discord.ui.Button):
             self.view.user_id,
             self.view.display_name,
             self.view.selected_uid,
+            self.method_id,
         )
         selected_uid = result.item.uid if result.item is not None and not result.item.destroyed else None
         view = EnhancementView(self.view.cog, self.view.user_id, self.view.display_name, selected_uid)
@@ -4814,6 +4878,7 @@ class EnhancementConfirmButton(discord.ui.Button):
                 self.view.user_id,
                 self.view.display_name,
                 selected_uid,
+                result.method_id or self.method_id,
             )
             if selected_uid is not None
             else None

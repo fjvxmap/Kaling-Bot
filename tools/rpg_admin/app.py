@@ -105,6 +105,8 @@ def list_keys() -> set[str]:
 def normalize_content(content: dict[str, Any]) -> None:
     stat_order = [str(stat) for stat in content.get("stats", {}).get("order", [])]
     stat_order_index = {stat: index for index, stat in enumerate(stat_order)}
+    max_enhancement_stars = safe_int(content.get("settings", {}).get("max_enhancement_stars"), 10)
+    normalize_enhancement(content.setdefault("enhancement", {}), max_enhancement_stars)
     for item in content.get("items", []):
         if isinstance(item, dict):
             normalize_stats_map(item, "stats", stat_order_index)
@@ -964,6 +966,67 @@ def normalize_chance(value: Any, default: float) -> float:
     return max(0.0, min(1.0, chance))
 
 
+def normalize_enhancement(enhancement: dict[str, Any], max_enhancement_stars: int = 10) -> None:
+    if not isinstance(enhancement, dict):
+        return
+    enhancement.setdefault("star_multiplier", {})
+    enhancement.setdefault("odds", {})
+    enhancement.setdefault("sell_rates", {})
+    methods = enhancement.get("methods")
+    if not isinstance(methods, list) or not methods:
+        methods = [
+            {
+                "id": "gold",
+                "name": "일반 강화",
+                "gold": {"mode": "formula", "amount": 0},
+                "materials": {},
+                "odds": {"mode": "formula"},
+            }
+        ]
+    enhancement["methods"] = [
+        normalize_enhancement_method(method, index, max_enhancement_stars)
+        for index, method in enumerate(methods, start=1)
+        if isinstance(method, dict)
+    ]
+
+
+def normalize_enhancement_method(method: dict[str, Any], index: int, max_enhancement_stars: int = 10) -> dict[str, Any]:
+    method["id"] = str(method.get("id") or f"method_{index}")
+    method["name"] = str(method.get("name") or method["id"])
+    method["description"] = str(method.get("description", ""))
+    gold = method.get("gold", method.get("gold_cost", {}))
+    if not isinstance(gold, dict):
+        gold = {"mode": "fixed", "amount": safe_int(gold, 0)}
+    mode = str(gold.get("mode", "formula") or "formula")
+    if mode not in {"formula", "fixed", "none"}:
+        mode = "formula"
+    method["gold"] = {
+        "mode": mode,
+        "amount": max(0, safe_int(gold.get("amount", gold.get("value", 0)), 0)),
+    }
+    odds = method.get("odds", {})
+    odds = odds if isinstance(odds, dict) else {}
+    odds_mode = str(odds.get("mode", "formula") or "formula")
+    if odds_mode not in {"formula", "fixed"}:
+        odds_mode = "formula"
+    normalized_odds = {"mode": odds_mode}
+    for key in ("success", "fail", "destroy"):
+        if odds.get(key) not in (None, ""):
+            normalized_odds[key] = normalize_chance(odds.get(key), 0.0)
+    method["odds"] = normalized_odds
+    materials = method.get("materials", method.get("material_costs", {}))
+    method["materials"] = {
+        str(material_id): max(1, safe_int(amount, 1))
+        for material_id, amount in (materials.items() if isinstance(materials, dict) else [])
+        if str(material_id)
+    }
+    method["min_stars"] = max(0, safe_int(method.get("min_stars"), 0))
+    method["max_stars"] = max(method["min_stars"] + 1, safe_int(method.get("max_stars"), max_enhancement_stars))
+    method.pop("gold_cost", None)
+    method.pop("material_costs", None)
+    return method
+
+
 def backup_content(retention: int = DEFAULT_BACKUP_RETENTION) -> Path:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     destination = BACKUP_DIR / timestamp
@@ -1018,6 +1081,7 @@ def validate_content(content: dict[str, Any]) -> list[str]:
     dungeons = ensure_unique_ids(content.get("dungeons", []), "dungeon", errors)
     bosses = ensure_unique_ids(content.get("bosses", []), "boss", errors)
     validate_settings(content.get("settings", {}), errors)
+    validate_enhancement(content.get("enhancement", {}), materials, errors)
 
     for item in content.get("items", []):
         check_rarity(item.get("rarity"), rarities, f"item {item.get('id')}", errors)
@@ -1558,6 +1622,48 @@ def validate_settings(settings: Any, errors: list[str]) -> None:
             errors.append(f"settings reward_multipliers {key} is not a number")
         elif value < 0:
             errors.append(f"settings reward_multipliers {key} must be non-negative")
+
+
+def validate_enhancement(enhancement: Any, material_ids: set[str], errors: list[str]) -> None:
+    if not isinstance(enhancement, dict):
+        errors.append("enhancement is not an object")
+        return
+    methods = enhancement.get("methods", [])
+    if not isinstance(methods, list):
+        errors.append("enhancement methods is not an array")
+        return
+    seen: set[str] = set()
+    for index, method in enumerate(methods, start=1):
+        if not isinstance(method, dict):
+            errors.append(f"enhancement method {index} is not an object")
+            continue
+        method_id = str(method.get("id", ""))
+        if not method_id:
+            errors.append(f"enhancement method {index} id is required")
+        elif method_id in seen:
+            errors.append(f"enhancement method duplicate id: {method_id}")
+        seen.add(method_id)
+        gold = method.get("gold", {})
+        if isinstance(gold, dict) and str(gold.get("mode", "formula")) not in {"formula", "fixed", "none"}:
+            errors.append(f"enhancement method {method_id} gold mode is invalid")
+        odds = method.get("odds", {})
+        if isinstance(odds, dict) and str(odds.get("mode", "formula")) not in {"formula", "fixed"}:
+            errors.append(f"enhancement method {method_id} odds mode is invalid")
+        min_stars = safe_int(method.get("min_stars"), 0)
+        max_stars = safe_int(method.get("max_stars"), 10)
+        if min_stars < 0:
+            errors.append(f"enhancement method {method_id} min stars must be non-negative")
+        if max_stars <= min_stars:
+            errors.append(f"enhancement method {method_id} max stars must be greater than min stars")
+        materials = method.get("materials", {})
+        if not isinstance(materials, dict):
+            errors.append(f"enhancement method {method_id} materials is not an object")
+            continue
+        for material_id, amount in materials.items():
+            if material_id not in material_ids:
+                errors.append(f"enhancement method {method_id} material not found: {material_id}")
+            if safe_int(amount, 0) < 1:
+                errors.append(f"enhancement method {method_id} material amount must be at least 1: {material_id}")
 
 
 def validate_combat_effects(effects: Any, label: str, errors: list[str]) -> None:

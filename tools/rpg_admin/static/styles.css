@@ -348,6 +348,14 @@ textarea {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.form-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.form-grid.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .field {
   display: grid;
   gap: 5px;
@@ -668,7 +676,9 @@ details.subpanel > summary.subpanel-head {
   }
 
   .form-grid,
+  .form-grid.two,
   .form-grid.three,
+  .form-grid.four,
   .row,
   .row.two,
   .row.three,
