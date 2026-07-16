@@ -21,6 +21,9 @@
     "critical_damage": 0,
     "double_attack_rate": 0,
     "triple_attack_rate": 0,
-    "life_steal": 0
+    "life_steal": 0,
+    "life_steal_cap": 0.01,
+    "healing_bonus": 0,
+    "heal_cap_bonus": 0
   }
 }

@@ -820,7 +820,7 @@ class RPGCog(commands.Cog):
                 actual_dealt_damage,
                 actual_dealt_segments,
             )
-        skill_heal = self._apply_boss_skill_heal(session, participant, skill, skill_result.raw_heals)
+        skill_heal = self._apply_boss_skill_heal(session, participant, skill, skill_result.raw_heals, player_stats)
         debuff_count = self._debuff_effect_count(skill) * skill_result.activations
         self._add_warning_progress(participant, "damage", skill_result.damage)
         self._add_warning_progress(participant, "ability_damage", skill_result.damage)
@@ -1587,6 +1587,7 @@ class RPGCog(commands.Cog):
         participant: BossParticipant,
         skill: SkillTemplate,
         raw_heals: list[int] | int,
+        caster_stats,
     ) -> int:
         if isinstance(raw_heals, int):
             raw_heal_values = [raw_heals] if raw_heals > 0 else []
@@ -1607,7 +1608,12 @@ class RPGCog(commands.Cog):
                 target.player_stack_effects,
             )
             for raw_heal in raw_heal_values:
-                heal = self.service._apply_heal_cap(raw_heal, skill.heal_cap, stats.final_hp)
+                heal = self.service._apply_heal_cap(
+                    raw_heal,
+                    skill.heal_cap,
+                    stats.final_hp,
+                    heal_cap_bonus=caster_stats.heal_cap_bonus,
+                )
                 if heal <= 0:
                     continue
                 before = target.hp

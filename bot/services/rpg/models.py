@@ -61,6 +61,8 @@ class PlayerProfile:
     triple_attack_rate: float = 0.0
     life_steal: float = 0.0
     life_steal_cap: float = 0.01
+    healing_bonus: float = 0.0
+    heal_cap_bonus: float = 0.0
     daily_date: str = ""
     daily_explores_used: int = 0
     weekly_boss_clears: dict[str, str] = field(default_factory=dict)
@@ -134,6 +136,8 @@ class PlayerProfile:
         profile.defense_ignore = max(0.0, float(profile.defense_ignore))
         profile.life_steal = max(0.0, float(profile.life_steal))
         profile.life_steal_cap = max(0.0, float(profile.life_steal_cap))
+        profile.healing_bonus = float(profile.healing_bonus)
+        profile.heal_cap_bonus = float(profile.heal_cap_bonus)
         profile.daily_explores_used = max(0, int(profile.daily_explores_used))
         profile.equipment_initialized = bool(data.get("equipment_initialized", has_equipment_field))
         profile.equipped_item_uids = list(dict.fromkeys(
@@ -180,6 +184,8 @@ class CombatStats:
     triple_attack_rate: float = 0.0
     life_steal: float = 0.0
     life_steal_cap: float = 0.01
+    healing_bonus: float = 0.0
+    heal_cap_bonus: float = 0.0
 
     @property
     def final_hp(self) -> int:

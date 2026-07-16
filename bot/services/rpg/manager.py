@@ -1624,7 +1624,7 @@ class RPGService:
         if heal_skills:
             heal_skills.sort(key=lambda skill: skill.heal_power, reverse=True)
             best_heal = heal_skills[0]
-            expected_heal = self._outgoing_damage(player_stats, player_hp) * best_heal.heal_power
+            expected_heal = self._direct_heal_amount(player_stats, best_heal.heal_power)
             missing_hp = player_stats.final_hp - player_hp
             if player_ratio <= 0.55 or missing_hp >= expected_heal * 0.65 or incoming >= player_hp * 0.65:
                 return best_heal
@@ -1822,11 +1822,15 @@ class RPGService:
                 )
 
             if skill.heal_power > 0:
-                outgoing = self._outgoing_damage(player_stats, player_hp)
-                raw_heal = max(1, int(outgoing * skill.heal_power))
+                raw_heal = self._direct_heal_amount(player_stats, skill.heal_power)
                 result.raw_heal += raw_heal
                 result.raw_heals.append(raw_heal)
-                result.heal += self._apply_heal_cap(raw_heal, skill.heal_cap, player_stats.final_hp)
+                result.heal += self._apply_heal_cap(
+                    raw_heal,
+                    skill.heal_cap,
+                    player_stats.final_hp,
+                    heal_cap_bonus=player_stats.heal_cap_bonus,
+                )
 
             dispels, clear_alls = self._apply_effect_actions(
                 skill.effect_actions,
@@ -1972,6 +1976,8 @@ class RPGService:
             triple_attack_rate=float(profile.triple_attack_rate),
             life_steal=float(profile.life_steal),
             life_steal_cap=float(profile.life_steal_cap),
+            healing_bonus=float(profile.healing_bonus),
+            heal_cap_bonus=float(profile.heal_cap_bonus),
         )
         for key, value in self.current_job(profile).stats.items():
             self._apply_stat(stats, key, value)
@@ -1984,6 +1990,8 @@ class RPGService:
         stats.defense_ignore = max(0.0, min(0.4, float(stats.defense_ignore)))
         stats.skill_dmg_supplement = max(0.0, min(200.0, float(stats.skill_dmg_supplement)))
         stats.life_steal_cap = max(0.0, float(stats.life_steal_cap))
+        stats.healing_bonus = max(-1.0, float(stats.healing_bonus))
+        stats.heal_cap_bonus = max(-1.0, float(stats.heal_cap_bonus))
         return stats
 
     def _enemy_stats(self, raw_stats: dict[str, float], *, level: int = 1) -> CombatStats:
@@ -2010,11 +2018,15 @@ class RPGService:
             triple_attack_rate=float(raw_stats.get("triple_attack_rate", 0.0)),
             life_steal=float(raw_stats.get("life_steal", 0.0)),
             life_steal_cap=float(raw_stats.get("life_steal_cap", 0.01)),
+            healing_bonus=float(raw_stats.get("healing_bonus", 0.0)),
+            heal_cap_bonus=float(raw_stats.get("heal_cap_bonus", 0.0)),
         )
         stats.defense = self._capped_defense(stats.defense)
         stats.defense_ignore = max(0.0, min(0.4, float(stats.defense_ignore)))
         stats.skill_dmg_supplement = max(0.0, min(200.0, float(stats.skill_dmg_supplement)))
         stats.life_steal_cap = max(0.0, float(stats.life_steal_cap))
+        stats.healing_bonus = max(-1.0, float(stats.healing_bonus))
+        stats.heal_cap_bonus = max(-1.0, float(stats.heal_cap_bonus))
         return stats
 
     def _stats_with_effects(
@@ -2045,6 +2057,8 @@ class RPGService:
         stats.defense_ignore = max(0.0, min(0.4, float(stats.defense_ignore)))
         stats.skill_dmg_supplement = max(0.0, min(200.0, float(stats.skill_dmg_supplement)))
         stats.life_steal_cap = max(0.0, float(stats.life_steal_cap))
+        stats.healing_bonus = max(-1.0, float(stats.healing_bonus))
+        stats.heal_cap_bonus = max(-1.0, float(stats.heal_cap_bonus))
         return stats
 
     def _effects_with_stacks(
@@ -3075,6 +3089,21 @@ class RPGService:
         amplification = max(0.0, 1 + float(stats.dmg_amplification))
         return max(0, int(round(amount * amplification)))
 
+    def _healing_bonus_multiplier(self, stats: CombatStats) -> float:
+        return max(0.0, 1.0 + float(stats.healing_bonus))
+
+    def _heal_cap_bonus_multiplier(self, heal_cap_bonus: float) -> float:
+        return max(0.0, 1.0 + float(heal_cap_bonus))
+
+    def _direct_heal_amount(self, stats: CombatStats, heal_power: float) -> int:
+        if heal_power <= 0:
+            return 0
+        raw_heal = float(stats.base_atk) * float(heal_power) * self._healing_bonus_multiplier(stats)
+        return max(1, int(raw_heal))
+
+    def _increased_heal_amount(self, heal: int, stats: CombatStats) -> int:
+        return max(0, int(round(max(0, int(heal)) * self._healing_bonus_multiplier(stats))))
+
     def _life_steal_heal(
         self,
         stats: CombatStats,
@@ -3093,10 +3122,16 @@ class RPGService:
             if ratio <= 0:
                 continue
             effect_ratio_total += ratio
-            heal += self._apply_heal_cap(int(round(dealt_damage * ratio)), effect.heal_cap, target_max_hp)
+            raw_heal = self._increased_heal_amount(int(round(dealt_damage * ratio)), stats)
+            heal += self._apply_heal_cap(
+                raw_heal,
+                effect.heal_cap,
+                target_max_hp,
+                heal_cap_bonus=stats.heal_cap_bonus,
+            )
         base_ratio = max(0.0, stats.life_steal - effect_ratio_total)
         if base_ratio > 0:
-            heal += int(round(dealt_damage * base_ratio))
+            heal += self._increased_heal_amount(int(round(dealt_damage * base_ratio)), stats)
         return self._apply_life_steal_cap(max(0, heal), stats, target_max_hp)
 
     def _life_steal_heal_segments(
@@ -3124,14 +3159,22 @@ class RPGService:
                 remaining -= dealt
         return clamped
 
-    def _apply_heal_cap(self, heal: int, cap: HealCap | None, target_max_hp: int) -> int:
+    def _apply_heal_cap(
+        self,
+        heal: int,
+        cap: HealCap | None,
+        target_max_hp: int,
+        *,
+        heal_cap_bonus: float = 0.0,
+    ) -> int:
         heal = max(0, int(heal))
         if heal <= 0 or cap is None or not cap.has_cap:
             return heal
+        cap_multiplier = self._heal_cap_bonus_multiplier(heal_cap_bonus)
         if cap.mode == "flat":
-            limit = int(cap.value)
+            limit = int(cap.value * cap_multiplier)
         elif cap.mode == "max_hp_ratio":
-            limit = int(max(1, target_max_hp) * cap.value)
+            limit = int(max(1, target_max_hp) * cap.value * cap_multiplier)
         else:
             return heal
         return min(heal, max(0, limit))
@@ -3140,7 +3183,11 @@ class RPGService:
         heal = max(0, int(heal))
         if heal <= 0:
             return 0
-        limit = int(max(1, target_max_hp) * max(0.0, float(stats.life_steal_cap)))
+        limit = int(
+            max(1, target_max_hp)
+            * max(0.0, float(stats.life_steal_cap))
+            * self._heal_cap_bonus_multiplier(stats.heal_cap_bonus)
+        )
         return min(heal, max(0, limit))
 
     def _estimated_flat_mitigated_damage(self, damage: float, defender: CombatStats) -> float:

@@ -20,7 +20,9 @@
     "triple_attack_rate",
     "double_attack_rate",
     "life_steal",
-    "life_steal_cap"
+    "life_steal_cap",
+    "healing_bonus",
+    "heal_cap_bonus"
   ],
   "labels": {
     "base_atk": "기본 공격력",
@@ -43,7 +45,9 @@
     "triple_attack_rate": "트리플 어택 확률",
     "double_attack_rate": "더블 어택 확률",
     "life_steal": "생명력 흡수",
-    "life_steal_cap": "생명력 흡수 상한"
+    "life_steal_cap": "생명력 흡수 상한",
+    "healing_bonus": "회복량 증가",
+    "heal_cap_bonus": "회복 상한 증가"
   },
   "percent_stats": [
     "atk",
@@ -61,7 +65,9 @@
     "triple_attack_rate",
     "double_attack_rate",
     "life_steal",
-    "life_steal_cap"
+    "life_steal_cap",
+    "healing_bonus",
+    "heal_cap_bonus"
   ],
   "integer_stats": [
     "base_atk",
