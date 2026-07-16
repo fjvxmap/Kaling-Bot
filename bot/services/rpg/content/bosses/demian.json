@@ -350,6 +350,8 @@
   "hp_effects": [
     {
       "thresholds": [
+        0.85,
+        0.55,
         0.3
       ],
       "pattern": {
@@ -369,7 +371,7 @@
           }
         ],
         "duration": 0,
-        "threshold": 0.3,
+        "threshold": 0.85,
         "stats": {}
       }
     }

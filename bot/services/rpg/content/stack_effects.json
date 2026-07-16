@@ -334,7 +334,7 @@
         "target": "self",
         "operation": "decrease",
         "value": 2,
-        "required": 7,
+        "required": 5,
         "min_damage": 0
       }
     ],
@@ -493,7 +493,7 @@
         "target": "opponent",
         "operation": "increase",
         "value": 1,
-        "required": 450,
+        "required": 250,
         "min_damage": 0
       },
       {
