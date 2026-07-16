@@ -1807,6 +1807,7 @@ class RPGService:
             enemy_stacks=enemy_stack_effects,
             ally_stacks=ally_stack_effects,
             opponent_stacks=opponent_stack_effects,
+            source_role="player",
         )
         result.dispels += dispels
         result.clear_alls += clear_alls
@@ -1882,6 +1883,7 @@ class RPGService:
             enemy_stacks=player_stack_effects,
             ally_stacks=ally_stack_effects,
             opponent_stacks=opponent_stack_effects,
+            source_role="boss",
         )
         damage = 0
         if pattern.damage_multiplier > 0 and pattern.hits > 0:
@@ -2377,6 +2379,7 @@ class RPGService:
         enemy_stacks: list[ActiveStackEffect] | None = None,
         ally_stacks: list[list[ActiveStackEffect]] | None = None,
         opponent_stacks: list[list[ActiveStackEffect]] | None = None,
+        source_role: str = "player",
     ) -> tuple[int, int]:
         dispels = 0
         clear_alls = 0
@@ -2387,6 +2390,7 @@ class RPGService:
                 enemy_stacks=enemy_stacks,
                 ally_stacks=ally_stacks,
                 opponent_stacks=opponent_stacks,
+                source_role=source_role,
             ):
                 continue
             if action.action in STACK_EFFECT_ACTIONS:
@@ -2396,6 +2400,7 @@ class RPGService:
                     enemy_stacks=enemy_stacks,
                     ally_stacks=ally_stacks,
                     opponent_stacks=opponent_stacks,
+                    source_role=source_role,
                 )
                 for target in stack_targets:
                     self._apply_stack_action(target, action)
@@ -2413,6 +2418,7 @@ class RPGService:
                 enemy_stacks=enemy_stacks,
                 ally_stacks=ally_stacks,
                 opponent_stacks=opponent_stacks,
+                source_role=source_role,
             )
             for target_index, target in enumerate(targets):
                 stack_target = stack_targets[target_index] if target_index < len(stack_targets) else []
@@ -2434,6 +2440,7 @@ class RPGService:
         enemy_stacks: list[ActiveStackEffect] | None,
         ally_stacks: list[list[ActiveStackEffect]] | None,
         opponent_stacks: list[list[ActiveStackEffect]] | None,
+        source_role: str,
     ) -> bool:
         conditions = getattr(action, "conditions", None) or []
         if not conditions:
@@ -2445,6 +2452,7 @@ class RPGService:
                 enemy_stacks=enemy_stacks,
                 ally_stacks=ally_stacks,
                 opponent_stacks=opponent_stacks,
+                source_role=source_role,
             )
             if not stack_targets:
                 return False
@@ -2460,17 +2468,16 @@ class RPGService:
         enemy_stacks: list[ActiveStackEffect] | None,
         ally_stacks: list[list[ActiveStackEffect]] | None,
         opponent_stacks: list[list[ActiveStackEffect]] | None,
+        source_role: str,
     ) -> list[list[ActiveStackEffect]]:
-        normalized = {
-            "boss": "self",
-            "player": "enemy",
-        }.get(target, target)
+        normalized = self._normalize_stack_target_alias(target, source_role=source_role)
         return self._stack_action_targets(
             normalized,
             self_stacks=self_stacks,
             enemy_stacks=enemy_stacks,
             ally_stacks=ally_stacks,
             opponent_stacks=opponent_stacks,
+            source_role=source_role,
         )
 
     def _stack_condition_matches(self, stacks: list[ActiveStackEffect], condition) -> bool:
@@ -2500,7 +2507,9 @@ class RPGService:
         enemy_stacks: list[ActiveStackEffect] | None,
         ally_stacks: list[list[ActiveStackEffect]] | None,
         opponent_stacks: list[list[ActiveStackEffect]] | None,
+        source_role: str = "player",
     ) -> list[list[ActiveStackEffect]]:
+        target = self._normalize_stack_target_alias(target, source_role=source_role)
         self_stacks = self_stacks if self_stacks is not None else []
         enemy_stacks = enemy_stacks if enemy_stacks is not None else []
         if target in {"self", "me"}:
@@ -2510,6 +2519,19 @@ class RPGService:
         if target in {"opponent", "opponents", "enemies"}:
             return list(opponent_stacks or [enemy_stacks])
         return [enemy_stacks]
+
+    def _normalize_stack_target_alias(self, target: str, *, source_role: str) -> str:
+        if target == "boss":
+            return "self" if source_role == "boss" else "enemy"
+        if target in {"player", "participant", "user"}:
+            return "enemy" if source_role == "boss" else "self"
+        if target in {"caster", "holder"}:
+            return "self"
+        if target == "target":
+            return "enemy"
+        if target == "party":
+            return "allies"
+        return target
 
     def _apply_stack_action(self, stacks: list[ActiveStackEffect], action: EffectAction) -> None:
         template = STACK_EFFECT_BY_ID.get(action.stack_effect_id)
@@ -2574,7 +2596,9 @@ class RPGService:
                     continue
                 required = max(1, condition.required)
                 if objective in WARNING_STACK_EVENTS:
-                    times = max(1, progress // required)
+                    if progress < required:
+                        continue
+                    times = progress // required
                 else:
                     progress_key = self._stack_condition_progress_key(index, condition)
                     total_progress = max(0, current.condition_progress.get(progress_key, 0)) + progress
