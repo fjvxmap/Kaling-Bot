@@ -266,7 +266,7 @@ class RPGCog(commands.Cog):
         for boss in self.service.bosses():
             start_limit = self._boss_start_limit_text(profile, boss.id)
             lines.append(
-                f"**{boss.name}** · 자발 {start_limit}\n"
+                f"**{boss.name}** · Lv.{boss.level_req} · 자발 {start_limit}\n"
                 f"보상 {self.service.reward_summary(boss.rewards, base_gold=boss.gold, base_exp=boss.exp)} · {boss.description}"
             )
         embed = discord.Embed(
@@ -584,7 +584,7 @@ class RPGCog(commands.Cog):
         for boss in self.service.bosses():
             selected = " ← 선택됨" if boss.id == selected_boss_id else ""
             lines.append(
-                f"**{boss.name}** · 자발 {self._boss_start_limit_text(profile, boss.id)}{selected}"
+                f"**{boss.name}** · Lv.{boss.level_req} · 자발 {self._boss_start_limit_text(profile, boss.id)}{selected}"
             )
         embed.add_field(name="목록", value=self._trim("\n".join(lines), 1200), inline=False)
         selected = BOSS_BY_ID.get(selected_boss_id or "")
@@ -592,7 +592,7 @@ class RPGCog(commands.Cog):
             embed.add_field(
                 name="선택한 보스",
                 value=(
-                    f"**{selected.name}** · 자발 {self._boss_start_limit_text(profile, selected.id)}\n"
+                    f"**{selected.name}** · Lv.{selected.level_req} · 자발 {self._boss_start_limit_text(profile, selected.id)}\n"
                     f"보상 {self.service.reward_summary(selected.rewards, base_gold=selected.gold, base_exp=selected.exp)}\n"
                     f"{selected.description or '설명 없음'}"
                 ),
@@ -4094,7 +4094,7 @@ class BossPanelSelect(discord.ui.Select):
     def __init__(self) -> None:
         options = [
             discord.SelectOption(
-                label=boss.name[:100],
+                label=f"{boss.name} · Lv.{boss.level_req}"[:100],
                 value=boss.id,
                 description=boss.description[:100],
             )
