@@ -364,7 +364,7 @@ class RPGService:
         if not EXPLORE_LIMIT_ENABLED:
             return -1
         self._reset_daily_if_needed(profile)
-        return max(0, DAILY_EXPLORES - profile.daily_explores_used)
+        return max(0, int(profile.daily_explore_credits))
 
     def current_week_key(self) -> str:
         return self._week_key()
@@ -633,7 +633,7 @@ class RPGService:
             if remaining <= 0:
                 return ExploreBatchResult(
                     False,
-                    f"오늘 탐색 횟수를 모두 사용했습니다. 하루 {DAILY_EXPLORES}회까지 가능합니다.",
+                    f"탐색 횟수를 모두 사용했습니다. 매일 {DAILY_EXPLORES}회씩 충전됩니다.",
                     profile,
                     dungeon,
                     daily_remaining=0,
@@ -680,9 +680,10 @@ class RPGService:
             self._reset_daily_if_needed(profile)
             remaining = self.daily_remaining(profile)
             if remaining <= 0:
-                return ExploreResult(False, f"오늘 탐색 횟수를 모두 사용했습니다. 하루 {DAILY_EXPLORES}회까지 가능합니다.", profile, dungeon, daily_remaining=0)
+                return ExploreResult(False, f"탐색 횟수를 모두 사용했습니다. 매일 {DAILY_EXPLORES}회씩 충전됩니다.", profile, dungeon, daily_remaining=0)
         enemy = self._choose_enemy(dungeon)
         if EXPLORE_LIMIT_ENABLED:
+            profile.daily_explore_credits = max(0, int(profile.daily_explore_credits) - 1)
             profile.daily_explores_used += 1
         battle = self._simulate_battle(profile, enemy.name, self._enemy_stats(enemy.stats, level=dungeon.level_req))
         reward = RewardReport()
@@ -3682,10 +3683,25 @@ class RPGService:
         return kept_items, sold_items, sold_gold
 
     def _reset_daily_if_needed(self, profile: PlayerProfile) -> None:
-        today = self._today_key()
-        if profile.daily_date != today:
-            profile.daily_date = today
+        today = datetime.now(RPG_TIMEZONE).date()
+        today_key = today.isoformat()
+        try:
+            last_day = date.fromisoformat(profile.daily_date) if profile.daily_date else None
+        except ValueError:
+            last_day = None
+        if last_day is None:
+            profile.daily_date = today_key
+            if profile.daily_explore_credits <= 0:
+                profile.daily_explore_credits = max(0, DAILY_EXPLORES - int(profile.daily_explores_used))
             profile.daily_explores_used = 0
+            return
+        if last_day < today:
+            missed_days = (today - last_day).days
+            profile.daily_explore_credits = max(0, int(profile.daily_explore_credits)) + DAILY_EXPLORES * missed_days
+            profile.daily_date = today_key
+            profile.daily_explores_used = 0
+        elif last_day > today:
+            profile.daily_date = today_key
 
     def _today_key(self) -> str:
         return datetime.now(RPG_TIMEZONE).date().isoformat()

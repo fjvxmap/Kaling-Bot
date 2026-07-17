@@ -3577,7 +3577,7 @@ class RPGCog(commands.Cog):
     def _explore_limit_text(self, profile: PlayerProfile) -> str:
         if not self.service.explore_limit_enabled():
             return "무제한"
-        return f"{self.service.daily_remaining(profile)}/{DAILY_EXPLORES}회"
+        return f"{self.service.daily_remaining(profile)}회 보유 (매일 +{DAILY_EXPLORES})"
 
     def _profile_item(self, profile: PlayerProfile, uid: int | None):
         if uid is None:

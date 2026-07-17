@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field, fields
 from typing import Any
 
-from .data import MATERIAL_BY_ID, PLAYER_START
+from .data import DAILY_EXPLORES, MATERIAL_BY_ID, PLAYER_START
 
 
 @dataclass
@@ -65,6 +65,7 @@ class PlayerProfile:
     heal_cap_bonus: float = 0.0
     daily_date: str = ""
     daily_explores_used: int = 0
+    daily_explore_credits: int = 0
     weekly_boss_clears: dict[str, str] = field(default_factory=dict)
     boss_clear_count: int = 0
     dungeon_clear_count: int = 0
@@ -92,6 +93,7 @@ class PlayerProfile:
         known = {field.name for field in fields(cls)}
         profile = cls()
         has_equipment_field = "equipped_item_uids" in data
+        has_daily_credits = "daily_explore_credits" in data
         for key, value in data.items():
             if key not in known:
                 continue
@@ -139,6 +141,9 @@ class PlayerProfile:
         profile.healing_bonus = float(profile.healing_bonus)
         profile.heal_cap_bonus = float(profile.heal_cap_bonus)
         profile.daily_explores_used = max(0, int(profile.daily_explores_used))
+        profile.daily_explore_credits = max(0, int(profile.daily_explore_credits))
+        if not has_daily_credits:
+            profile.daily_explore_credits = max(0, DAILY_EXPLORES - profile.daily_explores_used)
         profile.equipment_initialized = bool(data.get("equipment_initialized", has_equipment_field))
         profile.equipped_item_uids = list(dict.fromkeys(
             uid for uid in profile.equipped_item_uids
