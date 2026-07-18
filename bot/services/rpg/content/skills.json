@@ -339,14 +339,14 @@
         "stat": "atk",
         "target": "self",
         "value": -0.25,
-        "duration": 7,
+        "duration": 12,
         "undispellable": false
       },
       {
         "stat": "defense",
         "target": "self",
         "value": -0.25,
-        "duration": 7,
+        "duration": 12,
         "undispellable": false
       }
     ],
