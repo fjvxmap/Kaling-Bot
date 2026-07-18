@@ -181,40 +181,24 @@
     "hits": 0,
     "player_mods": {},
     "enemy_mods": {},
-    "player_stat_effects": [
-      {
-        "stat": "triple_attack_rate",
-        "target": "self",
-        "value": 0.2,
-        "duration": 3,
-        "undispellable": false
-      },
-      {
-        "stat": "double_attack_rate",
-        "target": "self",
-        "value": 0.2,
-        "duration": 3,
-        "undispellable": false
-      }
-    ],
     "heal_power": 0,
     "damage_cut": 0,
     "job_ids": [
       "ranger"
     ],
     "note": "잔영이 남을 정도로 빠른 궁술을 구사한다.",
+    "stats": {},
+    "heal_target": "self",
     "player_effects": {
-      "bonus_damage": [
+      "ability_recast": [
         {
-          "ratio": 0.3,
-          "duration": 3,
-          "undispellable": false,
-          "target": "self"
+          "count": 1,
+          "target": "self",
+          "duration": 2,
+          "undispellable": true
         }
       ]
-    },
-    "stats": {},
-    "heal_target": "self"
+    }
   },
   {
     "id": "arrow_blaster",
@@ -2365,6 +2349,24 @@
     ],
     "job_ids": [],
     "note": "",
+    "stats": {}
+  },
+  {
+    "id": "decimate",
+    "name": "데시메이트",
+    "unlock_level": 1,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "attack",
+    "damage_multiplier": 0.1,
+    "hits": 5,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [],
+    "note": ".",
     "stats": {}
   }
 ]

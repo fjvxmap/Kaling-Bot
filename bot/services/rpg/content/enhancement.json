@@ -26,7 +26,9 @@
       "materials": {},
       "odds": {
         "mode": "formula"
-      }
+      },
+      "min_stars": 0,
+      "max_stars": 10
     },
     {
       "id": "gold_brick",
@@ -44,7 +46,9 @@
         "success": 1.0,
         "fail": 0.0,
         "destroy": 0.0
-      }
+      },
+      "min_stars": 0,
+      "max_stars": 10
     }
   ],
   "sell_rates": {
