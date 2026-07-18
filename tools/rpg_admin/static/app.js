@@ -1938,12 +1938,14 @@ function normalizeWarningTrigger(boss, warning, index, prefix, defaultObjective)
     name: warning.name || pattern.name || "전조",
     turns: Math.max(1, Number(warning.turns || 1)),
     pattern,
+    success_pattern: warning.success_pattern && typeof warning.success_pattern === "object" ? warning.success_pattern : undefined,
     objectives: warningObjectivesFromLegacy(warning, defaultObjective),
     failure_variants: Array.isArray(warning.failure_variants) ? warning.failure_variants : [],
   };
   template.pattern.id = template.id;
   template.pattern.name = template.name;
   normalizeFailureVariants(boss, template);
+  normalizeWarningSuccessPattern(boss, template);
   boss.warnings.push(template);
   warning.warning_id = template.id;
   delete warning.pattern;
@@ -1966,6 +1968,7 @@ function normalizeWarningTemplate(boss, warning) {
     }
   }
   normalizeBossPattern(boss, warning.pattern, "warning_failure", "전조 실패 효과");
+  normalizeWarningSuccessPattern(boss, warning);
   normalizeFailureVariants(boss, warning);
   warning.name ||= warning.pattern.name || warning.id || "전조";
   warning.id ||= nextId("warning", boss.warnings);
@@ -1981,6 +1984,7 @@ function blankBossPattern(boss, prefix, name) {
     name,
     damage_multiplier: 0,
     hits: 0,
+    self_hp_loss_ratio: 0,
     player_mods: {},
     boss_mods: {},
     player_stat_effects: [],
@@ -1996,6 +2000,7 @@ function normalizeBossPattern(boss, pattern, prefix, name) {
   pattern.damage_multiplier ??= 0;
   pattern.hits ??= 0;
   normalizePlainDamage(pattern);
+  normalizeSelfHpLoss(pattern);
   pattern.player_mods ||= {};
   pattern.boss_mods ||= {};
   pattern.duration ??= 0;
@@ -2035,6 +2040,32 @@ function normalizePlainDamage(pattern) {
     return;
   }
   pattern.plain_damage = { mode, value };
+}
+
+function normalizeSelfHpLoss(pattern) {
+  let raw = pattern.self_hp_loss_ratio ?? pattern.self_hp_loss ?? pattern.hp_loss_ratio ?? pattern.hp_loss ?? 0;
+  delete pattern.self_hp_loss;
+  delete pattern.hp_loss_ratio;
+  delete pattern.hp_loss;
+  if (raw && typeof raw === "object") {
+    raw = raw.value ?? raw.ratio ?? raw.amount ?? raw.percent ?? 0;
+  }
+  const value = Number(raw || 0);
+  pattern.self_hp_loss_ratio = Number.isFinite(value) ? Math.max(0, value) : 0;
+}
+
+function normalizeWarningSuccessPattern(boss, warning) {
+  let pattern = warning.success_pattern ?? warning.success_effect ?? warning.on_success;
+  delete warning.success_effect;
+  delete warning.on_success;
+  if (!pattern || typeof pattern !== "object") {
+    delete warning.success_pattern;
+    return;
+  }
+  pattern.id ||= nextId(`${warning.id || "warning"}_success`, bossWarningPatterns(boss));
+  pattern.name ||= `${warning.name || "전조"} 성공 효과`;
+  normalizeBossPattern(boss, pattern, `${warning.id || "warning"}_success`, pattern.name);
+  warning.success_pattern = pattern;
 }
 
 function normalizeFailureVariants(boss, warning) {
@@ -2086,6 +2117,7 @@ function bossWarningPatterns(boss) {
   return [
     ...(boss.patterns || []),
     ...(boss.warnings || []).map((warning) => warning.pattern).filter(Boolean),
+    ...(boss.warnings || []).map((warning) => warning.success_pattern).filter(Boolean),
     ...(boss.warnings || [])
       .flatMap((warning) => warning.failure_variants || [])
       .map((variant) => variant.pattern)
@@ -2643,7 +2675,51 @@ function bossWarningTemplatePanel(boss, warning, index) {
       collapsibleKey: warningPatternDetailKey(warning),
       defaultOpen: false,
     }),
+    warningSuccessEffectEditor(boss, warning),
     warningFailureVariantsEditor(boss, warning),
+  ]);
+}
+
+function warningSuccessEffectEditor(boss, warning) {
+  normalizeWarningSuccessPattern(boss, warning);
+  if (!warning.success_pattern) {
+    return el("section", { className: "section" }, [
+      el("div", { className: "section-head" }, [
+        el("h3", {}, "성공 효과"),
+        el("button", {
+          type: "button",
+          onclick: () => {
+            warning.success_pattern = blankBossPattern(
+              boss,
+              `${warning.id || "warning"}_success`,
+              `${warning.name || "전조"} 성공 효과`,
+            );
+            normalizeWarningSuccessPattern(boss, warning);
+            state.openDetails[warningSuccessPatternDetailKey(warning)] = true;
+            markDirty();
+            render();
+          },
+        }, "성공 효과 추가"),
+      ]),
+      el("div", { className: "empty" }, "성공 효과 없음"),
+    ]);
+  }
+  return el("section", { className: "section" }, [
+    el("div", { className: "section-head" }, [
+      el("h3", {}, "성공 효과"),
+      deleteButton(() => {
+        delete warning.success_pattern;
+        markDirty();
+        render();
+      }),
+    ]),
+    patternEffectEditor(warning.success_pattern, {
+      hideIdentity: true,
+      title: "성공 시 발동",
+      description: "전조를 해제하면 실행됩니다.",
+      collapsibleKey: warningSuccessPatternDetailKey(warning),
+      defaultOpen: true,
+    }),
   ]);
 }
 
@@ -2742,6 +2818,10 @@ function warningPatternDetailKey(warning) {
   return `warning-failure-effect:${warning.id || warning.name || "warning"}`;
 }
 
+function warningSuccessPatternDetailKey(warning) {
+  return `warning-success-effect:${warning.id || warning.name || "warning"}`;
+}
+
 function failureVariantConditionsEditor(variant) {
   variant.conditions = Array.isArray(variant.conditions) ? variant.conditions : [];
   const addButton = el("button", {
@@ -2830,6 +2910,7 @@ function patternEffectEditor(pattern, options = {}) {
       ]),
       numberField("피해 배율", pattern, "damage_multiplier", { step: 0.01 }),
       numberField("타수", pattern, "hits", { step: 1 }),
+      numberField("자신 HP 감소 비율", pattern, "self_hp_loss_ratio", { step: 0.001 }),
       selectField("무속성 데미지", plainDamage, "mode", PLAIN_DAMAGE_MODES, {
         rerender: true,
         onChange: (nextMode) => {
@@ -3157,6 +3238,9 @@ function sortStatsTree(owner) {
   for (const warning of owner.warnings || []) {
     if (warning?.pattern) {
       sortStatsTree(warning.pattern);
+    }
+    if (warning?.success_pattern) {
+      sortStatsTree(warning.success_pattern);
     }
     for (const variant of warning.failure_variants || []) {
       sortStatsTree(variant.pattern);

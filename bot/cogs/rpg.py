@@ -102,6 +102,7 @@ class BossWarning:
     objectives: list[BossWarningObjectiveProgress]
     threshold: float | None = None
     remaining_turns: int = 1
+    success_pattern: BossPattern | None = None
     failure_variants: list[BossWarningFailureVariant] = field(default_factory=list)
 
 
@@ -877,6 +878,8 @@ class RPGCog(commands.Cog):
             self._grant_boss_session_rewards(session)
             return True, "어빌리티로 보스를 클리어했습니다."
         if cleared_warning:
+            if session.completed:
+                return True, f"{skill.name} 사용: {', '.join(bits)} · 전조 해제 · 보스 클리어"
             return True, f"{skill.name} 사용: {', '.join(bits)} · 전조 해제"
         if not had_warning and participant.pending_warning is not None:
             return True, f"전조가 발생했습니다. {skill.name} 사용: {', '.join(bits)}"
@@ -1101,7 +1104,10 @@ class RPGCog(commands.Cog):
         if self._warning_complete(warning):
             session.log.append(f"{participant.display_name}: {warning.name} 전조 달성")
             self._apply_warning_stack_event(participant, "warning_success")
+            success_hp_loss = self._apply_warning_success_effect(session, participant, profile, warning)
             participant.pending_warning = None
+            if session.completed:
+                return True, f"{warning.name} 전조를 해제하고 보스를 클리어했습니다."
             if action_name == "공격":
                 if resolved_ct_warning:
                     participant.ct = 0
@@ -1151,7 +1157,8 @@ class RPGCog(commands.Cog):
                 self._advance_ct(session, participant, resolved_ct_warning)
             self._finish_boss_turn(session, participant, profile)
             self._check_boss_party_failed(session)
-            return True, f"{warning.name} 전조를 해제했습니다."
+            success_text = f" · 보스 HP {success_hp_loss} 감소" if success_hp_loss > 0 else ""
+            return True, f"{warning.name} 전조를 해제했습니다.{success_text}"
 
         warning.remaining_turns -= 1
         if warning.remaining_turns > 0:
@@ -1228,7 +1235,21 @@ class RPGCog(commands.Cog):
             )
         else:
             session.log.append(f"{participant.display_name}: {warning.name} 실패, {failure_effect_name} 발동")
+        failure_hp_loss = self._apply_boss_self_hp_loss(
+            session,
+            participant,
+            failure_pattern,
+            detail_action="전조 실패 효과",
+            source=failure_effect_name,
+        )
+        if failure_hp_loss > 0:
+            session.log.append(
+                f"{participant.display_name}: {failure_effect_name} 전조 실패 효과, "
+                f"{session.boss.name} HP {failure_hp_loss} 감소"
+            )
         participant.pending_warning = None
+        if session.completed:
+            return True, f"{warning.name} 전조 실패 효과로 보스를 클리어했습니다."
         self._advance_ct(session, participant, resolved_ct_warning)
         if participant.hp <= 0:
             participant.alive = False
@@ -1280,6 +1301,45 @@ class RPGCog(commands.Cog):
         profile: PlayerProfile | None,
         pattern: BossPattern,
     ) -> None:
+        self._apply_boss_pattern_effect(
+            session,
+            participant,
+            profile,
+            pattern,
+            log_context="즉시 발동",
+            detail_action="HP 즉시 효과",
+        )
+
+    def _apply_warning_success_effect(
+        self,
+        session: BossSession,
+        participant: BossParticipant,
+        profile: PlayerProfile | None,
+        warning: BossWarning,
+    ) -> int:
+        pattern = warning.success_pattern
+        if pattern is None:
+            return 0
+        _damage, hp_loss = self._apply_boss_pattern_effect(
+            session,
+            participant,
+            profile,
+            pattern,
+            log_context=f"{warning.name} 성공 효과",
+            detail_action="전조 성공 효과",
+        )
+        return hp_loss
+
+    def _apply_boss_pattern_effect(
+        self,
+        session: BossSession,
+        participant: BossParticipant,
+        profile: PlayerProfile | None,
+        pattern: BossPattern,
+        *,
+        log_context: str,
+        detail_action: str,
+    ) -> tuple[int, int]:
         if profile is None:
             profile = self.service.get_profile(participant.user_id, participant.display_name)
         boss_base = self.service._enemy_stats(session.boss.stats, level=session.boss.level_req)
@@ -1319,7 +1379,7 @@ class RPGCog(commands.Cog):
         for effects in [*boss_effect_lists, *player_effect_lists]:
             self._dedupe_effects_by_key(effects)
         self._sync_shared_effect_changes(participant.boss_effects, boss_effect_lists, boss_effects_before)
-        effect_name = pattern.name or "HP 즉시 효과"
+        effect_name = pattern.name or detail_action
         if damage > 0:
             dealt_damage = min(participant.hp, damage)
             participant.hp = max(0, participant.hp - damage)
@@ -1334,19 +1394,53 @@ class RPGCog(commands.Cog):
             heal_text = f", {pattern_heal} 흡수" if pattern_heal > 0 else ""
             self._add_boss_received_damage_detail(
                 participant,
-                action="HP 즉시 효과",
+                action=detail_action,
                 source=effect_name,
                 summary=f"{effect_name} {damage} 피해{heal_text}",
                 total_damage=damage,
                 hit_damages=hit_damages or [damage],
                 detail_lines=self._boss_pattern_damage_detail_lines(pattern, hit_damages, damage),
             )
-            session.log.append(f"{participant.display_name}: {effect_name} 즉시 발동, {damage} 피해{heal_text}")
-        else:
-            session.log.append(f"{participant.display_name}: {effect_name} 즉시 발동")
+            session.log.append(f"{participant.display_name}: {effect_name} {log_context}, {damage} 피해{heal_text}")
+        hp_loss = self._apply_boss_self_hp_loss(session, participant, pattern, detail_action=detail_action, source=effect_name)
+        if hp_loss > 0:
+            session.log.append(f"{participant.display_name}: {effect_name} {log_context}, {session.boss.name} HP {hp_loss} 감소")
+        if damage <= 0 and hp_loss <= 0:
+            session.log.append(f"{participant.display_name}: {effect_name} {log_context}")
         if participant.hp <= 0:
             participant.alive = False
             session.log.append(f"{participant.display_name}: 전투 불능")
+        return damage, hp_loss
+
+    def _apply_boss_self_hp_loss(
+        self,
+        session: BossSession,
+        participant: BossParticipant,
+        pattern: BossPattern,
+        *,
+        detail_action: str,
+        source: str,
+    ) -> int:
+        ratio = max(0.0, float(getattr(pattern, "self_hp_loss_ratio", 0.0) or 0.0))
+        if ratio <= 0 or session.boss_hp <= 0:
+            return 0
+        amount = max(1, int(session.boss_max_hp * ratio))
+        hp_loss = self._apply_boss_damage(session, participant, amount)
+        if hp_loss <= 0:
+            return 0
+        self._set_boss_damage_detail(
+            participant,
+            action=detail_action,
+            target=session.boss.name,
+            summary=f"{source} HP 감소 {hp_loss}",
+            total_damage=hp_loss,
+            hit_damages=[hp_loss],
+            detail_lines=[f"HP 감소: {hp_loss}"],
+        )
+        if session.boss_hp <= 0:
+            session.completed = True
+            self._grant_boss_session_rewards(session)
+        return hp_loss
 
     def _queue_due_hp_warnings(self, session: BossSession, participant: BossParticipant, profile: PlayerProfile | None = None) -> None:
         if session.completed or session.failed:
@@ -1407,6 +1501,7 @@ class RPGCog(commands.Cog):
             objectives=self._warning_objective_progress(template),
             threshold=rule.threshold,
             remaining_turns=max(1, int(getattr(template, "turns", 1))),
+            success_pattern=getattr(template, "success_pattern", None),
             failure_variants=list(getattr(template, "failure_variants", [])),
         )
 
@@ -1427,6 +1522,7 @@ class RPGCog(commands.Cog):
             pattern=pattern,
             objectives=objectives,
             remaining_turns=max(1, int(getattr(template, "turns", 1))) if rule is not None else 1,
+            success_pattern=getattr(template, "success_pattern", None) if rule is not None else None,
             failure_variants=list(getattr(template, "failure_variants", [])) if rule is not None else [],
         )
 
@@ -1652,7 +1748,10 @@ class RPGCog(commands.Cog):
             return False
         session.log.append(f"{participant.display_name}: {warning.name} 전조 해제")
         self._apply_warning_stack_event(participant, "warning_success")
+        self._apply_warning_success_effect(session, participant, None, warning)
         participant.pending_warning = None
+        if session.completed:
+            return True
         if warning.source == "ct":
             participant.ct = 0
         if defer_next_warning:
@@ -1741,13 +1840,17 @@ class RPGCog(commands.Cog):
     def _warning_display_text(self, warning: BossWarning, participant: BossParticipant | None = None) -> str:
         failure_pattern = self._warning_failure_pattern(warning, participant) if participant is not None else warning.pattern
         failure = self._boss_pattern_effect_summary(failure_pattern)
+        success_text = ""
+        if warning.success_pattern is not None:
+            success = self._boss_pattern_effect_summary(warning.success_pattern)
+            success_text = f"\n성공 시: {success}"
         variant_text = "" if participant is not None else (
             f"\n스택 조건부 실패 효과: {len(warning.failure_variants)}개" if warning.failure_variants else ""
         )
         return (
             f"{warning.name}\n"
             f"조건: {self._warning_progress_text(warning)}\n"
-            f"실패 시: {failure}{variant_text}"
+            f"실패 시: {failure}{success_text}{variant_text}"
         )
 
     def _boss_pattern_effect_summary(self, pattern: BossPattern) -> str:
@@ -1760,6 +1863,9 @@ class RPGCog(commands.Cog):
                 parts.append(f"최대 HP {plain_damage.value * 100:.1f}% 무속성 데미지")
             else:
                 parts.append(f"무속성 데미지 {plain_damage.value:g}")
+        hp_loss_ratio = max(0.0, float(getattr(pattern, "self_hp_loss_ratio", 0.0) or 0.0))
+        if hp_loss_ratio > 0:
+            parts.append(f"보스 최대 HP {hp_loss_ratio * 100:.1f}% 감소")
         parts.extend(
             self._pattern_stat_effect_parts(
                 pattern.player_stat_effects,

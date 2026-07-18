@@ -345,6 +345,7 @@ class BossPattern:
     damage_multiplier: float = 0.0
     hits: int = 0
     plain_damage: PlainDamage = field(default_factory=PlainDamage)
+    self_hp_loss_ratio: float = 0.0
     player_mods: dict[str, float] = field(default_factory=dict)
     boss_mods: dict[str, float] = field(default_factory=dict)
     player_stat_effects: list[StatEffect] = field(default_factory=list)
@@ -388,6 +389,7 @@ class BossWarningTemplate:
     objectives: list[BossWarningObjective]
     turns: int = 1
     pattern: BossPattern | None = None
+    success_pattern: BossPattern | None = None
     failure_variants: list[BossWarningFailureVariant] = field(default_factory=list)
 
 
@@ -1418,6 +1420,19 @@ def _plain_damage(raw: Any) -> PlainDamage:
     return PlainDamage(mode=mode, value=value)
 
 
+def _hp_loss_ratio(raw: dict[str, Any]) -> float:
+    value = raw.get(
+        "self_hp_loss_ratio",
+        raw.get("self_hp_loss", raw.get("hp_loss_ratio", raw.get("hp_loss", 0.0))),
+    )
+    if isinstance(value, dict):
+        ratio = _safe_float(value.get("value", value.get("ratio", value.get("amount", value.get("percent", 0.0)))), 0.0)
+        if "percent" in value:
+            ratio /= 100.0
+        return max(0.0, ratio)
+    return max(0.0, _safe_float(value, 0.0))
+
+
 def _boss_pattern(raw: dict[str, Any]) -> BossPattern:
     duration = int(raw.get("duration", 0))
     player_undispellable = bool(raw.get("player_undispellable", False))
@@ -1441,6 +1456,7 @@ def _boss_pattern(raw: dict[str, Any]) -> BossPattern:
         damage_multiplier=float(raw.get("damage_multiplier", 0.0)),
         hits=int(raw.get("hits", 0)),
         plain_damage=_plain_damage(raw.get("plain_damage", raw.get("neutral_damage", raw.get("true_damage")))),
+        self_hp_loss_ratio=_hp_loss_ratio(raw),
         player_mods=_stat_effect_totals(player_stat_effects),
         boss_mods=_stat_effect_totals(boss_stat_effects),
         player_stat_effects=player_stat_effects,
@@ -1461,6 +1477,16 @@ def _warning_pattern(raw: dict[str, Any], fallback_id: str, fallback_name: str) 
     normalized = dict(pattern)
     normalized["id"] = str(raw.get("warning_id", raw.get("id", fallback_id)) or fallback_id)
     normalized["name"] = str(raw.get("name", fallback_name) or fallback_name)
+    return _boss_pattern(normalized)
+
+
+def _warning_success_pattern(raw: dict[str, Any], warning_id: str, warning_name: str) -> BossPattern | None:
+    pattern = raw.get("success_pattern", raw.get("success_effect", raw.get("on_success")))
+    if not isinstance(pattern, dict):
+        return None
+    normalized = dict(pattern)
+    normalized["id"] = str(normalized.get("id", f"{warning_id}_success") or f"{warning_id}_success")
+    normalized["name"] = str(normalized.get("name", f"{warning_name} 성공 효과") or f"{warning_name} 성공 효과")
     return _boss_pattern(normalized)
 
 
@@ -1543,6 +1569,7 @@ def _warning_template(
     if not warning_name:
         warning_name = pattern.name if pattern is not None else warning_id
     pattern_id = warning_id if pattern is not None else str(raw.get("pattern_id", ""))
+    success_pattern = _warning_success_pattern(raw, warning_id, warning_name or warning_id)
     failure_variants = [
         variant
         for index, variant_raw in enumerate(raw.get("failure_variants", []))
@@ -1557,6 +1584,7 @@ def _warning_template(
         objectives=_warning_objectives(raw, default_objective),
         turns=max(1, _safe_int(raw.get("turns", raw.get("limit_turns", 1)), 1)),
         pattern=pattern,
+        success_pattern=success_pattern,
         failure_variants=failure_variants,
     )
 
@@ -1714,13 +1742,18 @@ def _boss(raw: dict[str, Any]) -> BossTemplate:
         for warning in all_warnings
         if warning.pattern is not None
     ]
+    success_patterns = [
+        warning.success_pattern
+        for warning in all_warnings
+        if warning.success_pattern is not None
+    ]
     variant_patterns = [
         variant.pattern
         for warning in all_warnings
         for variant in warning.failure_variants
     ]
     hp_effect_patterns = [effect.pattern for effect in hp_effects]
-    all_patterns = [*patterns, *direct_patterns, *variant_patterns, *hp_effect_patterns]
+    all_patterns = [*patterns, *direct_patterns, *success_patterns, *variant_patterns, *hp_effect_patterns]
     pattern_by_id = {
         pattern.id or pattern.name: pattern
         for pattern in all_patterns

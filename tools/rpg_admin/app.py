@@ -172,10 +172,12 @@ def normalize_content(content: dict[str, Any]) -> None:
             normalize_boss_hp_locks(boss)
             normalize_boss_hp_effects(boss, stat_order_index)
             for warning in boss.get("warnings", []):
-                if isinstance(warning, dict) and isinstance(warning.get("pattern"), dict):
-                    warning["pattern"]["id"] = str(warning.get("id", warning["pattern"].get("id", "")))
-                    warning["pattern"]["name"] = str(warning.get("name", warning["pattern"].get("name", "")))
-                    normalize_pattern_effects(warning["pattern"], stat_order_index)
+                if isinstance(warning, dict):
+                    if isinstance(warning.get("pattern"), dict):
+                        warning["pattern"]["id"] = str(warning.get("id", warning["pattern"].get("id", "")))
+                        warning["pattern"]["name"] = str(warning.get("name", warning["pattern"].get("name", "")))
+                        normalize_pattern_effects(warning["pattern"], stat_order_index)
+                    normalize_warning_success_pattern(warning, stat_order_index)
                     normalize_warning_failure_variants(warning, stat_order_index)
             for pattern in boss.get("patterns", []):
                 if isinstance(pattern, dict):
@@ -292,6 +294,7 @@ def normalize_pattern_effects(pattern: dict[str, Any], stat_order_index: dict[st
     normalize_combat_effects(pattern, "boss_effects", boss_undispellable, duration)
     normalize_effect_actions(pattern, "effect_actions")
     normalize_plain_damage(pattern)
+    normalize_self_hp_loss(pattern)
 
 
 def normalize_plain_damage(pattern: dict[str, Any]) -> None:
@@ -320,6 +323,45 @@ def normalize_plain_damage(pattern: dict[str, Any]) -> None:
         pattern.pop("plain_damage", None)
         return
     pattern["plain_damage"] = {"mode": mode, "value": value}
+
+
+def normalize_self_hp_loss(pattern: dict[str, Any]) -> None:
+    raw = pattern.get(
+        "self_hp_loss_ratio",
+        pattern.get("self_hp_loss", pattern.get("hp_loss_ratio", pattern.get("hp_loss"))),
+    )
+    pattern.pop("self_hp_loss", None)
+    pattern.pop("hp_loss_ratio", None)
+    pattern.pop("hp_loss", None)
+    if raw in (None, "", 0, 0.0):
+        pattern.pop("self_hp_loss_ratio", None)
+        return
+    if isinstance(raw, dict):
+        value = safe_float(raw.get("value", raw.get("ratio", raw.get("amount", raw.get("percent", 0.0)))), 0.0)
+        if "percent" in raw:
+            value = (value or 0.0) / 100.0
+    else:
+        value = safe_float(raw, 0.0)
+    value = max(0.0, float(value or 0.0))
+    if value <= 0:
+        pattern.pop("self_hp_loss_ratio", None)
+        return
+    pattern["self_hp_loss_ratio"] = value
+
+
+def normalize_warning_success_pattern(warning: dict[str, Any], stat_order_index: dict[str, int] | None = None) -> None:
+    pattern = warning.get("success_pattern", warning.get("success_effect", warning.get("on_success")))
+    warning.pop("success_effect", None)
+    warning.pop("on_success", None)
+    if not isinstance(pattern, dict):
+        warning.pop("success_pattern", None)
+        return
+    warning_id = str(warning.get("id", "warning") or "warning")
+    warning_name = str(warning.get("name", warning_id) or warning_id)
+    pattern.setdefault("id", f"{warning_id}_success")
+    pattern.setdefault("name", f"{warning_name} 성공 효과")
+    normalize_pattern_effects(pattern, stat_order_index)
+    warning["success_pattern"] = pattern
 
 
 def normalize_warning_failure_variants(warning: dict[str, Any], stat_order_index: dict[str, int] | None = None) -> None:
@@ -1134,6 +1176,16 @@ def validate_content(content: dict[str, Any]) -> list[str]:
             f"boss {boss.get('id')} warning failure effect",
             errors,
         )
+        success_pattern_rows = [
+            warning.get("success_pattern")
+            for warning in boss.get("warnings", [])
+            if isinstance(warning.get("success_pattern"), dict)
+        ]
+        success_pattern_ids = ensure_unique_ids(
+            success_pattern_rows,
+            f"boss {boss.get('id')} warning success effect",
+            errors,
+        )
         variant_pattern_rows = [
             variant.get("pattern")
             for warning in boss.get("warnings", [])
@@ -1157,9 +1209,11 @@ def validate_content(content: dict[str, Any]) -> list[str]:
         )
         for pattern_id in pattern_ids & warning_pattern_ids:
             errors.append(f"boss {boss.get('id')} duplicate pattern id: {pattern_id}")
-        for pattern_id in (pattern_ids | warning_pattern_ids) & variant_pattern_ids:
+        for pattern_id in (pattern_ids | warning_pattern_ids) & success_pattern_ids:
             errors.append(f"boss {boss.get('id')} duplicate pattern id: {pattern_id}")
-        for pattern_id in (pattern_ids | warning_pattern_ids | variant_pattern_ids) & hp_effect_pattern_ids:
+        for pattern_id in (pattern_ids | warning_pattern_ids | success_pattern_ids) & variant_pattern_ids:
+            errors.append(f"boss {boss.get('id')} duplicate pattern id: {pattern_id}")
+        for pattern_id in (pattern_ids | warning_pattern_ids | success_pattern_ids | variant_pattern_ids) & hp_effect_pattern_ids:
             errors.append(f"boss {boss.get('id')} duplicate pattern id: {pattern_id}")
         warning_ids = ensure_unique_ids(boss.get("warnings", []), f"boss {boss.get('id')} warning", errors)
         for warning in boss.get("warnings", []):
@@ -1377,6 +1431,12 @@ def validate_boss_warning_template(
     if safe_int(warning.get("turns"), 1) < 1:
         errors.append(f"{label} {warning.get('id')} turns must be at least 1")
     validate_warning_objectives(warning, f"{label} {warning.get('id')}", errors)
+    success_pattern = warning.get("success_pattern")
+    if success_pattern is not None:
+        if not isinstance(success_pattern, dict):
+            errors.append(f"{label} {warning.get('id')} success effect is not an object")
+        else:
+            validate_boss_pattern(success_pattern, f"{label} {warning.get('id')} success effect", stat_ids, errors, stack_effect_ids)
     validate_warning_failure_variants(
         warning.get("failure_variants"),
         stat_ids,
@@ -1406,6 +1466,9 @@ def validate_boss_pattern(
     validate_combat_effects(pattern.get("boss_effects", pattern.get("effects")), f"{label} boss effects", errors)
     validate_effect_actions(pattern.get("effect_actions"), f"{label} effect actions", errors, stack_effect_ids)
     validate_plain_damage(pattern.get("plain_damage"), f"{label} plain damage", errors)
+    hp_loss_ratio = safe_float(pattern.get("self_hp_loss_ratio"), 0.0)
+    if hp_loss_ratio < 0:
+        errors.append(f"{label} self hp loss ratio must be non-negative")
 
 
 def validate_plain_damage(raw: Any, label: str, errors: list[str]) -> None:
