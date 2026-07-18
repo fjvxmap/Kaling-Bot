@@ -49,6 +49,7 @@ OBJECTIVE_IDS = {
     "warning_success",
     "warning_failure",
 }
+STACK_CONDITION_OBJECTIVE_IDS = OBJECTIVE_IDS | {"received_damage"}
 EFFECT_ACTION_IDS = {"dispel", "clear_all"}
 STACK_EFFECT_ACTION_IDS = {"stack_increase", "stack_decrease", "stack_set", "stack_remove", "stack_max"}
 EFFECT_ACTION_IDS = EFFECT_ACTION_IDS | STACK_EFFECT_ACTION_IDS
@@ -1305,7 +1306,7 @@ def validate_stack_effect(effect: dict[str, Any], stat_ids: set[str], label: str
             errors.append(f"{label} condition {index} is not an object")
             continue
         objective = str(condition.get("objective", ""))
-        if objective not in OBJECTIVE_IDS:
+        if objective not in STACK_CONDITION_OBJECTIVE_IDS:
             errors.append(f"{label} condition {index} objective not found: {objective}")
         target = str(condition.get("target", "self") or "self")
         if objective in {"warning_success", "warning_failure"}:

@@ -54,6 +54,11 @@ const OBJECTIVES = [
   ["warning_failure", "전조 실패"],
 ];
 
+const STACK_OBJECTIVES = [
+  ...OBJECTIVES,
+  ["received_damage", "받은 피해량"],
+];
+
 const EFFECT_ACTIONS = [
   ["dispel", "디스펠"],
   ["clear_all", "클리어 올"],
@@ -79,6 +84,11 @@ const STAT_EFFECT_TARGETS = [
 const STACK_CONDITION_TARGETS = [
   ["self", "내가 행동할 때"],
   ["opponent", "상대가 행동할 때"],
+];
+
+const STACK_RECEIVED_DAMAGE_TARGETS = [
+  ["self", "내가 피해받을 때"],
+  ["opponent", "상대가 피해받을 때"],
 ];
 
 const STACK_OPERATIONS = [
@@ -1374,12 +1384,13 @@ function stackConditionEditor(effect) {
   effect.conditions ||= [];
   const rows = effect.conditions.map((condition, index) => {
     const isWarningEvent = stackConditionIsWarningEvent(condition.objective);
+    const targetOptions = condition.objective === "received_damage" ? STACK_RECEIVED_DAMAGE_TARGETS : STACK_CONDITION_TARGETS;
     const fields = [
-      selectField("조건", condition, "objective", OBJECTIVES, { rerender: true }),
+      selectField("조건", condition, "objective", STACK_OBJECTIVES, { rerender: true }),
       selectField("동작", condition, "operation", STACK_OPERATIONS, { rerender: true }),
     ];
     if (!isWarningEvent) {
-      fields.splice(1, 0, selectField("대상", condition, "target", STACK_CONDITION_TARGETS));
+      fields.splice(1, 0, selectField("대상", condition, "target", targetOptions));
       fields.push(numberField("요구량", condition, "required", { step: 1 }));
     }
     if (!isWarningEvent && condition.objective === "hits") {

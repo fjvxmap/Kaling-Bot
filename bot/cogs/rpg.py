@@ -76,6 +76,7 @@ OBJECTIVE_LABELS = {
     "double_attack": "더블 어택",
     "ability": "어빌리티",
     "ability_damage": "어빌리티 피해",
+    "received_damage": "받은 피해",
 }
 
 RARITY_EMOJIS = {
@@ -815,6 +816,7 @@ class RPGCog(commands.Cog):
         if skill_result.damage > 0:
             actual_dealt_damage = self._apply_boss_damage(session, participant, skill_result.damage)
             actual_dealt_segments = self.service._clamped_damage_segments(skill_result.hit_damages, actual_dealt_damage)
+            self._apply_boss_received_damage_stack_event(participant, actual_dealt_damage)
             life_steal_heal = self._apply_participant_life_steal(
                 participant,
                 player_stats,
@@ -938,6 +940,7 @@ class RPGCog(commands.Cog):
         self._add_warning_progress(participant, "triple_attack", attack.triple_attacks)
         self._add_warning_progress(participant, "double_attack", attack.double_attacks)
         self._apply_player_stack_event(participant, "damage", attack.damage)
+        self._apply_boss_received_damage_stack_event(participant, actual_dealt_damage)
         self._apply_player_stack_event(participant, "ability_damage", attack.ability_damage)
         self._apply_player_stack_event(participant, "hits", hit_damages=attack.hit_damages)
         self._apply_player_stack_event(participant, "triple_attack", attack.triple_attacks)
@@ -969,6 +972,7 @@ class RPGCog(commands.Cog):
             self.service._effects_with_stacks(participant.boss_effects, participant.boss_stack_effects),
             0.48,
         )
+        received_damage = min(participant.hp, counter_attack.damage)
         dealt_segments = self.service._clamped_damage_segments(counter_attack.life_steal_segments, participant.hp)
         participant.hp = max(0, participant.hp - counter_attack.damage)
         counter_attack.heal = self._apply_boss_life_steal(
@@ -979,6 +983,7 @@ class RPGCog(commands.Cog):
             dealt_segments,
         )
         self._apply_boss_stack_event(participant, "damage", counter_attack.damage)
+        self._apply_player_received_damage_stack_event(participant, received_damage)
         self._apply_boss_stack_event(participant, "ability_damage", counter_attack.ability_damage)
         self._apply_boss_stack_event(participant, "hits", hit_damages=counter_attack.hit_damages)
         self._apply_boss_stack_event(participant, "triple_attack", counter_attack.triple_attacks)
@@ -1049,6 +1054,7 @@ class RPGCog(commands.Cog):
             self.service._effects_with_stacks(participant.boss_effects, participant.boss_stack_effects),
             0.48,
         )
+        received_damage = min(participant.hp, counter_attack.damage)
         dealt_segments = self.service._clamped_damage_segments(counter_attack.life_steal_segments, participant.hp)
         participant.hp = max(0, participant.hp - counter_attack.damage)
         counter_attack.heal = self._apply_boss_life_steal(
@@ -1059,6 +1065,7 @@ class RPGCog(commands.Cog):
             dealt_segments,
         )
         self._apply_boss_stack_event(participant, "damage", counter_attack.damage)
+        self._apply_player_received_damage_stack_event(participant, received_damage)
         self._apply_boss_stack_event(participant, "ability_damage", counter_attack.ability_damage)
         self._apply_boss_stack_event(participant, "hits", hit_damages=counter_attack.hit_damages)
         self._apply_boss_stack_event(participant, "triple_attack", counter_attack.triple_attacks)
@@ -1120,6 +1127,7 @@ class RPGCog(commands.Cog):
                     self.service._effects_with_stacks(participant.boss_effects, participant.boss_stack_effects),
                     0.48,
                 )
+                received_damage = min(participant.hp, counter_attack.damage)
                 dealt_segments = self.service._clamped_damage_segments(counter_attack.life_steal_segments, participant.hp)
                 participant.hp = max(0, participant.hp - counter_attack.damage)
                 counter_attack.heal = self._apply_boss_life_steal(
@@ -1130,6 +1138,7 @@ class RPGCog(commands.Cog):
                     dealt_segments,
                 )
                 self._apply_boss_stack_event(participant, "damage", counter_attack.damage)
+                self._apply_player_received_damage_stack_event(participant, received_damage)
                 self._apply_boss_stack_event(participant, "ability_damage", counter_attack.ability_damage)
                 self._apply_boss_stack_event(participant, "hits", hit_damages=counter_attack.hit_damages)
                 self._apply_boss_stack_event(participant, "triple_attack", counter_attack.triple_attacks)
@@ -1218,6 +1227,7 @@ class RPGCog(commands.Cog):
                 dealt_damage,
             )
             self._apply_boss_stack_event(participant, "damage", pattern_damage)
+            self._apply_player_received_damage_stack_event(participant, dealt_damage)
             self._apply_boss_stack_event(participant, "hits", hit_damages=pattern_hit_damages)
             heal_text = f", {pattern_heal} 흡수" if pattern_heal > 0 else ""
             self._add_boss_received_damage_detail(
@@ -1390,6 +1400,7 @@ class RPGCog(commands.Cog):
                 dealt_damage,
             )
             self._apply_boss_stack_event(participant, "damage", damage)
+            self._apply_player_received_damage_stack_event(participant, dealt_damage)
             self._apply_boss_stack_event(participant, "hits", hit_damages=hit_damages)
             heal_text = f", {pattern_heal} 흡수" if pattern_heal > 0 else ""
             self._add_boss_received_damage_detail(
@@ -1428,6 +1439,7 @@ class RPGCog(commands.Cog):
         hp_loss = self._apply_boss_damage(session, participant, amount)
         if hp_loss <= 0:
             return 0
+        self._apply_boss_received_damage_stack_event(participant, hp_loss)
         self._set_boss_damage_detail(
             participant,
             action=detail_action,
@@ -2184,6 +2196,12 @@ class RPGCog(commands.Cog):
             actor_is_holder=False,
             hit_damages=hit_damages,
         )
+
+    def _apply_player_received_damage_stack_event(self, participant: BossParticipant, amount: int) -> None:
+        self._apply_player_stack_event(participant, "received_damage", max(0, int(amount)))
+
+    def _apply_boss_received_damage_stack_event(self, participant: BossParticipant, amount: int) -> None:
+        self._apply_boss_stack_event(participant, "received_damage", max(0, int(amount)))
 
     def _apply_warning_stack_event(self, participant: BossParticipant, objective: str) -> None:
         self.service._apply_stack_conditions(

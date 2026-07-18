@@ -22,6 +22,7 @@ WARNING_OBJECTIVES = {
     "warning_success",
     "warning_failure",
 }
+STACK_CONDITION_OBJECTIVES = WARNING_OBJECTIVES | {"received_damage"}
 INFINITE_EFFECT_TURNS = -1
 STACK_EFFECT_ACTIONS = {
     "stack_increase",
@@ -1920,7 +1921,7 @@ def _validate_content() -> None:
             if tier.stack < 1 or tier.stack > effect.max_stacks:
                 errors.append(f"stack effect {effect.id} tier out of range: {tier.stack}")
         for condition in effect.conditions:
-            if condition.objective not in WARNING_OBJECTIVES:
+            if condition.objective not in STACK_CONDITION_OBJECTIVES:
                 errors.append(f"stack effect {effect.id} condition objective not found: {condition.objective}")
             if condition.operation not in {"increase", "decrease", "set", "remove", "max"}:
                 errors.append(f"stack effect {effect.id} condition operation is invalid: {condition.operation}")
