@@ -231,7 +231,7 @@
         "stack": 3,
         "stat_effects": [
           {
-            "stat": "critical_rate",
+            "stat": "dmg_supplement",
             "target": "self",
             "value": 5.0,
             "duration": -1,
@@ -331,7 +331,7 @@
       },
       {
         "objective": "hits",
-        "target": "self",
+        "target": "opponent",
         "operation": "decrease",
         "value": 2,
         "required": 5,
