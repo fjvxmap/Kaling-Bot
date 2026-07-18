@@ -506,5 +506,71 @@
       }
     ],
     "stats": {}
+  },
+  {
+    "id": "annihilation",
+    "name": "섬멸",
+    "max_stacks": 5,
+    "description": ".",
+    "tiers": [
+      {
+        "stack": 1,
+        "stats": {}
+      },
+      {
+        "stack": 2,
+        "stats": {}
+      },
+      {
+        "stack": 3,
+        "stats": {}
+      },
+      {
+        "stack": 4,
+        "stats": {}
+      },
+      {
+        "stack": 5,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 2.5,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "effects": {
+          "bonus_damage": [
+            {
+              "ratio": 0.5,
+              "target": "self",
+              "duration": -1,
+              "undispellable": true
+            }
+          ]
+        },
+        "stats": {}
+      }
+    ],
+    "conditions": [
+      {
+        "objective": "hits",
+        "target": "self",
+        "operation": "increase",
+        "value": 1,
+        "required": 5,
+        "min_damage": 0
+      },
+      {
+        "objective": "received_damage",
+        "target": "self",
+        "operation": "decrease",
+        "value": 1,
+        "required": 750,
+        "min_damage": 0
+      }
+    ],
+    "stats": {}
   }
 ]

@@ -1531,7 +1531,7 @@
     "rarity": "epic",
     "stats": {
       "base_atk": 22,
-      "dmg_mitigation": 0.03
+      "dmg_mitigation": 0.2
     },
     "base_price": 1400,
     "description": "단풍 장식이 박힌 해머. 묵직한 타격과 약간의 안정감을 함께 준다."
@@ -1845,7 +1845,6 @@
     "excluded_from_gacha": true,
     "description": ".",
     "fixed_stats": [
-      "base_atk",
       "defense"
     ]
   },
@@ -2071,6 +2070,25 @@
     "description": "제옌의 여사제가 긴 순례의 여정 내내 손에 쥐었던 지팡이.\n그 끝에 깃든 푸른 보석은 하늘 아래 살아가는 모든 이에게 차별 없는 축복이 내리기를 바라는 염원을 상징한다.",
     "fixed_stats": [
       "base_atk"
+    ]
+  },
+  {
+    "id": "loose_control_machine_mark",
+    "name": "루즈 컨트롤 머신 마크",
+    "rarity": "unique",
+    "stats": {
+      "atk": 0.55,
+      "dmg_mitigation": -1,
+      "triple_attack_rate": 0.15,
+      "double_attack_rate": 0.15
+    },
+    "base_price": 1,
+    "excluded_from_gacha": true,
+    "description": ".",
+    "fixed_stats": [
+      "dmg_mitigation",
+      "triple_attack_rate",
+      "double_attack_rate"
     ]
   }
 ]

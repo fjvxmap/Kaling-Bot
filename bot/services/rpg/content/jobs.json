@@ -31,18 +31,10 @@
       "base_atk": 15,
       "defense": 0.15,
       "critical_rate": 0.2,
-      "double_attack_rate": 0.25
+      "double_attack_rate": 0.25,
+      "life_steal": 0.005
     },
-    "description": ".",
-    "stat_effects": [
-      {
-        "stat": "life_steal",
-        "target": "self",
-        "value": 0.005,
-        "duration": -1,
-        "undispellable": true
-      }
-    ]
+    "description": "."
   },
   {
     "id": "crossbowman",
@@ -68,18 +60,10 @@
       "defense": 0.3,
       "critical_rate": 0.25,
       "triple_attack_rate": 0.2,
-      "double_attack_rate": 0.5
+      "double_attack_rate": 0.5,
+      "life_steal": 0.01
     },
-    "description": ".",
-    "stat_effects": [
-      {
-        "stat": "life_steal",
-        "target": "self",
-        "value": 0.01,
-        "duration": -1,
-        "undispellable": true
-      }
-    ]
+    "description": "."
   },
   {
     "id": "sniper",
@@ -105,25 +89,11 @@
       "defense": 0.4,
       "critical_rate": 0.3,
       "triple_attack_rate": 0.35,
-      "double_attack_rate": 0.7
+      "double_attack_rate": 0.7,
+      "life_steal": 0.02,
+      "life_steal_cap": 0.01
     },
-    "description": ".",
-    "stat_effects": [
-      {
-        "stat": "life_steal",
-        "target": "self",
-        "value": 0.02,
-        "duration": -1,
-        "undispellable": true
-      },
-      {
-        "stat": "life_steal_cap",
-        "target": "self",
-        "value": 0.01,
-        "duration": -1,
-        "undispellable": true
-      }
-    ]
+    "description": "."
   },
   {
     "id": "marksman",
@@ -159,9 +129,9 @@
     "level_req": 10,
     "parent_id": "swordman",
     "stats": {
-      "base_atk": 10,
-      "hp_bonus": 0.1,
-      "atk": 0.15,
+      "base_atk": 20,
+      "hp_bonus": 0.2,
+      "atk": 0.2,
       "defense": 0.25
     },
     "undispellable": true,
@@ -174,33 +144,15 @@
     "level_req": 25,
     "parent_id": "fighter",
     "stats": {
-      "base_atk": 25,
-      "hp_bonus": 0.2,
+      "base_atk": 35,
+      "hp_bonus": 0.3,
       "atk": 0.3,
-      "defense": 0.25
+      "defense": 0.25,
+      "life_steal": 0.01,
+      "life_steal_cap": 0.02
     },
     "undispellable": true,
-    "description": ".",
-    "stat_effects": [
-      {
-        "stat": "life_steal",
-        "target": "self",
-        "value": 0.01,
-        "duration": -1,
-        "undispellable": true,
-        "heal_cap": {
-          "mode": "max_hp_ratio",
-          "value": 0.01
-        }
-      },
-      {
-        "stat": "life_steal_cap",
-        "target": "self",
-        "value": 0.03,
-        "duration": -1,
-        "undispellable": true
-      }
-    ]
+    "description": "."
   },
   {
     "id": "hero",
@@ -209,33 +161,15 @@
     "level_req": 50,
     "parent_id": "crusader",
     "stats": {
-      "base_atk": 50,
-      "hp_bonus": 0.25,
+      "base_atk": 60,
+      "hp_bonus": 0.5,
       "atk": 0.5,
-      "defense": 0.35
+      "defense": 0.35,
+      "life_steal": 0.02,
+      "life_steal_cap": 0.02
     },
     "undispellable": true,
-    "description": ".",
-    "stat_effects": [
-      {
-        "stat": "life_steal",
-        "target": "self",
-        "value": 0.02,
-        "duration": -1,
-        "undispellable": true,
-        "heal_cap": {
-          "mode": "max_hp_ratio",
-          "value": 0.02
-        }
-      },
-      {
-        "stat": "life_steal_cap",
-        "target": "self",
-        "value": 0.03,
-        "duration": -1,
-        "undispellable": true
-      }
-    ]
+    "description": "."
   },
   {
     "id": "page",

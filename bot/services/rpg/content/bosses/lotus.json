@@ -1,0 +1,330 @@
+{
+  "id": "lotus",
+  "name": "스우",
+  "level_req": 7,
+  "stats": {
+    "base_atk": 20,
+    "max_hp": 12000,
+    "triple_attack_rate": 0.3,
+    "double_attack_rate": 0.3
+  },
+  "gold": 1800,
+  "exp": 1,
+  "patterns": [],
+  "warnings": [
+    {
+      "id": "tracking_lasers",
+      "name": "조준 레이저",
+      "pattern": {
+        "id": "tracking_lasers",
+        "name": "조준 레이저",
+        "damage_multiplier": 1.5,
+        "hits": 3,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 200,
+          "min_damage": 0
+        }
+      ],
+      "failure_variants": [
+        {
+          "name": "침입자 격퇴 프로토콜",
+          "conditions": [
+            {
+              "stack_effect_id": "annihilation",
+              "target": "boss",
+              "min_stacks": 5,
+              "max_stacks": -1
+            }
+          ],
+          "pattern": {
+            "id": "tracking_lasers_failure_variant",
+            "name": "침입자 격퇴 프로토콜",
+            "damage_multiplier": 1.5,
+            "hits": 25,
+            "player_mods": {},
+            "boss_mods": {},
+            "duration": 0,
+            "stats": {}
+          }
+        }
+      ],
+      "turns": 1,
+      "success_pattern": {
+        "id": "tracking_lasers_success",
+        "name": "조준 레이저 성공 효과",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "self_hp_loss_ratio": 0.05,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      }
+    },
+    {
+      "id": "levitation_beam",
+      "name": "중력 기둥",
+      "pattern": {
+        "id": "levitation_beam",
+        "name": "중력 기둥",
+        "damage_multiplier": 0.7,
+        "hits": 9,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 6,
+          "min_damage": 0
+        }
+      ],
+      "failure_variants": [
+        {
+          "name": "중력 흡수",
+          "conditions": [
+            {
+              "stack_effect_id": "annihilation",
+              "target": "boss",
+              "min_stacks": 5,
+              "max_stacks": -1
+            }
+          ],
+          "pattern": {
+            "id": "levitation_beam_failure_variant",
+            "name": "중력 흡수",
+            "damage_multiplier": 25,
+            "hits": 1,
+            "player_mods": {},
+            "boss_mods": {},
+            "duration": 0,
+            "stats": {}
+          }
+        }
+      ],
+      "turns": 1,
+      "success_pattern": {
+        "id": "levitation_beam_success",
+        "name": "중력 기둥 성공 효과",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "self_hp_loss_ratio": 0.05,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      }
+    },
+    {
+      "id": "laser_web",
+      "name": "레이저 웹",
+      "pattern": {
+        "id": "laser_web",
+        "name": "레이저 웹",
+        "damage_multiplier": 1.15,
+        "hits": 6,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "ability",
+          "required": 1,
+          "min_damage": 0
+        }
+      ],
+      "failure_variants": [
+        {
+          "name": "상단 포격",
+          "conditions": [
+            {
+              "stack_effect_id": "annihilation",
+              "target": "boss",
+              "min_stacks": 5,
+              "max_stacks": -1
+            }
+          ],
+          "pattern": {
+            "id": "laser_web_failure_variant",
+            "name": "상단 포격",
+            "damage_multiplier": 1.6,
+            "hits": 15,
+            "player_mods": {},
+            "boss_mods": {},
+            "duration": 0,
+            "stats": {}
+          }
+        }
+      ],
+      "turns": 1,
+      "success_pattern": {
+        "id": "laser_web_success",
+        "name": "레이저 웹 성공 효과",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "self_hp_loss_ratio": 0.05,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      }
+    },
+    {
+      "id": "small_mechanical_arms",
+      "name": "소형 기계팔 돌진",
+      "pattern": {
+        "id": "small_mechanical_arms",
+        "name": "소형 기계팔 돌진",
+        "damage_multiplier": 1.5,
+        "hits": 12,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 6,
+          "min_damage": 50
+        }
+      ],
+      "failure_variants": [
+        {
+          "name": "대형 기계팔 돌진",
+          "conditions": [
+            {
+              "stack_effect_id": "annihilation",
+              "target": "boss",
+              "min_stacks": 5,
+              "max_stacks": -1
+            }
+          ],
+          "pattern": {
+            "id": "small_mechanical_arms_failure_variant",
+            "name": "대형 기계팔 돌진",
+            "damage_multiplier": 25,
+            "hits": 1,
+            "player_mods": {},
+            "boss_mods": {},
+            "duration": 0,
+            "stats": {}
+          }
+        }
+      ],
+      "turns": 1,
+      "success_pattern": {
+        "id": "small_mechanical_arms_success",
+        "name": "소형 기계팔 돌진 성공 효과",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "self_hp_loss_ratio": 0.05,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      }
+    }
+  ],
+  "hp_warnings": [
+    {
+      "threshold": 0.85,
+      "warning_id": "levitation_beam"
+    },
+    {
+      "threshold": 0.5,
+      "warning_id": "levitation_beam"
+    },
+    {
+      "threshold": 0.15,
+      "warning_id": "small_mechanical_arms"
+    }
+  ],
+  "ct": {
+    "gauge_by_hp": [
+      {
+        "above": 0,
+        "max": 3
+      }
+    ],
+    "warnings_by_hp": [
+      {
+        "above": 1,
+        "warning_id": "tracking_lasers"
+      },
+      {
+        "above": 0.3,
+        "warning_id": "laser_web"
+      }
+    ]
+  },
+  "rewards": {
+    "items": [
+      {
+        "chance": 0.008,
+        "min": 1,
+        "max": 1,
+        "template_id": "loose_control_machine_mark",
+        "owner_chance": 0.02,
+        "stars": 0
+      }
+    ],
+    "materials": [
+      {
+        "id": "boss_power_crystal",
+        "chance": 1.0,
+        "min": 1,
+        "max": 1,
+        "participant_chance": 0.0,
+        "participant_min": 1,
+        "participant_max": 1
+      }
+    ]
+  },
+  "description": "\"침입자를 확인했습니다. 목표, 제거하겠습니다.\"",
+  "sort_order": 10,
+  "stack_effects": [
+    {
+      "stack_effect_id": "annihilation",
+      "initial_stacks": 0
+    }
+  ],
+  "hp_effects": [
+    {
+      "thresholds": [
+        0.25
+      ],
+      "pattern": {
+        "id": "lotus_hp_effect",
+        "name": "섬멸",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "player_mods": {},
+        "boss_mods": {},
+        "effect_actions": [
+          {
+            "action": "stack_max",
+            "target": "self",
+            "count": 1,
+            "stack_effect_id": "annihilation",
+            "value": 1
+          }
+        ],
+        "duration": 0,
+        "threshold": 0.25,
+        "stats": {}
+      }
+    }
+  ]
+}
