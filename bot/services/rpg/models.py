@@ -67,6 +67,7 @@ class PlayerProfile:
     daily_explores_used: int = 0
     daily_explore_credits: int = 0
     weekly_boss_clears: dict[str, str] = field(default_factory=dict)
+    cleared_boss_ids: list[str] = field(default_factory=list)
     boss_clear_count: int = 0
     dungeon_clear_count: int = 0
     equipment_initialized: bool = True
@@ -94,6 +95,7 @@ class PlayerProfile:
         profile = cls()
         has_equipment_field = "equipped_item_uids" in data
         has_daily_credits = "daily_explore_credits" in data
+        has_boss_clear_history = "cleared_boss_ids" in data
         for key, value in data.items():
             if key not in known:
                 continue
@@ -108,6 +110,12 @@ class PlayerProfile:
                     str(boss_id): str(week_key)
                     for boss_id, week_key in value.items()
                 }
+            elif key == "cleared_boss_ids" and isinstance(value, list):
+                profile.cleared_boss_ids = [
+                    str(boss_id)
+                    for boss_id in value
+                    if str(boss_id)
+                ]
             elif key == "equipped_item_uids" and isinstance(value, list):
                 profile.equipped_item_uids = [
                     int(uid)
@@ -144,6 +152,13 @@ class PlayerProfile:
         profile.daily_explore_credits = max(0, int(profile.daily_explore_credits))
         if not has_daily_credits:
             profile.daily_explore_credits = max(0, DAILY_EXPLORES - profile.daily_explores_used)
+        profile.cleared_boss_ids = list(dict.fromkeys(
+            boss_id for boss_id in profile.cleared_boss_ids if boss_id
+        ))
+        if not has_boss_clear_history:
+            profile.cleared_boss_ids = list(dict.fromkeys(
+                [*profile.cleared_boss_ids, *profile.weekly_boss_clears.keys()]
+            ))
         profile.equipment_initialized = bool(data.get("equipment_initialized", has_equipment_field))
         profile.equipped_item_uids = list(dict.fromkeys(
             uid for uid in profile.equipped_item_uids

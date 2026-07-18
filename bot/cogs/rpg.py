@@ -652,6 +652,52 @@ class RPGCog(commands.Cog):
             self._prepare_visible_warning(session, participant, profile)
         return True, "보스전을 시작했습니다."
 
+    def _boss_skip_unavailable_reason(self, session: BossSession, user_id: int) -> str | None:
+        if user_id != session.owner_id:
+            return "보스전을 만든 사람만 스킵할 수 있습니다."
+        if session.practice:
+            return "연습 모드에서는 스킵할 수 없습니다."
+        if session.cancelled:
+            return "이미 취소된 보스전입니다."
+        if session.completed or session.failed:
+            return "이미 종료된 보스전입니다."
+        if session.started:
+            return "이미 시작된 보스전은 스킵할 수 없습니다."
+        if not session.participants:
+            return "참가자가 없습니다."
+
+        owner = session.participants.get(session.owner_id)
+        if owner is None:
+            return "자발자 정보를 찾을 수 없습니다."
+        owner_profile = self.service.get_profile(owner.user_id, owner.display_name)
+        if self.service.boss_start_remaining(owner_profile, session.boss.id) == 0:
+            return f"{session.boss.name} 자발 횟수를 모두 사용했습니다."
+
+        missing = []
+        for participant in session.participants.values():
+            profile = self.service.get_profile(participant.user_id, participant.display_name)
+            if not self.service.has_boss_clear_history(profile, session.boss.id):
+                missing.append(participant.display_name)
+        if missing:
+            names = ", ".join(missing[:3])
+            suffix = f" 외 {len(missing) - 3}명" if len(missing) > 3 else ""
+            return f"모든 참가자에게 {session.boss.name} 클리어 이력이 있어야 합니다. 부족: {names}{suffix}"
+        return None
+
+    def _can_skip_boss_session(self, session: BossSession) -> bool:
+        return self._boss_skip_unavailable_reason(session, session.owner_id) is None
+
+    def _skip_boss_session(self, session: BossSession, user_id: int) -> tuple[bool, str]:
+        reason = self._boss_skip_unavailable_reason(session, user_id)
+        if reason is not None:
+            return False, reason
+        session.started = True
+        session.completed = True
+        session.boss_hp = 0
+        session.log.append("스킵으로 보스 클리어")
+        self._grant_boss_session_rewards(session)
+        return True, "보스를 스킵 클리어했습니다."
+
     def _cancel_waiting_boss_participation(
         self,
         session: BossSession,
@@ -4270,6 +4316,7 @@ class BossSessionView(discord.ui.View):
         if not session.started:
             self.add_item(BossJoinButton())
             self.add_item(BossStartButton())
+            self.add_item(BossSkipButton(disabled=not cog._can_skip_boss_session(session)))
             self.add_item(BossCancelButton())
             return
         self.add_item(BossAbilityMenuButton())
@@ -4336,6 +4383,19 @@ class BossStartButton(discord.ui.Button):
                 ephemeral=True,
                 wait=True,
             )
+
+
+class BossSkipButton(discord.ui.Button):
+    def __init__(self, *, disabled: bool = False) -> None:
+        super().__init__(label="스킵", style=discord.ButtonStyle.success, disabled=disabled)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, BossSessionView)
+        ok, message = self.view.cog._skip_boss_session(self.view.session, interaction.user.id)
+        if not ok:
+            await interaction.response.send_message(message, ephemeral=True)
+            return
+        await self.view._edit(interaction)
 
 
 class BossCancelButton(discord.ui.Button):

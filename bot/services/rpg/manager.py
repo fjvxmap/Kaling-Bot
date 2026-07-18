@@ -360,6 +360,9 @@ class RPGService:
         weekly_key = self._week_key()
         return 0 if profile.weekly_boss_clears.get(boss_id) == weekly_key else 1
 
+    def has_boss_clear_history(self, profile: PlayerProfile, boss_id: str) -> bool:
+        return str(boss_id) in set(profile.cleared_boss_ids)
+
     def daily_remaining(self, profile: PlayerProfile) -> int:
         if not EXPLORE_LIMIT_ENABLED:
             return -1
@@ -799,7 +802,13 @@ class RPGService:
         )
         if victory:
             profile.boss_clear_count += 1
+            self._mark_boss_clear_history_for_profile(profile, boss.id)
         return reward
+
+    def _mark_boss_clear_history_for_profile(self, profile: PlayerProfile, boss_id: str) -> None:
+        boss_id = str(boss_id)
+        if boss_id and boss_id not in profile.cleared_boss_ids:
+            profile.cleared_boss_ids.append(boss_id)
 
     def _enhancement_costs(
         self,
@@ -3753,6 +3762,10 @@ class RPGService:
             for material_id, amount in profile.materials.items()
             if material_id in MATERIAL_BY_ID and int(amount) > 0
         }
+        profile.cleared_boss_ids = [
+            boss_id for boss_id in dict.fromkeys(str(boss_id) for boss_id in profile.cleared_boss_ids)
+            if boss_id in BOSS_BY_ID
+        ]
         profile.inventory = [
             item for item in profile.inventory
             if item.uid > 0 and item.template_id in ITEM_BY_ID
