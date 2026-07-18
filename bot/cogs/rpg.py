@@ -1800,9 +1800,6 @@ class RPGCog(commands.Cog):
             target = allies_label if effect.target == "allies" else self_label
             stat_text = self.service.format_stats({effect.stat: effect.value}, signed=True)
             extras = [self._effect_duration_from_raw_text(effect.duration)]
-            cap_text = self.service._heal_cap_summary(effect.heal_cap)
-            if effect.stat == "life_steal" and cap_text:
-                extras.append(f"흡수 상한 {cap_text}")
             if effect.undispellable:
                 extras.append("소거불가")
             parts.append(f"{target} {stat_text} ({', '.join(extras)})")
@@ -3467,9 +3464,6 @@ class RPGCog(commands.Cog):
         parts = []
         if effect.mods:
             parts.append(self.service.format_stats(effect.mods, signed=True))
-            cap_text = self.service._heal_cap_summary(effect.heal_cap)
-            if "life_steal" in effect.mods and cap_text:
-                parts.append(f"회복 상한 {cap_text}")
         if effect.special.flurry is not None:
             parts.append(f"난격 {effect.special.flurry.count}")
         if effect.special.double_strike is not None:

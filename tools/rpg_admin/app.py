@@ -605,9 +605,6 @@ def normalize_stat_effects(
             "duration": safe_int(effect.get("duration"), default_duration),
             "undispellable": bool(effect.get("undispellable", fallback_undispellable)),
         }
-        normalize_heal_cap(effect)
-        if stat == "life_steal" and isinstance(effect.get("heal_cap"), dict):
-            normalized_effect["heal_cap"] = effect["heal_cap"]
         normalized.append(normalized_effect)
     if stat_order_index is not None:
         normalized.sort(key=lambda effect: (
@@ -1555,8 +1552,6 @@ def validate_stat_effects(rows: Any, stat_ids: set[str], label: str, errors: lis
             errors.append(f"{label} {index} value is not a number")
         if safe_int(row.get("duration"), None) is None:
             errors.append(f"{label} {index} duration is not a number")
-        validate_heal_cap(row.get("heal_cap"), f"{label} {index} heal cap", errors)
-
 
 def validate_fixed_stats(raw: Any, stats: Any, label: str, errors: list[str]) -> None:
     if raw in (None, []):

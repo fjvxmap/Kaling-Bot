@@ -3394,21 +3394,12 @@ function statEffectsEditor(owner, key, title, defaultDuration = 1, fallbackUndis
     effect.value = Number(effect.value || 0);
     effect.duration = options.forceDuration ?? effect.duration ?? defaultDuration;
     effect.undispellable = options.forceUndispellable ?? effect.undispellable ?? fallbackUndispellable;
-    normalizeHealCap(effect);
-    const isLifeSteal = effect.stat === "life_steal";
+    delete effect.heal_cap;
     const fields = [
-      selectField("스탯", effect, "stat", statOptions(), {
-        rerender: true,
-        onChange: (stat) => {
-          if (stat !== "life_steal") {
-            delete effect.heal_cap;
-          }
-        },
-      }),
+      selectField("스탯", effect, "stat", statOptions()),
       ...(options.hideTarget ? [] : [selectField("대상", effect, "target", STAT_EFFECT_TARGETS)]),
       numberField("값", effect, "value", { step: 0.001 }),
       ...(options.forceDuration != null ? [] : [numberField("지속 턴", effect, "duration", { step: 1 })]),
-      ...(isLifeSteal ? healCapFields(effect, "회복 상한") : []),
       ...(options.forceUndispellable != null ? [] : [checkboxField("소거불가", effect, "undispellable")]),
       deleteButton(() => {
         owner[key].splice(index, 1);
@@ -3416,8 +3407,7 @@ function statEffectsEditor(owner, key, title, defaultDuration = 1, fallbackUndis
         render();
       }),
     ];
-    const rowClass = isLifeSteal && effect.heal_cap?.mode !== "none" ? "row six" : isLifeSteal ? "row five" : "row";
-    return el("div", { className: rowClass }, fields);
+    return el("div", { className: "row" }, fields);
   });
   return el("section", { className: "section" }, [
     el("div", { className: "section-head" }, [
@@ -3500,7 +3490,6 @@ function migrateStatEffects(owner, legacyKey, effectKey, defaultDuration, fallba
   owner[effectKey] = owner[effectKey]
     .filter((effect) => effect && typeof effect === "object")
     .map((effect) => {
-      normalizeHealCap(effect);
       const normalized = {
         stat: effect.stat || effect.key || defaultStatEffectKey(),
         target: normalizeStatEffectTarget(effect.target),
@@ -3508,9 +3497,6 @@ function migrateStatEffects(owner, legacyKey, effectKey, defaultDuration, fallba
         duration: effect.duration ?? defaultDuration,
         undispellable: Boolean(effect.undispellable ?? fallbackUndispellable),
       };
-      if (normalized.stat === "life_steal" && effect.heal_cap) {
-        normalized.heal_cap = effect.heal_cap;
-      }
       return normalized;
     });
   owner[legacyKey] = {};

@@ -1408,10 +1408,6 @@ class RPGService:
             if stat_text == "스탯 없음":
                 continue
             extras = [self._effect_duration_summary(effect.duration)]
-            if effect.stat == "life_steal":
-                cap_text = self._heal_cap_summary(effect.heal_cap)
-                if cap_text:
-                    extras.append(f"흡수 상한 {cap_text}")
             if effect.undispellable:
                 extras.append("소거불가")
             parts.append(f"{target_label} {stat_text} ({', '.join(extras)})")
@@ -3247,13 +3243,7 @@ class RPGService:
             if ratio <= 0:
                 continue
             effect_ratio_total += ratio
-            raw_heal = self._increased_heal_amount(int(round(dealt_damage * ratio)), stats)
-            heal += self._apply_heal_cap(
-                raw_heal,
-                effect.heal_cap,
-                target_max_hp,
-                heal_cap_bonus=stats.heal_cap_bonus,
-            )
+            heal += self._increased_heal_amount(int(round(dealt_damage * ratio)), stats)
         base_ratio = max(0.0, stats.life_steal - effect_ratio_total)
         if base_ratio > 0:
             heal += self._increased_heal_amount(int(round(dealt_damage * base_ratio)), stats)
