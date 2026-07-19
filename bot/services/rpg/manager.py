@@ -2151,7 +2151,9 @@ class RPGService:
             healing_bonus=float(raw_stats.get("healing_bonus", 0.0)),
             heal_cap_bonus=float(raw_stats.get("heal_cap_bonus", 0.0)),
         )
-        stats.defense = self._capped_defense(stats.defense)
+        # Enemy base defense stays raw until effects are applied. This lets mechanics
+        # such as Dusk's opened-eyes stack subtract authored base defense before the
+        # final combat cap clamps the value.
         stats.defense_ignore = max(0.0, min(0.4, float(stats.defense_ignore)))
         stats.skill_dmg_supplement = max(0.0, min(200.0, float(stats.skill_dmg_supplement)))
         stats.life_steal_cap = max(0.0, float(stats.life_steal_cap))
@@ -2169,10 +2171,14 @@ class RPGService:
         effects = self._effects_with_stacks(effects, stack_effects)
         positive_mods: dict[str, float] = {}
         negative_mods: dict[str, float] = {}
+        stack_mods: dict[str, float] = {}
         for effect in effects:
             if not self._effect_active(effect):
                 continue
             for key, value in effect.mods.items():
+                if effect.source_id.startswith("stack:"):
+                    stack_mods[key] = stack_mods.get(key, 0.0) + value
+                    continue
                 target = negative_mods if value < 0 else positive_mods
                 target[key] = target.get(key, 0.0) + value
         stat_keys = dict.fromkeys([*positive_mods.keys(), *negative_mods.keys()])
@@ -2181,6 +2187,8 @@ class RPGService:
             if key in STACKED_DEBUFF_FLOORS:
                 negative_value = max(negative_value, STACKED_DEBUFF_FLOORS[key])
             self._apply_stat(stats, key, positive_mods.get(key, 0.0) + negative_value)
+        for key, value in stack_mods.items():
+            self._apply_stat(stats, key, value)
         stats.base_atk = max(1, int(stats.base_atk))
         stats.max_hp = max(1, int(stats.max_hp))
         stats.defense = self._capped_defense(stats.defense)
