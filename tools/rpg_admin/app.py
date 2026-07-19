@@ -179,6 +179,7 @@ def normalize_content(content: dict[str, Any]) -> None:
                         warning["pattern"]["name"] = str(warning.get("name", warning["pattern"].get("name", "")))
                         normalize_pattern_effects(warning["pattern"], stat_order_index)
                     normalize_warning_success_pattern(warning, stat_order_index)
+                    normalize_warning_followups(warning)
                     normalize_warning_failure_variants(warning, stat_order_index)
             for pattern in boss.get("patterns", []):
                 if isinstance(pattern, dict):
@@ -363,6 +364,29 @@ def normalize_warning_success_pattern(warning: dict[str, Any], stat_order_index:
     pattern.setdefault("name", f"{warning_name} 성공 효과")
     normalize_pattern_effects(pattern, stat_order_index)
     warning["success_pattern"] = pattern
+
+
+def normalize_warning_followups(warning: dict[str, Any]) -> None:
+    success = warning.get(
+        "success_warning_id",
+        warning.get("on_success_warning_id", warning.get("next_success_warning_id", "")),
+    )
+    failure = warning.get(
+        "failure_warning_id",
+        warning.get("on_failure_warning_id", warning.get("next_failure_warning_id", "")),
+    )
+    warning.pop("on_success_warning_id", None)
+    warning.pop("next_success_warning_id", None)
+    warning.pop("on_failure_warning_id", None)
+    warning.pop("next_failure_warning_id", None)
+    if success:
+        warning["success_warning_id"] = str(success)
+    else:
+        warning.pop("success_warning_id", None)
+    if failure:
+        warning["failure_warning_id"] = str(failure)
+    else:
+        warning.pop("failure_warning_id", None)
 
 
 def normalize_warning_failure_variants(warning: dict[str, Any], stat_order_index: dict[str, int] | None = None) -> None:
@@ -1218,7 +1242,15 @@ def validate_content(content: dict[str, Any]) -> list[str]:
             errors.append(f"boss {boss.get('id')} duplicate pattern id: {pattern_id}")
         warning_ids = ensure_unique_ids(boss.get("warnings", []), f"boss {boss.get('id')} warning", errors)
         for warning in boss.get("warnings", []):
-            validate_boss_warning_template(warning, pattern_ids, stat_ids, f"boss {boss.get('id')} warning", errors, stack_effects)
+            validate_boss_warning_template(
+                warning,
+                pattern_ids,
+                warning_ids,
+                stat_ids,
+                f"boss {boss.get('id')} warning",
+                errors,
+                stack_effects,
+            )
         for warning in boss.get("hp_warnings", []):
             validate_warning_trigger(warning, warning_ids, pattern_ids, stat_ids, f"boss {boss.get('id')} hp warning", errors, stack_effects)
         validate_boss_hp_locks(
@@ -1416,6 +1448,7 @@ def validate_boss_hp_locks(rows: Any, label: str, errors: list[str]) -> None:
 def validate_boss_warning_template(
     warning: dict[str, Any],
     pattern_ids: set[str],
+    warning_ids: set[str],
     stat_ids: set[str],
     label: str,
     errors: list[str],
@@ -1431,6 +1464,13 @@ def validate_boss_warning_template(
             errors.append(f"{label} {warning.get('id')} pattern not found: {pattern_id}")
     if safe_int(warning.get("turns"), 1) < 1:
         errors.append(f"{label} {warning.get('id')} turns must be at least 1")
+    for key, name in (
+        ("success_warning_id", "success warning"),
+        ("failure_warning_id", "failure warning"),
+    ):
+        linked_warning_id = str(warning.get(key, "") or "")
+        if linked_warning_id and linked_warning_id not in warning_ids:
+            errors.append(f"{label} {warning.get('id')} {name} not found: {linked_warning_id}")
     validate_warning_objectives(warning, f"{label} {warning.get('id')}", errors)
     success_pattern = warning.get("success_pattern")
     if success_pattern is not None:

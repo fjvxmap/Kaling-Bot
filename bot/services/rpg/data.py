@@ -391,6 +391,8 @@ class BossWarningTemplate:
     turns: int = 1
     pattern: BossPattern | None = None
     success_pattern: BossPattern | None = None
+    success_warning_id: str = ""
+    failure_warning_id: str = ""
     failure_variants: list[BossWarningFailureVariant] = field(default_factory=list)
 
 
@@ -1571,6 +1573,20 @@ def _warning_template(
         warning_name = pattern.name if pattern is not None else warning_id
     pattern_id = warning_id if pattern is not None else str(raw.get("pattern_id", ""))
     success_pattern = _warning_success_pattern(raw, warning_id, warning_name or warning_id)
+    success_warning_id = str(
+        raw.get(
+            "success_warning_id",
+            raw.get("on_success_warning_id", raw.get("next_success_warning_id", "")),
+        )
+        or ""
+    )
+    failure_warning_id = str(
+        raw.get(
+            "failure_warning_id",
+            raw.get("on_failure_warning_id", raw.get("next_failure_warning_id", "")),
+        )
+        or ""
+    )
     failure_variants = [
         variant
         for index, variant_raw in enumerate(raw.get("failure_variants", []))
@@ -1586,6 +1602,8 @@ def _warning_template(
         turns=max(1, _safe_int(raw.get("turns", raw.get("limit_turns", 1)), 1)),
         pattern=pattern,
         success_pattern=success_pattern,
+        success_warning_id=success_warning_id,
+        failure_warning_id=failure_warning_id,
         failure_variants=failure_variants,
     )
 
@@ -1986,6 +2004,16 @@ def _validate_content() -> None:
                 )
             if warning.pattern_id not in boss.pattern_by_id:
                 errors.append(f"boss {boss.id} warning pattern not found: {warning.pattern_id}")
+            if warning.success_warning_id and warning.success_warning_id not in boss.warning_by_id:
+                errors.append(
+                    f"boss {boss.id} warning {warning.id} success warning not found: "
+                    f"{warning.success_warning_id}"
+                )
+            if warning.failure_warning_id and warning.failure_warning_id not in boss.warning_by_id:
+                errors.append(
+                    f"boss {boss.id} warning {warning.id} failure warning not found: "
+                    f"{warning.failure_warning_id}"
+                )
             if not warning.objectives:
                 errors.append(f"boss {boss.id} warning has no objectives: {warning.id}")
             for objective in warning.objectives:

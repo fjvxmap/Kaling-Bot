@@ -101,9 +101,14 @@ class BossWarning:
     name: str
     pattern: BossPattern
     objectives: list[BossWarningObjectiveProgress]
+    template_id: str = ""
     threshold: float | None = None
     remaining_turns: int = 1
     success_pattern: BossPattern | None = None
+    success_warning_id: str = ""
+    success_warning_name: str = ""
+    failure_warning_id: str = ""
+    failure_warning_name: str = ""
     failure_variants: list[BossWarningFailureVariant] = field(default_factory=list)
 
 
@@ -1207,6 +1212,7 @@ class RPGCog(commands.Cog):
                 self._advance_ct(session, participant, False)
             else:
                 self._advance_ct(session, participant, resolved_ct_warning)
+            self._queue_linked_warning(session, participant, warning.success_warning_id, "linked:success")
             self._finish_boss_turn(session, participant, profile)
             self._check_boss_party_failed(session)
             success_text = f" · 보스 HP {success_hp_loss} 감소" if success_hp_loss > 0 else ""
@@ -1308,6 +1314,7 @@ class RPGCog(commands.Cog):
             participant.alive = False
             self._check_boss_party_failed(session)
             return True, "전조 실패로 전투 불능이 되었습니다."
+        self._queue_linked_warning(session, participant, warning.failure_warning_id, "linked:failure")
         self._finish_boss_turn(session, participant, profile)
         self._check_boss_party_failed(session)
         return True, f"{warning.name} 전조 실패 효과가 발동했습니다."
@@ -1506,30 +1513,68 @@ class RPGCog(commands.Cog):
                 continue
             if ratio <= rule.threshold:
                 participant.triggered_thresholds.add(idx)
-                participant.queued_warnings.append(self._hp_warning(session, idx, rule))
+                if not self._has_pending_or_queued_warning(participant, rule.warning_id):
+                    participant.queued_warnings.append(self._hp_warning(session, idx, rule))
 
     def _queue_ct_warning(self, session: BossSession, participant: BossParticipant, profile: PlayerProfile | None = None) -> None:
         if session.completed or session.failed:
             return
         if self._has_ct_warning(participant):
             return
-        if participant.ct >= self._current_ct_max(session):
+        rule = self._current_ct_warning(session)
+        if (
+            participant.ct >= self._current_ct_max(session)
+            and (rule is None or not self._has_pending_or_queued_warning(participant, rule.warning_id))
+        ):
             participant.queued_warnings.append(self._ct_warning(session, profile))
+
+    def _has_pending_or_queued_warning(self, participant: BossParticipant, warning_id: str) -> bool:
+        warning_id = str(warning_id or "")
+        if not warning_id:
+            return False
+        if participant.pending_warning is not None and participant.pending_warning.template_id == warning_id:
+            return True
+        return any(warning.template_id == warning_id for warning in participant.queued_warnings)
+
+    def _queue_linked_warning(
+        self,
+        session: BossSession,
+        participant: BossParticipant,
+        warning_id: str,
+        source: str,
+    ) -> None:
+        if session.completed or session.failed or not participant.alive:
+            return
+        warning = self._linked_warning(session, warning_id, source)
+        if warning is None or self._has_pending_or_queued_warning(participant, warning.template_id):
+            return
+        participant.queued_warnings.insert(0, warning)
 
     def _activate_next_warning(self, session: BossSession, participant: BossParticipant) -> None:
         if participant.pending_warning is not None or not participant.queued_warnings:
             return
+        linked_indices = [
+            idx for idx, warning in enumerate(participant.queued_warnings)
+            if warning.source.startswith("linked:")
+        ]
         hp_indices = [
             idx for idx, warning in enumerate(participant.queued_warnings)
             if warning.source.startswith("hp:")
         ]
-        if hp_indices:
+        if linked_indices:
+            idx = linked_indices[0]
+        elif hp_indices:
             idx = hp_indices[-1]
         else:
             idx = 0
         warning = participant.queued_warnings.pop(idx)
         participant.pending_warning = warning
-        kind = "체력" if warning.source.startswith("hp:") else "CT"
+        if warning.source.startswith("hp:"):
+            kind = "체력"
+        elif warning.source.startswith("linked:"):
+            kind = "연속"
+        else:
+            kind = "CT"
         session.log.append(f"{participant.display_name}: {kind} 전조 {warning.name}")
 
     def _finish_boss_turn(self, session: BossSession, participant: BossParticipant, profile: PlayerProfile) -> None:
@@ -1554,9 +1599,14 @@ class RPGCog(commands.Cog):
             name=f"{template.name} ({rule.threshold * 100:.0f}%)",
             pattern=pattern,
             objectives=self._warning_objective_progress(template),
+            template_id=template.id,
             threshold=rule.threshold,
             remaining_turns=max(1, int(getattr(template, "turns", 1))),
             success_pattern=getattr(template, "success_pattern", None),
+            success_warning_id=getattr(template, "success_warning_id", ""),
+            success_warning_name=self._warning_name(session, getattr(template, "success_warning_id", "")),
+            failure_warning_id=getattr(template, "failure_warning_id", ""),
+            failure_warning_name=self._warning_name(session, getattr(template, "failure_warning_id", "")),
             failure_variants=list(getattr(template, "failure_variants", [])),
         )
 
@@ -1576,10 +1626,39 @@ class RPGCog(commands.Cog):
             name=name,
             pattern=pattern,
             objectives=objectives,
+            template_id=getattr(template, "id", "") if rule is not None else "",
             remaining_turns=max(1, int(getattr(template, "turns", 1))) if rule is not None else 1,
             success_pattern=getattr(template, "success_pattern", None) if rule is not None else None,
+            success_warning_id=getattr(template, "success_warning_id", "") if rule is not None else "",
+            success_warning_name=self._warning_name(session, getattr(template, "success_warning_id", "")) if rule is not None else "",
+            failure_warning_id=getattr(template, "failure_warning_id", "") if rule is not None else "",
+            failure_warning_name=self._warning_name(session, getattr(template, "failure_warning_id", "")) if rule is not None else "",
             failure_variants=list(getattr(template, "failure_variants", [])) if rule is not None else [],
         )
+
+    def _linked_warning(self, session: BossSession, warning_id: str, source: str) -> BossWarning | None:
+        template = session.boss.warning_by_id.get(str(warning_id or ""))
+        if template is None:
+            return None
+        pattern = template.pattern or self._pattern_for_warning(session, template.pattern_id)
+        return BossWarning(
+            source=source,
+            name=template.name,
+            pattern=pattern,
+            objectives=self._warning_objective_progress(template),
+            template_id=template.id,
+            remaining_turns=max(1, int(getattr(template, "turns", 1))),
+            success_pattern=getattr(template, "success_pattern", None),
+            success_warning_id=getattr(template, "success_warning_id", ""),
+            success_warning_name=self._warning_name(session, getattr(template, "success_warning_id", "")),
+            failure_warning_id=getattr(template, "failure_warning_id", ""),
+            failure_warning_name=self._warning_name(session, getattr(template, "failure_warning_id", "")),
+            failure_variants=list(getattr(template, "failure_variants", [])),
+        )
+
+    def _warning_name(self, session: BossSession, warning_id: str) -> str:
+        template = session.boss.warning_by_id.get(str(warning_id or ""))
+        return template.name if template is not None else str(warning_id or "")
 
     def _warning_for_trigger(self, session: BossSession, warning_id: str):
         warning = session.boss.warning_by_id.get(warning_id)
@@ -1807,6 +1886,7 @@ class RPGCog(commands.Cog):
         participant.pending_warning = None
         if session.completed:
             return True
+        self._queue_linked_warning(session, participant, warning.success_warning_id, "linked:success")
         if warning.source == "ct":
             participant.ct = 0
         if defer_next_warning:
@@ -1894,11 +1974,18 @@ class RPGCog(commands.Cog):
 
     def _warning_display_text(self, warning: BossWarning, participant: BossParticipant | None = None) -> str:
         failure_pattern = self._warning_failure_pattern(warning, participant) if participant is not None else warning.pattern
-        failure = self._boss_pattern_effect_summary(failure_pattern)
+        failure_parts = [self._boss_pattern_effect_summary(failure_pattern)]
+        if warning.failure_warning_id:
+            failure_parts.append(f"{warning.failure_warning_name or warning.failure_warning_id} 전조 발생")
+        failure = " · ".join(failure_parts)
         success_text = ""
+        success_parts = []
         if warning.success_pattern is not None:
-            success = self._boss_pattern_effect_summary(warning.success_pattern)
-            success_text = f"\n성공 시: {success}"
+            success_parts.append(self._boss_pattern_effect_summary(warning.success_pattern))
+        if warning.success_warning_id:
+            success_parts.append(f"{warning.success_warning_name or warning.success_warning_id} 전조 발생")
+        if success_parts:
+            success_text = f"\n성공 시: {' · '.join(success_parts)}"
         variant_text = "" if participant is not None else (
             f"\n스택 조건부 실패 효과: {len(warning.failure_variants)}개" if warning.failure_variants else ""
         )

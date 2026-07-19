@@ -1951,6 +1951,8 @@ function normalizeWarningTrigger(boss, warning, index, prefix, defaultObjective)
     pattern,
     success_pattern: warning.success_pattern && typeof warning.success_pattern === "object" ? warning.success_pattern : undefined,
     objectives: warningObjectivesFromLegacy(warning, defaultObjective),
+    success_warning_id: warning.success_warning_id || warning.on_success_warning_id || warning.next_success_warning_id || "",
+    failure_warning_id: warning.failure_warning_id || warning.on_failure_warning_id || warning.next_failure_warning_id || "",
     failure_variants: Array.isArray(warning.failure_variants) ? warning.failure_variants : [],
   };
   template.pattern.id = template.id;
@@ -1965,6 +1967,12 @@ function normalizeWarningTrigger(boss, warning, index, prefix, defaultObjective)
   delete warning.required;
   delete warning.objectives;
   delete warning.failure_variants;
+  delete warning.success_warning_id;
+  delete warning.failure_warning_id;
+  delete warning.on_success_warning_id;
+  delete warning.next_success_warning_id;
+  delete warning.on_failure_warning_id;
+  delete warning.next_failure_warning_id;
 }
 
 function normalizeWarningTemplate(boss, warning) {
@@ -1983,10 +1991,30 @@ function normalizeWarningTemplate(boss, warning) {
   normalizeFailureVariants(boss, warning);
   warning.name ||= warning.pattern.name || warning.id || "전조";
   warning.id ||= nextId("warning", boss.warnings);
+  normalizeWarningFollowupIds(warning);
   warning.pattern.id = warning.id;
   warning.pattern.name = warning.name;
   delete warning.pattern_id;
   warning.turns = Math.max(1, Number(warning.turns || 1));
+}
+
+function normalizeWarningFollowupIds(warning) {
+  const success = warning.success_warning_id ?? warning.on_success_warning_id ?? warning.next_success_warning_id ?? "";
+  const failure = warning.failure_warning_id ?? warning.on_failure_warning_id ?? warning.next_failure_warning_id ?? "";
+  delete warning.on_success_warning_id;
+  delete warning.next_success_warning_id;
+  delete warning.on_failure_warning_id;
+  delete warning.next_failure_warning_id;
+  if (success) {
+    warning.success_warning_id = String(success);
+  } else {
+    delete warning.success_warning_id;
+  }
+  if (failure) {
+    warning.failure_warning_id = String(failure);
+  } else {
+    delete warning.failure_warning_id;
+  }
 }
 
 function blankBossPattern(boss, prefix, name) {
@@ -2141,6 +2169,10 @@ function bossWarningPatterns(boss) {
 
 function bossWarningOptions(boss) {
   return (boss.warnings || []).map((warning) => [warning.id, `${warning.name || warning.id} (${warning.id})`]);
+}
+
+function bossWarningLinkOptions(boss) {
+  return [["", "없음"], ...bossWarningOptions(boss)];
 }
 
 function findBossWarning(boss, id) {
@@ -2680,6 +2712,10 @@ function bossWarningTemplatePanel(boss, warning, index) {
       numberField("제한 턴", warning, "turns", { step: 1 }),
     ]),
     warningObjectivesEditor(warning),
+    el("div", { className: "form-grid two" }, [
+      selectField("성공 시 즉시 전조", warning, "success_warning_id", bossWarningLinkOptions(boss), { rerender: true }),
+      selectField("실패 시 즉시 전조", warning, "failure_warning_id", bossWarningLinkOptions(boss), { rerender: true }),
+    ]),
     patternEffectEditor(warning.pattern, {
       hideIdentity: true,
       title: "기본 실패 효과",
@@ -4562,6 +4598,14 @@ function renameBossWarningReferences(boss, oldId, newId) {
       warning.warning_id = newId;
     }
   }
+  for (const warning of boss.warnings || []) {
+    if (warning.success_warning_id === oldId) {
+      warning.success_warning_id = newId;
+    }
+    if (warning.failure_warning_id === oldId) {
+      warning.failure_warning_id = newId;
+    }
+  }
 }
 
 function deleteBossWarningReferences(boss, removedId) {
@@ -4569,6 +4613,14 @@ function deleteBossWarningReferences(boss, removedId) {
   boss.hp_warnings = (boss.hp_warnings || []).filter(filter);
   if (boss.ct?.warnings_by_hp) {
     boss.ct.warnings_by_hp = boss.ct.warnings_by_hp.filter(filter);
+  }
+  for (const warning of boss.warnings || []) {
+    if (warning.success_warning_id === removedId) {
+      delete warning.success_warning_id;
+    }
+    if (warning.failure_warning_id === removedId) {
+      delete warning.failure_warning_id;
+    }
   }
 }
 
