@@ -1332,6 +1332,7 @@ class RPGCog(commands.Cog):
             if participant.hp <= 0 or session.failed:
                 return
         self._queue_due_hp_warnings(session, participant, profile)
+        self._queue_conditional_warnings(session, participant)
         self._queue_ct_warning(session, participant, profile)
         self._activate_next_warning(session, participant)
 
@@ -1519,15 +1520,34 @@ class RPGCog(commands.Cog):
                 if not self._has_pending_or_queued_warning(participant, rule.warning_id):
                     participant.queued_warnings.append(self._hp_warning(session, idx, rule))
 
+    def _queue_conditional_warnings(self, session: BossSession, participant: BossParticipant) -> None:
+        if session.completed or session.failed:
+            return
+        triggered_warning_ids = {
+            warning.warning_id
+            for warning in [*session.boss.hp_warnings, *session.boss.ct_warnings]
+            if warning.warning_id
+        }
+        for idx, template in enumerate(session.boss.warnings):
+            if not template.activation_conditions or template.id in triggered_warning_ids:
+                continue
+            if self._has_pending_or_queued_warning(participant, template.id):
+                continue
+            warning = self._direct_warning(session, idx, template)
+            if self._warning_activation_conditions_met(session, participant, warning):
+                participant.queued_warnings.append(warning)
+
     def _queue_ct_warning(self, session: BossSession, participant: BossParticipant, profile: PlayerProfile | None = None) -> None:
         if session.completed or session.failed:
             return
         if self._has_ct_warning(participant):
             return
         rule = self._current_ct_warning(session)
+        if rule is None:
+            return
         if (
             participant.ct >= self._current_ct_max(session)
-            and (rule is None or not self._has_pending_or_queued_warning(participant, rule.warning_id))
+            and not self._has_pending_or_queued_warning(participant, rule.warning_id)
         ):
             participant.queued_warnings.append(self._ct_warning(session, profile))
 
@@ -1584,6 +1604,8 @@ class RPGCog(commands.Cog):
             kind = "체력"
         elif warning.source.startswith("linked:"):
             kind = "연속"
+        elif warning.source.startswith("condition:"):
+            kind = "조건"
         else:
             kind = "CT"
         session.log.append(f"{participant.display_name}: {kind} 전조 {warning.name}")
@@ -1644,6 +1666,7 @@ class RPGCog(commands.Cog):
             if participant.hp <= 0 or session.failed:
                 return
         self._queue_due_hp_warnings(session, participant, profile)
+        self._queue_conditional_warnings(session, participant)
         self._queue_ct_warning(session, participant, profile)
         self._activate_next_warning(session, participant)
 
@@ -1670,28 +1693,48 @@ class RPGCog(commands.Cog):
     def _ct_warning(self, session: BossSession, profile: PlayerProfile | None = None) -> BossWarning:
         rule = self._current_ct_warning(session)
         if rule is None:
-            pattern = session.boss.patterns[0] if session.boss.patterns else BossPattern(0.0, f"{session.boss.name} CT")
-            name = pattern.name
-            objectives = [BossWarningObjectiveProgress("hits", 1)]
-        else:
-            template = rule.warning or self._warning_for_trigger(session, rule.warning_id)
-            pattern = template.pattern or self._pattern_for_warning(session, template.pattern_id)
-            name = template.name
-            objectives = self._warning_objective_progress(template)
+            return BossWarning(
+                source="ct",
+                name=f"{session.boss.name} CT",
+                pattern=BossPattern(0.0, f"{session.boss.name} CT"),
+                objectives=[BossWarningObjectiveProgress("hits", 1)],
+            )
+        template = rule.warning or self._warning_for_trigger(session, rule.warning_id)
+        pattern = template.pattern or self._pattern_for_warning(session, template.pattern_id)
+        name = template.name
+        objectives = self._warning_objective_progress(template)
         return BossWarning(
             source="ct",
             name=name,
             pattern=pattern,
             objectives=objectives,
-            template_id=getattr(template, "id", "") if rule is not None else "",
-            remaining_turns=max(1, int(getattr(template, "turns", 1))) if rule is not None else 1,
-            success_pattern=getattr(template, "success_pattern", None) if rule is not None else None,
-            success_warning_id=getattr(template, "success_warning_id", "") if rule is not None else "",
-            success_warning_name=self._warning_name(session, getattr(template, "success_warning_id", "")) if rule is not None else "",
-            failure_warning_id=getattr(template, "failure_warning_id", "") if rule is not None else "",
-            failure_warning_name=self._warning_name(session, getattr(template, "failure_warning_id", "")) if rule is not None else "",
-            failure_variants=list(getattr(template, "failure_variants", [])) if rule is not None else [],
-            activation_conditions=list(getattr(template, "activation_conditions", [])) if rule is not None else [],
+            template_id=getattr(template, "id", ""),
+            remaining_turns=max(1, int(getattr(template, "turns", 1))),
+            success_pattern=getattr(template, "success_pattern", None),
+            success_warning_id=getattr(template, "success_warning_id", ""),
+            success_warning_name=self._warning_name(session, getattr(template, "success_warning_id", "")),
+            failure_warning_id=getattr(template, "failure_warning_id", ""),
+            failure_warning_name=self._warning_name(session, getattr(template, "failure_warning_id", "")),
+            failure_variants=list(getattr(template, "failure_variants", [])),
+            activation_conditions=list(getattr(template, "activation_conditions", [])),
+        )
+
+    def _direct_warning(self, session: BossSession, idx: int, template: BossWarningTemplate) -> BossWarning:
+        pattern = template.pattern or self._pattern_for_warning(session, template.pattern_id)
+        return BossWarning(
+            source=f"condition:{idx}",
+            name=template.name,
+            pattern=pattern,
+            objectives=self._warning_objective_progress(template),
+            template_id=template.id,
+            remaining_turns=max(1, int(getattr(template, "turns", 1))),
+            success_pattern=getattr(template, "success_pattern", None),
+            success_warning_id=getattr(template, "success_warning_id", ""),
+            success_warning_name=self._warning_name(session, getattr(template, "success_warning_id", "")),
+            failure_warning_id=getattr(template, "failure_warning_id", ""),
+            failure_warning_name=self._warning_name(session, getattr(template, "failure_warning_id", "")),
+            failure_variants=list(getattr(template, "failure_variants", [])),
+            activation_conditions=list(getattr(template, "activation_conditions", [])),
         )
 
     def _linked_warning(self, session: BossSession, warning_id: str, source: str) -> BossWarning | None:
