@@ -23,6 +23,13 @@ WARNING_OBJECTIVES = {
     "warning_failure",
 }
 STACK_CONDITION_OBJECTIVES = WARNING_OBJECTIVES | {"received_damage"}
+WARNING_ACTIVATION_CONDITIONS = {
+    "stack",
+    "turn_multiple",
+    "turn_range",
+    "boss_hp_ratio",
+    "ct_ready",
+}
 INFINITE_EFFECT_TURNS = -1
 STACK_EFFECT_ACTIONS = {
     "stack_increase",
@@ -376,6 +383,21 @@ class BossWarningFailureStackCondition:
 
 
 @dataclass(frozen=True)
+class BossWarningActivationCondition:
+    kind: str
+    stack_effect_id: str = ""
+    target: str = "boss"
+    min_stacks: int = 0
+    max_stacks: int = -1
+    multiple: int = 1
+    min_turn: int = 1
+    max_turn: int = -1
+    min_ratio: float = 0.0
+    max_ratio: float = 1.0
+    ct_ready: bool = True
+
+
+@dataclass(frozen=True)
 class BossWarningFailureVariant:
     conditions: list[BossWarningFailureStackCondition]
     pattern: BossPattern
@@ -394,6 +416,7 @@ class BossWarningTemplate:
     success_warning_id: str = ""
     failure_warning_id: str = ""
     failure_variants: list[BossWarningFailureVariant] = field(default_factory=list)
+    activation_conditions: list[BossWarningActivationCondition] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -593,6 +616,20 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def _safe_bool(value: Any, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in {"1", "true", "yes", "y", "on"}:
+            return True
+        if text in {"0", "false", "no", "n", "off"}:
+            return False
+    return bool(value)
 
 
 def _clamped_chance(value: Any, default: float = 0.0) -> float:
@@ -1507,6 +1544,71 @@ def _warning_failure_stack_condition(raw: dict[str, Any]) -> BossWarningFailureS
     )
 
 
+def _warning_activation_condition_kind(raw: Any) -> str:
+    kind = str(raw or "stack")
+    aliases = {
+        "stack_count": "stack",
+        "stacks": "stack",
+        "stack_level": "stack",
+        "turn_mod": "turn_multiple",
+        "turn_modulo": "turn_multiple",
+        "turn_divisible": "turn_multiple",
+        "turn_count_multiple": "turn_multiple",
+        "turn": "turn_range",
+        "turn_count": "turn_range",
+        "boss_hp": "boss_hp_ratio",
+        "hp": "boss_hp_ratio",
+        "hp_ratio": "boss_hp_ratio",
+        "hp_range": "boss_hp_ratio",
+        "ct": "ct_ready",
+    }
+    return aliases.get(kind, kind)
+
+
+def _warning_activation_condition_target(raw: Any) -> str:
+    target = str(raw or "boss")
+    if target in {"player", "self", "participant", "user"}:
+        return "player"
+    return "boss"
+
+
+def _warning_activation_condition(raw: dict[str, Any]) -> BossWarningActivationCondition:
+    kind = _warning_activation_condition_kind(raw.get("kind", raw.get("type", raw.get("condition", "stack"))))
+    if kind not in WARNING_ACTIVATION_CONDITIONS:
+        kind = "stack"
+    min_turn = max(1, _safe_int(raw.get("min_turn", raw.get("min", raw.get("turn", 1))), 1))
+    max_turn = _safe_int(raw.get("max_turn", raw.get("max", -1)), -1)
+    min_ratio_raw = raw.get("min_ratio", raw.get("min_hp", raw.get("min_hp_ratio", raw.get("min", 0.0))))
+    max_ratio_raw = raw.get("max_ratio", raw.get("max_hp", raw.get("max_hp_ratio", raw.get("max", 1.0))))
+    return BossWarningActivationCondition(
+        kind=kind,
+        stack_effect_id=str(raw.get("stack_effect_id", raw.get("effect_id", raw.get("id", ""))) or ""),
+        target=_warning_activation_condition_target(raw.get("target", "boss")),
+        min_stacks=max(0, _safe_int(raw.get("min_stacks", raw.get("min", raw.get("stacks", 1))), 1)),
+        max_stacks=_safe_int(raw.get("max_stacks", raw.get("max", -1)), -1),
+        multiple=max(1, _safe_int(raw.get("multiple", raw.get("mod", raw.get("divisor", raw.get("value", 1)))), 1)),
+        min_turn=min_turn,
+        max_turn=max_turn,
+        min_ratio=_hp_threshold(min_ratio_raw),
+        max_ratio=_hp_threshold(max_ratio_raw),
+        ct_ready=_safe_bool(raw.get("ct_ready", raw.get("ready")), True),
+    )
+
+
+def _warning_activation_conditions(raw: dict[str, Any]) -> list[BossWarningActivationCondition]:
+    conditions = raw.get(
+        "activation_conditions",
+        raw.get("trigger_conditions", raw.get("spawn_conditions", raw.get("conditions", []))),
+    )
+    if not isinstance(conditions, list):
+        return []
+    return [
+        _warning_activation_condition(condition)
+        for condition in conditions
+        if isinstance(condition, dict)
+    ]
+
+
 def _warning_failure_variant(
     raw: dict[str, Any],
     index: int,
@@ -1605,6 +1707,7 @@ def _warning_template(
         success_warning_id=success_warning_id,
         failure_warning_id=failure_warning_id,
         failure_variants=failure_variants,
+        activation_conditions=_warning_activation_conditions(raw),
     )
 
 
@@ -2002,6 +2105,47 @@ def _validate_content() -> None:
                         f"boss {boss.id} warning {warning.id} failure variant {index} effect actions",
                     )
                 )
+            for index, condition in enumerate(warning.activation_conditions, start=1):
+                if condition.kind not in WARNING_ACTIVATION_CONDITIONS:
+                    errors.append(
+                        f"boss {boss.id} warning {warning.id} activation condition {index} "
+                        f"kind not found: {condition.kind}"
+                    )
+                if condition.kind == "stack" and condition.stack_effect_id not in STACK_EFFECT_BY_ID:
+                    errors.append(
+                        f"boss {boss.id} warning {warning.id} activation condition {index} "
+                        f"stack effect not found: {condition.stack_effect_id}"
+                    )
+                if condition.min_stacks < 0:
+                    errors.append(
+                        f"boss {boss.id} warning {warning.id} activation condition {index} "
+                        f"min stacks must be non-negative"
+                    )
+                if condition.max_stacks >= 0 and condition.max_stacks < condition.min_stacks:
+                    errors.append(
+                        f"boss {boss.id} warning {warning.id} activation condition {index} "
+                        f"max stacks must be at least min stacks"
+                    )
+                if condition.multiple < 1:
+                    errors.append(
+                        f"boss {boss.id} warning {warning.id} activation condition {index} "
+                        "turn multiple must be at least 1"
+                    )
+                if condition.min_turn < 1:
+                    errors.append(
+                        f"boss {boss.id} warning {warning.id} activation condition {index} "
+                        "min turn must be at least 1"
+                    )
+                if condition.max_turn >= 0 and condition.max_turn < condition.min_turn:
+                    errors.append(
+                        f"boss {boss.id} warning {warning.id} activation condition {index} "
+                        "max turn must be at least min turn"
+                    )
+                if condition.min_ratio < 0 or condition.max_ratio > 1 or condition.max_ratio < condition.min_ratio:
+                    errors.append(
+                        f"boss {boss.id} warning {warning.id} activation condition {index} "
+                        "hp ratio range is invalid"
+                    )
             if warning.pattern_id not in boss.pattern_by_id:
                 errors.append(f"boss {boss.id} warning pattern not found: {warning.pattern_id}")
             if warning.success_warning_id and warning.success_warning_id not in boss.warning_by_id:

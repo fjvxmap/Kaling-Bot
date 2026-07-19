@@ -124,6 +124,14 @@ const FAILURE_STACK_TARGETS = [
   ["player", "유저 스택"],
 ];
 
+const WARNING_ACTIVATION_CONDITIONS = [
+  ["stack", "스택 수"],
+  ["turn_multiple", "턴 배수"],
+  ["turn_range", "턴 범위"],
+  ["boss_hp_ratio", "보스 HP 비율"],
+  ["ct_ready", "CT 충전 여부"],
+];
+
 const ACTION_STACK_CONDITION_TARGETS = [
   ["self", "시전자 스택"],
   ["enemy", "대상 스택"],
@@ -155,6 +163,25 @@ function normalizeIdValue(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, "_")
     .toLowerCase();
+}
+
+function normalizeBooleanValue(value, defaultValue = false) {
+  if (value == null) {
+    return defaultValue;
+  }
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes", "y", "on"].includes(normalized)) {
+      return true;
+    }
+    if (["0", "false", "no", "n", "off"].includes(normalized)) {
+      return false;
+    }
+  }
+  return Boolean(value);
 }
 
 function normalizeInputElement(input, normalizer) {
@@ -1954,11 +1981,21 @@ function normalizeWarningTrigger(boss, warning, index, prefix, defaultObjective)
     success_warning_id: warning.success_warning_id || warning.on_success_warning_id || warning.next_success_warning_id || "",
     failure_warning_id: warning.failure_warning_id || warning.on_failure_warning_id || warning.next_failure_warning_id || "",
     failure_variants: Array.isArray(warning.failure_variants) ? warning.failure_variants : [],
+    activation_conditions: Array.isArray(warning.activation_conditions)
+      ? warning.activation_conditions
+      : Array.isArray(warning.trigger_conditions)
+        ? warning.trigger_conditions
+        : Array.isArray(warning.spawn_conditions)
+          ? warning.spawn_conditions
+          : Array.isArray(warning.conditions)
+            ? warning.conditions
+            : [],
   };
   template.pattern.id = template.id;
   template.pattern.name = template.name;
   normalizeFailureVariants(boss, template);
   normalizeWarningSuccessPattern(boss, template);
+  normalizeWarningActivationConditions(template);
   boss.warnings.push(template);
   warning.warning_id = template.id;
   delete warning.pattern;
@@ -1967,6 +2004,10 @@ function normalizeWarningTrigger(boss, warning, index, prefix, defaultObjective)
   delete warning.required;
   delete warning.objectives;
   delete warning.failure_variants;
+  delete warning.activation_conditions;
+  delete warning.trigger_conditions;
+  delete warning.spawn_conditions;
+  delete warning.conditions;
   delete warning.success_warning_id;
   delete warning.failure_warning_id;
   delete warning.on_success_warning_id;
@@ -1992,6 +2033,7 @@ function normalizeWarningTemplate(boss, warning) {
   warning.name ||= warning.pattern.name || warning.id || "전조";
   warning.id ||= nextId("warning", boss.warnings);
   normalizeWarningFollowupIds(warning);
+  normalizeWarningActivationConditions(warning);
   warning.pattern.id = warning.id;
   warning.pattern.name = warning.name;
   delete warning.pattern_id;
@@ -2015,6 +2057,95 @@ function normalizeWarningFollowupIds(warning) {
   } else {
     delete warning.failure_warning_id;
   }
+}
+
+function normalizeWarningActivationConditions(warning) {
+  const source = Array.isArray(warning.activation_conditions)
+    ? warning.activation_conditions
+    : Array.isArray(warning.trigger_conditions)
+      ? warning.trigger_conditions
+      : Array.isArray(warning.spawn_conditions)
+        ? warning.spawn_conditions
+        : Array.isArray(warning.conditions)
+          ? warning.conditions
+          : [];
+  delete warning.trigger_conditions;
+  delete warning.spawn_conditions;
+  delete warning.conditions;
+  warning.activation_conditions = source
+    .filter((condition) => condition && typeof condition === "object")
+    .map(normalizeWarningActivationCondition)
+    .filter(Boolean);
+  if (!warning.activation_conditions.length) {
+    delete warning.activation_conditions;
+  }
+}
+
+function warningActivationConditionKind(condition) {
+  const kind = String(condition.kind || condition.type || condition.condition || "stack");
+  const aliases = {
+    stack_count: "stack",
+    stacks: "stack",
+    stack_level: "stack",
+    turn_mod: "turn_multiple",
+    turn_modulo: "turn_multiple",
+    turn_divisible: "turn_multiple",
+    turn_count_multiple: "turn_multiple",
+    turn: "turn_range",
+    turn_count: "turn_range",
+    boss_hp: "boss_hp_ratio",
+    hp: "boss_hp_ratio",
+    hp_ratio: "boss_hp_ratio",
+    hp_range: "boss_hp_ratio",
+    ct: "ct_ready",
+  };
+  return aliases[kind] || kind;
+}
+
+function normalizeWarningActivationCondition(condition) {
+  let kind = warningActivationConditionKind(condition);
+  if (!WARNING_ACTIVATION_CONDITIONS.some(([id]) => id === kind)) {
+    kind = "stack";
+  }
+  if (kind === "stack") {
+    const minStacks = Number(condition.min_stacks ?? condition.min ?? condition.stacks ?? 1);
+    const maxStacks = Number(condition.max_stacks ?? condition.max ?? -1);
+    const stackId = condition.stack_effect_id || condition.effect_id || condition.id || state.content.stack_effects?.[0]?.id || "";
+    if (!stackId) {
+      return null;
+    }
+    return {
+      kind,
+      stack_effect_id: stackId,
+      target: condition.target === "player" ? "player" : "boss",
+      min_stacks: Math.max(0, Number.isFinite(minStacks) ? minStacks : 1),
+      max_stacks: Number.isFinite(maxStacks) ? maxStacks : -1,
+    };
+  }
+  if (kind === "turn_multiple") {
+    const multiple = Number(condition.multiple ?? condition.mod ?? condition.divisor ?? condition.value ?? 2);
+    return { kind, multiple: Math.max(1, Number.isFinite(multiple) ? multiple : 2) };
+  }
+  if (kind === "turn_range") {
+    const minTurn = Number(condition.min_turn ?? condition.min ?? condition.turn ?? 1);
+    const maxTurn = Number(condition.max_turn ?? condition.max ?? -1);
+    return {
+      kind,
+      min_turn: Math.max(1, Number.isFinite(minTurn) ? minTurn : 1),
+      max_turn: Number.isFinite(maxTurn) ? maxTurn : -1,
+    };
+  }
+  if (kind === "boss_hp_ratio") {
+    return {
+      kind,
+      min_ratio: normalizeUiHpThreshold(condition.min_ratio ?? condition.min_hp ?? condition.min_hp_ratio ?? condition.min ?? 0),
+      max_ratio: normalizeUiHpThreshold(condition.max_ratio ?? condition.max_hp ?? condition.max_hp_ratio ?? condition.max ?? 1),
+    };
+  }
+  if (kind === "ct_ready") {
+    return { kind, ct_ready: normalizeBooleanValue(condition.ct_ready ?? condition.ready, true) };
+  }
+  return null;
 }
 
 function blankBossPattern(boss, prefix, name) {
@@ -2711,6 +2842,7 @@ function bossWarningTemplatePanel(boss, warning, index) {
       textField("전조 이름", warning, "name"),
       numberField("제한 턴", warning, "turns", { step: 1 }),
     ]),
+    warningActivationConditionsEditor(warning),
     warningObjectivesEditor(warning),
     el("div", { className: "form-grid two" }, [
       selectField("성공 시 즉시 전조", warning, "success_warning_id", bossWarningLinkOptions(boss), { rerender: true }),
@@ -2725,6 +2857,105 @@ function bossWarningTemplatePanel(boss, warning, index) {
     warningSuccessEffectEditor(boss, warning),
     warningFailureVariantsEditor(boss, warning),
   ]);
+}
+
+function makeWarningActivationCondition(kind = "stack") {
+  if (kind === "stack" && !state.content.stack_effects?.length) {
+    kind = "turn_multiple";
+  }
+  if (kind === "stack") {
+    return {
+      kind,
+      stack_effect_id: state.content.stack_effects?.[0]?.id || "",
+      target: "boss",
+      min_stacks: 1,
+      max_stacks: -1,
+    };
+  }
+  if (kind === "turn_multiple") {
+    return { kind, multiple: 2 };
+  }
+  if (kind === "turn_range") {
+    return { kind, min_turn: 1, max_turn: -1 };
+  }
+  if (kind === "boss_hp_ratio") {
+    return { kind, min_ratio: 0, max_ratio: 1 };
+  }
+  if (kind === "ct_ready") {
+    return { kind, ct_ready: true };
+  }
+  return { kind: "turn_multiple", multiple: 2 };
+}
+
+function warningActivationConditionsEditor(warning) {
+  normalizeWarningActivationConditions(warning);
+  warning.activation_conditions ||= [];
+  const addButton = el("button", {
+    type: "button",
+    onclick: () => {
+      warning.activation_conditions.push(makeWarningActivationCondition());
+      markDirty();
+      render();
+    },
+  }, "발생 조건 추가");
+  return el("section", { className: "section" }, [
+    el("div", { className: "section-head" }, [
+      el("h3", {}, "발생 조건"),
+      addButton,
+    ]),
+    el("div", { className: "rows" }, warning.activation_conditions.length
+      ? warning.activation_conditions.map((condition, index) => warningActivationConditionRow(warning, condition, index))
+      : [el("div", { className: "empty" }, "조건 없음")]),
+  ]);
+}
+
+function warningActivationConditionRow(warning, condition, index) {
+  const fields = [
+    selectField("조건", condition, "kind", WARNING_ACTIVATION_CONDITIONS, {
+      rerender: true,
+      onChange: (nextKind) => {
+        warning.activation_conditions[index] = makeWarningActivationCondition(nextKind);
+      },
+    }),
+  ];
+  if (condition.kind === "stack") {
+    fields.push(
+      selectField("스택", condition, "stack_effect_id", stackEffectOptions()),
+      selectField("대상", condition, "target", FAILURE_STACK_TARGETS),
+      numberField("최소 스택", condition, "min_stacks", { step: 1 }),
+      numberField("최대 스택 (-1=없음)", condition, "max_stacks", { step: 1 }),
+    );
+  } else if (condition.kind === "turn_multiple") {
+    fields.push(numberField("몇 턴마다", condition, "multiple", { step: 1 }));
+  } else if (condition.kind === "turn_range") {
+    fields.push(
+      numberField("시작 턴", condition, "min_turn", { step: 1 }),
+      numberField("끝 턴 (-1=없음)", condition, "max_turn", { step: 1 }),
+    );
+  } else if (condition.kind === "boss_hp_ratio") {
+    fields.push(
+      numberField("최소 HP 비율", condition, "min_ratio", {
+        step: 0.01,
+        onChange: (value) => {
+          condition.min_ratio = normalizeUiHpThreshold(value);
+        },
+      }),
+      numberField("최대 HP 비율", condition, "max_ratio", {
+        step: 0.01,
+        onChange: (value) => {
+          condition.max_ratio = normalizeUiHpThreshold(value);
+        },
+      }),
+    );
+  } else if (condition.kind === "ct_ready") {
+    fields.push(checkboxField("CT가 가득 찼을 때", condition, "ct_ready"));
+  }
+  fields.push(deleteButton(() => {
+    warning.activation_conditions.splice(index, 1);
+    markDirty();
+    render();
+  }));
+  return el("div", { className: `row ${condition.kind === "stack" ? "five" : "three"}` }, fields);
 }
 
 function warningSuccessEffectEditor(boss, warning) {

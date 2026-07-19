@@ -25,6 +25,7 @@ from bot.services.rpg.data import (
     RARITY_LABELS,
     BossPattern,
     BossTemplate,
+    BossWarningActivationCondition,
     BossWarningFailureVariant,
     BossWarningTemplate,
     SkillTemplate,
@@ -110,6 +111,7 @@ class BossWarning:
     failure_warning_id: str = ""
     failure_warning_name: str = ""
     failure_variants: list[BossWarningFailureVariant] = field(default_factory=list)
+    activation_conditions: list[BossWarningActivationCondition] = field(default_factory=list)
 
 
 @dataclass
@@ -135,6 +137,7 @@ class BossParticipant:
     level: int
     hp: int
     max_hp: int
+    turn: int = 1
     ct: int = 0
     alive: bool = True
     pending_warning: BossWarning | None = None
@@ -1553,12 +1556,20 @@ class RPGCog(commands.Cog):
     def _activate_next_warning(self, session: BossSession, participant: BossParticipant) -> None:
         if participant.pending_warning is not None or not participant.queued_warnings:
             return
-        linked_indices = [
+        active_indices = [
             idx for idx, warning in enumerate(participant.queued_warnings)
+            if self._warning_activation_conditions_met(session, participant, warning)
+        ]
+        if not active_indices:
+            return
+        linked_indices = [
+            idx for idx in active_indices
+            for warning in [participant.queued_warnings[idx]]
             if warning.source.startswith("linked:")
         ]
         hp_indices = [
-            idx for idx, warning in enumerate(participant.queued_warnings)
+            idx for idx in active_indices
+            for warning in [participant.queued_warnings[idx]]
             if warning.source.startswith("hp:")
         ]
         if linked_indices:
@@ -1566,7 +1577,7 @@ class RPGCog(commands.Cog):
         elif hp_indices:
             idx = hp_indices[-1]
         else:
-            idx = 0
+            idx = active_indices[0]
         warning = participant.queued_warnings.pop(idx)
         participant.pending_warning = warning
         if warning.source.startswith("hp:"):
@@ -1577,11 +1588,56 @@ class RPGCog(commands.Cog):
             kind = "CT"
         session.log.append(f"{participant.display_name}: {kind} 전조 {warning.name}")
 
+    def _warning_activation_conditions_met(
+        self,
+        session: BossSession,
+        participant: BossParticipant,
+        warning: BossWarning,
+    ) -> bool:
+        for condition in warning.activation_conditions:
+            if not self._warning_activation_condition_met(session, participant, condition):
+                return False
+        return True
+
+    def _warning_activation_condition_met(
+        self,
+        session: BossSession,
+        participant: BossParticipant,
+        condition: BossWarningActivationCondition,
+    ) -> bool:
+        kind = condition.kind
+        if kind == "stack":
+            stacks = participant.player_stack_effects if condition.target == "player" else participant.boss_stack_effects
+            current = 0
+            for stack in stacks:
+                if stack.template_id == condition.stack_effect_id:
+                    current = max(0, int(stack.stacks))
+                    break
+            return current >= condition.min_stacks and (
+                condition.max_stacks < 0 or current <= condition.max_stacks
+            )
+        if kind == "turn_multiple":
+            multiple = max(1, int(condition.multiple or 1))
+            return participant.turn % multiple == 0
+        if kind == "turn_range":
+            turn = max(1, int(participant.turn))
+            if turn < max(1, int(condition.min_turn or 1)):
+                return False
+            return condition.max_turn < 0 or turn <= condition.max_turn
+        if kind == "boss_hp_ratio":
+            ratio = self._boss_hp_ratio(session)
+            return condition.min_ratio <= ratio <= condition.max_ratio
+        if kind == "ct_ready":
+            ready = participant.ct >= self._current_ct_max(session)
+            return ready if condition.ct_ready else not ready
+        return True
+
     def _finish_boss_turn(self, session: BossSession, participant: BossParticipant, profile: PlayerProfile) -> None:
         self._release_pending_hp_locks(session, participant)
         participant.player_effects = self.service._tick_effects(participant.player_effects)
         participant.boss_effects = self.service._tick_effects(participant.boss_effects)
         self._tick_ability_cooldowns(participant)
+        participant.turn += 1
         participant.suppress_warning_activation = False
         if self._trigger_due_hp_effect(session, participant, profile):
             self._check_boss_party_failed(session)
@@ -1608,6 +1664,7 @@ class RPGCog(commands.Cog):
             failure_warning_id=getattr(template, "failure_warning_id", ""),
             failure_warning_name=self._warning_name(session, getattr(template, "failure_warning_id", "")),
             failure_variants=list(getattr(template, "failure_variants", [])),
+            activation_conditions=list(getattr(template, "activation_conditions", [])),
         )
 
     def _ct_warning(self, session: BossSession, profile: PlayerProfile | None = None) -> BossWarning:
@@ -1634,6 +1691,7 @@ class RPGCog(commands.Cog):
             failure_warning_id=getattr(template, "failure_warning_id", "") if rule is not None else "",
             failure_warning_name=self._warning_name(session, getattr(template, "failure_warning_id", "")) if rule is not None else "",
             failure_variants=list(getattr(template, "failure_variants", [])) if rule is not None else [],
+            activation_conditions=list(getattr(template, "activation_conditions", [])) if rule is not None else [],
         )
 
     def _linked_warning(self, session: BossSession, warning_id: str, source: str) -> BossWarning | None:
@@ -1654,6 +1712,7 @@ class RPGCog(commands.Cog):
             failure_warning_id=getattr(template, "failure_warning_id", ""),
             failure_warning_name=self._warning_name(session, getattr(template, "failure_warning_id", "")),
             failure_variants=list(getattr(template, "failure_variants", [])),
+            activation_conditions=list(getattr(template, "activation_conditions", [])),
         )
 
     def _warning_name(self, session: BossSession, warning_id: str) -> str:
@@ -2655,7 +2714,10 @@ class RPGCog(commands.Cog):
             warning = f"전조 대기 {len(participant.queued_warnings)}"
         else:
             warning = "전조 없음"
-        return f"**{participant.display_name}** · Lv.{participant.level} · {state} · CT {participant_ct}/{ct_max} · {warning}"
+        return (
+            f"**{participant.display_name}** · Lv.{participant.level} · "
+            f"{participant.turn}턴째 · {state} · CT {participant_ct}/{ct_max} · {warning}"
+        )
 
     def _participant_status_text(
         self,
@@ -2664,7 +2726,7 @@ class RPGCog(commands.Cog):
         include_cooldowns: bool = True,
     ) -> str:
         state = "전투 불능" if not participant.alive else f"HP {participant.hp}/{participant.max_hp}"
-        lines = [f"상태: Lv.{participant.level} · {state}"]
+        lines = [f"상태: Lv.{participant.level} · {participant.turn}턴째 · {state}"]
         if include_cooldowns:
             cooldowns = self._participant_ability_cooldown_text(participant, multiline=True)
             lines.append(f"어빌리티 쿨\n{cooldowns}")
@@ -2680,7 +2742,7 @@ class RPGCog(commands.Cog):
 
     def _participant_boss_state_text(self, participant: BossParticipant, ct_max: int) -> str:
         participant_ct = min(participant.ct, ct_max)
-        lines = [f"CT: {participant_ct}/{ct_max}"]
+        lines = [f"{participant.turn}턴째\nCT: {participant_ct}/{ct_max}"]
         if participant.pending_warning is not None:
             lines.append("전조\n" + self._warning_display_text(participant.pending_warning, participant))
         else:
@@ -2765,7 +2827,12 @@ class RPGCog(commands.Cog):
                         f"**{session.boss_hp}/{session.boss_max_hp}**"
                         + (f"\n{hp_lock_text}" if hp_lock_text else ""),
                         self._participant_boss_state_text(participant, ct_max),
-                        "버프/디버프\n" + self._boss_shared_effects_text(session, limit=520),
+                        "버프/디버프\n"
+                        + (
+                            self._effects_text(participant.boss_effects, limit=520, compact=False)
+                            if self._has_visible_effects(participant.boss_effects)
+                            else "없음"
+                        ),
                     ]
                 ),
                 1000,
