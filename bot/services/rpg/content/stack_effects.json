@@ -493,7 +493,7 @@
         "target": "opponent",
         "operation": "increase",
         "value": 1,
-        "required": 250,
+        "required": 400,
         "min_damage": 0
       },
       {
