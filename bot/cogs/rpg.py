@@ -1650,6 +1650,8 @@ class RPGCog(commands.Cog):
             ratio = self._boss_hp_ratio(session)
             return condition.min_ratio <= ratio <= condition.max_ratio
         if kind == "ct_ready":
+            if not self._boss_has_ct_system(session):
+                return not condition.ct_ready
             ready = participant.ct >= self._current_ct_max(session)
             return ready if condition.ct_ready else not ready
         return True
@@ -1858,11 +1860,16 @@ class RPGCog(commands.Cog):
         return f"{percent_text}% 미만 불가"
 
     def _current_ct_max(self, session: BossSession) -> int:
+        if not self._boss_has_ct_system(session):
+            return 0
         ratio = self._boss_hp_ratio(session)
         for rule in session.boss.ct_gauge:
             if ratio >= rule.above:
                 return rule.max
         return session.ct_max
+
+    def _boss_has_ct_system(self, session: BossSession) -> bool:
+        return bool(session.boss.ct_warnings)
 
     def _current_ct_warning(self, session: BossSession):
         ratio = self._boss_hp_ratio(session)
@@ -1882,6 +1889,9 @@ class RPGCog(commands.Cog):
         return any(warning.source == "ct" for warning in participant.queued_warnings)
 
     def _advance_ct(self, session: BossSession, participant: BossParticipant, resolved_ct_warning: bool) -> None:
+        if not self._boss_has_ct_system(session):
+            participant.ct = 0
+            return
         if resolved_ct_warning:
             participant.ct = 0
             return
@@ -2709,12 +2719,13 @@ class RPGCog(commands.Cog):
             color = 0x5865F2
             status = "대기 중"
         ct_max = self._current_ct_max(session)
+        ct_text = f" · CT {ct_max}" if ct_max > 0 else ""
         owner = session.participants.get(session.owner_id)
         owner_name = owner.display_name if owner is not None else "알 수 없음"
         mode_text = "연습" if session.practice else "일반"
         embed = discord.Embed(
             title=f"{session.boss.name} 보스전",
-            description=f"상태: **{status}** · {mode_text} · 자발자 {owner_name} · CT {ct_max}",
+            description=f"상태: **{status}** · {mode_text} · 자발자 {owner_name}{ct_text}",
             color=color,
         )
         embed.add_field(
@@ -2750,17 +2761,22 @@ class RPGCog(commands.Cog):
 
     def _participant_public_summary_text(self, participant: BossParticipant, ct_max: int) -> str:
         state = "전투 불능" if not participant.alive else f"HP {participant.hp}/{participant.max_hp}"
-        participant_ct = min(participant.ct, ct_max)
         if participant.pending_warning is not None:
             warning = f"전조 {participant.pending_warning.name}"
         elif participant.queued_warnings:
             warning = f"전조 대기 {len(participant.queued_warnings)}"
         else:
             warning = "전조 없음"
-        return (
-            f"**{participant.display_name}** · Lv.{participant.level} · "
-            f"{participant.turn}턴째 · {state} · CT {participant_ct}/{ct_max} · {warning}"
-        )
+        parts = [
+            f"**{participant.display_name}**",
+            f"Lv.{participant.level}",
+            f"{participant.turn}턴째",
+            state,
+        ]
+        if ct_max > 0:
+            parts.append(f"CT {min(participant.ct, ct_max)}/{ct_max}")
+        parts.append(warning)
+        return " · ".join(parts)
 
     def _participant_status_text(
         self,
@@ -2784,8 +2800,9 @@ class RPGCog(commands.Cog):
         return self._trim("\n\n".join(lines), 1000)
 
     def _participant_boss_state_text(self, participant: BossParticipant, ct_max: int) -> str:
-        participant_ct = min(participant.ct, ct_max)
-        lines = [f"{participant.turn}턴째\nCT: {participant_ct}/{ct_max}"]
+        lines = [f"{participant.turn}턴째"]
+        if ct_max > 0:
+            lines.append(f"CT: {min(participant.ct, ct_max)}/{ct_max}")
         if participant.pending_warning is not None:
             lines.append("전조\n" + self._warning_display_text(participant.pending_warning, participant))
         else:
