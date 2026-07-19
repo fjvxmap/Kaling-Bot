@@ -3028,7 +3028,6 @@ class RPGService:
         defender: CombatStats,
         defender_hp: int,
         attacker_effects: list[ActiveEffect],
-        multiplier: float = 1.0,
     ) -> AttackOutcome:
         flurry_count, actions, bonus_effects, post_attack_effects = self._attack_specials(attacker_effects)
         final_damage_multiplier = self._combined_final_damage_multiplier(attacker_effects, attacker, defender)
@@ -3049,8 +3048,7 @@ class RPGService:
                     attacker_hp,
                     defender,
                     defender_hp,
-                    multiplier,
-                    attacker_effects,
+                    attacker_effects=attacker_effects,
                     include_supplement=False,
                     include_final_damage=False,
                     include_flat_mitigation=False,

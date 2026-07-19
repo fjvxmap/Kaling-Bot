@@ -1016,7 +1016,6 @@ class RPGCog(commands.Cog):
             player_stats,
             participant.hp,
             self.service._effects_with_stacks(participant.boss_effects, participant.boss_stack_effects),
-            0.48,
         )
         received_damage = min(participant.hp, counter_attack.damage)
         dealt_segments = self.service._clamped_damage_segments(counter_attack.life_steal_segments, participant.hp)
@@ -1098,7 +1097,6 @@ class RPGCog(commands.Cog):
             guard_stats,
             participant.hp,
             self.service._effects_with_stacks(participant.boss_effects, participant.boss_stack_effects),
-            0.48,
         )
         received_damage = min(participant.hp, counter_attack.damage)
         dealt_segments = self.service._clamped_damage_segments(counter_attack.life_steal_segments, participant.hp)
@@ -1171,7 +1169,6 @@ class RPGCog(commands.Cog):
                     defender_stats,
                     participant.hp,
                     self.service._effects_with_stacks(participant.boss_effects, participant.boss_stack_effects),
-                    0.48,
                 )
                 received_damage = min(participant.hp, counter_attack.damage)
                 dealt_segments = self.service._clamped_damage_segments(counter_attack.life_steal_segments, participant.hp)
