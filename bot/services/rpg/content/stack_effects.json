@@ -618,7 +618,7 @@
           {
             "stat": "defense",
             "target": "self",
-            "value": -12.0,
+            "value": -50.0,
             "duration": -1,
             "undispellable": true
           },

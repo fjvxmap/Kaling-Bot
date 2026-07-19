@@ -5,7 +5,7 @@
   "stats": {
     "base_atk": 1,
     "max_hp": 18000,
-    "defense": 12,
+    "defense": 50,
     "dmg_mitigation": 25
   },
   "gold": 0,
@@ -141,12 +141,7 @@
   ],
   "hp_warnings": [],
   "ct": {
-    "gauge_by_hp": [
-      {
-        "above": 0,
-        "max": 5
-      }
-    ],
+    "gauge_by_hp": [],
     "warnings_by_hp": []
   },
   "rewards": {
