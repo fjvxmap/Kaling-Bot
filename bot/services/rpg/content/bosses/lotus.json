@@ -3,10 +3,10 @@
   "name": "스우",
   "level_req": 7,
   "stats": {
-    "base_atk": 20,
+    "base_atk": 15,
     "max_hp": 12000,
-    "triple_attack_rate": 0.3,
-    "double_attack_rate": 0.3
+    "triple_attack_rate": 0.5,
+    "double_attack_rate": 0.5
   },
   "gold": 1800,
   "exp": 1,

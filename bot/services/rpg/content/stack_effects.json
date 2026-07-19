@@ -510,27 +510,39 @@
   {
     "id": "annihilation",
     "name": "섬멸",
-    "max_stacks": 5,
+    "max_stacks": 3,
     "description": ".",
     "tiers": [
       {
         "stack": 1,
-        "stats": {}
+        "stats": {},
+        "effects": {
+          "bonus_damage": [
+            {
+              "ratio": 0.1,
+              "target": "self",
+              "duration": -1,
+              "undispellable": true
+            }
+          ]
+        }
       },
       {
         "stack": 2,
-        "stats": {}
+        "stats": {},
+        "effects": {
+          "bonus_damage": [
+            {
+              "ratio": 0.2,
+              "target": "self",
+              "duration": -1,
+              "undispellable": true
+            }
+          ]
+        }
       },
       {
         "stack": 3,
-        "stats": {}
-      },
-      {
-        "stack": 4,
-        "stats": {}
-      },
-      {
-        "stack": 5,
         "stat_effects": [
           {
             "stat": "atk",
@@ -538,19 +550,33 @@
             "value": 2.5,
             "duration": -1,
             "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.2,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "double_attack_rate",
+            "target": "self",
+            "value": 0.2,
+            "duration": -1,
+            "undispellable": true
           }
         ],
+        "stats": {},
         "effects": {
           "bonus_damage": [
             {
-              "ratio": 0.5,
+              "ratio": 0.3,
               "target": "self",
               "duration": -1,
               "undispellable": true
             }
           ]
-        },
-        "stats": {}
+        }
       }
     ],
     "conditions": [
@@ -559,7 +585,7 @@
         "target": "self",
         "operation": "increase",
         "value": 1,
-        "required": 5,
+        "required": 6,
         "min_damage": 0
       },
       {

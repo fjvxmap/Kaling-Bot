@@ -1837,9 +1837,9 @@
     "name": "마력이 깃든 안대",
     "rarity": "unique",
     "stats": {
-      "base_atk": 15,
+      "base_atk": 25,
       "atk": 0.45,
-      "defense": -0.75
+      "defense": -0.6
     },
     "base_price": 1,
     "excluded_from_gacha": true,
@@ -2078,7 +2078,7 @@
     "rarity": "unique",
     "stats": {
       "atk": 0.55,
-      "dmg_mitigation": -1,
+      "dmg_mitigation": -2.5,
       "triple_attack_rate": 0.15,
       "double_attack_rate": 0.15
     },
