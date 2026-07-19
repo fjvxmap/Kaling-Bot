@@ -3,7 +3,7 @@
   "name": "루시드",
   "level_req": 10,
   "stats": {
-    "base_atk": 20,
+    "base_atk": 10,
     "max_hp": 12500,
     "dmg_supplement": 5
   },

@@ -3,7 +3,7 @@
   "name": "벨제바브",
   "level_req": 25,
   "stats": {
-    "base_atk": 90,
+    "base_atk": 60,
     "max_hp": 50000,
     "defense": 0.45
   },

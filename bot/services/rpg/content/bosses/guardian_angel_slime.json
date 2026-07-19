@@ -3,7 +3,7 @@
   "name": "가디언 엔젤 슬라임",
   "level_req": 5,
   "stats": {
-    "base_atk": 50,
+    "base_atk": 25,
     "max_hp": 2000
   },
   "patterns": [],

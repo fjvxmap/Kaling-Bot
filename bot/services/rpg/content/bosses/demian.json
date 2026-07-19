@@ -3,7 +3,7 @@
   "name": "데미안",
   "level_req": 7,
   "stats": {
-    "base_atk": 25,
+    "base_atk": 15,
     "max_hp": 8000,
     "defense": 0.5
   },
