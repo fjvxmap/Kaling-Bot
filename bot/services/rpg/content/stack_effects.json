@@ -598,5 +598,42 @@
       }
     ],
     "stats": {}
+  },
+  {
+    "id": "opened_eyes",
+    "name": "개안",
+    "max_stacks": 1,
+    "description": ".",
+    "tiers": [
+      {
+        "stack": 1,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 59.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -12.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "dmg_mitigation",
+            "target": "self",
+            "value": -25.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      }
+    ],
+    "conditions": [],
+    "stats": {}
   }
 ]

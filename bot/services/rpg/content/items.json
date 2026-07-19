@@ -2090,5 +2090,20 @@
       "triple_attack_rate",
       "double_attack_rate"
     ]
+  },
+  {
+    "id": "endless_terror",
+    "name": "거대한 공포",
+    "rarity": "unique",
+    "stats": {
+      "atk": -0.75,
+      "defense": 0.9,
+      "dmg_mitigation": 2.5
+    },
+    "base_price": 1,
+    "excluded_from_gacha": true,
+    "fixed_stats": [
+      "atk"
+    ]
   }
 ]

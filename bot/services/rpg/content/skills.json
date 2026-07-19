@@ -1761,7 +1761,7 @@
     "heal_target": "self"
   },
   {
-    "id": "heal",
+    "id": "heal_bishop",
     "name": "힐",
     "unlock_level": 10,
     "uses": 0,
@@ -2381,6 +2381,53 @@
     "damage_cut": 0,
     "job_ids": [],
     "note": ".",
+    "stats": {}
+  },
+  {
+    "id": "clarity",
+    "name": "클리어 올",
+    "unlock_level": 1,
+    "uses": 0,
+    "cooldown": 4,
+    "role": "heal",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "effect_actions": [
+      {
+        "action": "clear_all",
+        "target": "allies",
+        "count": 1
+      }
+    ],
+    "job_ids": [],
+    "note": "파티원 전체의 디버프를 1개 제거한다.",
+    "stats": {}
+  },
+  {
+    "id": "heal",
+    "name": "힐",
+    "unlock_level": 1,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "heal",
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 1,
+    "heal_target": "allies",
+    "damage_cut": 0,
+    "job_ids": [],
+    "note": "파티원 전체의 체력을 소량 회복한다.",
+    "heal_cap": {
+      "mode": "max_hp_ratio",
+      "value": 0.1
+    },
     "stats": {}
   }
 ]

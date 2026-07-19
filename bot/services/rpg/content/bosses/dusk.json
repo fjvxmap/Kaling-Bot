@@ -1,0 +1,174 @@
+{
+  "id": "dusk",
+  "name": "더스크",
+  "level_req": 12,
+  "stats": {
+    "base_atk": 1,
+    "max_hp": 18000,
+    "defense": 12,
+    "dmg_mitigation": 25
+  },
+  "gold": 0,
+  "exp": 0,
+  "patterns": [],
+  "warnings": [
+    {
+      "id": "tentacle_attack",
+      "name": "촉수 공격",
+      "pattern": {
+        "id": "tentacle_attack",
+        "name": "촉수 공격",
+        "damage_multiplier": 50,
+        "hits": 1,
+        "player_mods": {},
+        "boss_mods": {},
+        "effect_actions": [
+          {
+            "action": "stack_max",
+            "target": "self",
+            "count": 1,
+            "stack_effect_id": "opened_eyes",
+            "value": 1
+          }
+        ],
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 99,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1,
+      "success_pattern": {
+        "id": "tentacle_attack_success",
+        "name": "촉수 공격 성공 효과",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "player_mods": {},
+        "boss_mods": {},
+        "effect_actions": [
+          {
+            "action": "stack_max",
+            "target": "self",
+            "count": 1,
+            "stack_effect_id": "opened_eyes",
+            "value": 1
+          }
+        ],
+        "duration": 0,
+        "stats": {}
+      },
+      "activation_conditions": [
+        {
+          "kind": "stack",
+          "stack_effect_id": "opened_eyes",
+          "target": "boss",
+          "min_stacks": 0,
+          "max_stacks": 0
+        },
+        {
+          "kind": "turn_multiple",
+          "multiple": 6
+        }
+      ]
+    },
+    {
+      "id": "laser",
+      "name": "레이저 발사",
+      "pattern": {
+        "id": "laser",
+        "name": "레이저 발사",
+        "damage_multiplier": 0.9,
+        "hits": 12,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {},
+        "effect_actions": [
+          {
+            "action": "stack_remove",
+            "target": "self",
+            "count": 1,
+            "stack_effect_id": "opened_eyes",
+            "value": 1
+          }
+        ]
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 2500,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1,
+      "activation_conditions": [
+        {
+          "kind": "stack",
+          "stack_effect_id": "opened_eyes",
+          "target": "boss",
+          "min_stacks": 1,
+          "max_stacks": -1
+        },
+        {
+          "kind": "turn_multiple",
+          "multiple": 6
+        }
+      ],
+      "success_pattern": {
+        "id": "laser_success",
+        "name": "레이저 발사 성공 효과",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "player_mods": {},
+        "boss_mods": {},
+        "effect_actions": [
+          {
+            "action": "stack_remove",
+            "target": "self",
+            "count": 1,
+            "stack_effect_id": "opened_eyes",
+            "value": 1
+          }
+        ],
+        "duration": 0,
+        "stats": {}
+      }
+    }
+  ],
+  "hp_warnings": [],
+  "ct": {
+    "gauge_by_hp": [
+      {
+        "above": 0,
+        "max": 5
+      }
+    ],
+    "warnings_by_hp": []
+  },
+  "rewards": {
+    "items": [],
+    "materials": [
+      {
+        "id": "boss_power_crystal",
+        "chance": 1.0,
+        "min": 1,
+        "max": 1,
+        "participant_chance": 0.0,
+        "participant_min": 1,
+        "participant_max": 1
+      }
+    ]
+  },
+  "description": "\"심연...\"",
+  "sort_order": 13,
+  "stack_effects": [
+    {
+      "stack_effect_id": "opened_eyes",
+      "initial_stacks": 0
+    }
+  ]
+}
