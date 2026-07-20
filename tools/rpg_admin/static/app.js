@@ -1942,8 +1942,30 @@ function normalizeBossWarnings(boss) {
     normalizeWarningTrigger(boss, warning, index, "hp_warning", "damage");
   });
   boss.ct.warnings_by_hp.forEach((warning, index) => {
+    normalizeCtWarningIds(boss, warning);
     normalizeWarningTrigger(boss, warning, index, "ct_warning", "hits");
+    normalizeCtWarningIds(boss, warning);
   });
+}
+
+function normalizeCtWarningIds(boss, warning) {
+  const source = Array.isArray(warning.warning_ids)
+    ? warning.warning_ids
+    : warning.warning_id
+      ? [warning.warning_id]
+      : [];
+  let ids = Array.from(new Set(source.map((id) => String(id || "")).filter(Boolean)));
+  if (!ids.length) {
+    ids = [ensureFirstBossWarning(boss, "ct_warning")];
+  }
+  warning.warning_ids = ids;
+  warning.warning_id = ids[0];
+}
+
+function nextCtWarningCandidateId(boss, selectedIds) {
+  const selected = new Set((selectedIds || []).map((id) => String(id || "")));
+  const option = bossWarningOptions(boss).find(([id]) => !selected.has(String(id)));
+  return option?.[0] || ensureFirstBossWarning(boss, "ct_warning");
 }
 
 function normalizeWarningTrigger(boss, warning, index, prefix, defaultObjective) {
@@ -2744,9 +2766,11 @@ function bossCtEditor(boss) {
   const addWarning = el("button", {
     type: "button",
     onclick: () => {
+      const warningId = ensureFirstBossWarning(boss, "ct_warning");
       boss.ct.warnings_by_hp.push({
         above: 1,
-        warning_id: ensureFirstBossWarning(boss, "ct_warning"),
+        warning_id: warningId,
+        warning_ids: [warningId],
       });
       markDirty();
       render();
@@ -2779,13 +2803,21 @@ function bossCtEditor(boss) {
 
 function warningPanel(boss, rows, warning, index, thresholdKey = "threshold") {
   normalizeWarningTrigger(boss, warning, index, thresholdKey === "above" ? "ct_warning" : "hp_warning", thresholdKey === "above" ? "hits" : "damage");
-  const template = findBossWarning(boss, warning.warning_id);
+  if (thresholdKey === "above") {
+    normalizeCtWarningIds(boss, warning);
+  }
+  const warningIds = thresholdKey === "above" ? warning.warning_ids : [warning.warning_id];
+  const templates = warningIds.map((warningId) => findBossWarning(boss, warningId)).filter(Boolean);
+  const template = templates[0] || findBossWarning(boss, warning.warning_id);
   const title = thresholdKey === "above" ? "CT 전조" : "체력 전조";
+  const badgeText = thresholdKey === "above"
+    ? templates.map((row) => row.name || row.id).join(" / ") || "전조 후보"
+    : template?.name || "전조";
   return el("div", { className: "subpanel" }, [
     el("div", { className: "subpanel-head" }, [
       el("div", { className: "subpanel-title" }, [
         el("strong", {}, `${title} ${index + 1}`),
-        el("span", { className: "badge" }, template?.name || "전조"),
+        el("span", { className: "badge" }, badgeText),
       ]),
       deleteButton(() => {
         rows.splice(index, 1);
@@ -2795,9 +2827,43 @@ function warningPanel(boss, rows, warning, index, thresholdKey = "threshold") {
     ]),
     el("div", { className: "form-grid three" }, [
       numberField(thresholdKey === "above" ? "HP 구간 상한" : "HP 임계값", warning, thresholdKey, { step: 0.01 }),
-      selectField("전조", warning, "warning_id", bossWarningOptions(boss), { rerender: true }),
+      thresholdKey === "above"
+        ? ctWarningCandidatesEditor(boss, warning)
+        : selectField("전조", warning, "warning_id", bossWarningOptions(boss), { rerender: true }),
     ]),
   ]);
+}
+
+function ctWarningCandidatesEditor(boss, warning) {
+  normalizeCtWarningIds(boss, warning);
+  const rows = warning.warning_ids.map((warningId, index) => {
+    const proxy = { warning_id: warningId };
+    return el("div", { className: "form-grid two" }, [
+      selectField(`후보 ${index + 1}`, proxy, "warning_id", bossWarningOptions(boss), {
+        rerender: true,
+        onChange: (nextValue) => {
+          warning.warning_ids[index] = String(nextValue || "");
+          normalizeCtWarningIds(boss, warning);
+        },
+      }),
+      deleteButton(() => {
+        warning.warning_ids.splice(index, 1);
+        normalizeCtWarningIds(boss, warning);
+        markDirty();
+        render();
+      }),
+    ]);
+  });
+  const addButton = el("button", {
+    type: "button",
+    onclick: () => {
+      warning.warning_ids.push(nextCtWarningCandidateId(boss, warning.warning_ids));
+      normalizeCtWarningIds(boss, warning);
+      markDirty();
+      render();
+    },
+  }, "후보 추가");
+  return fieldWrap("전조 후보", el("div", { className: "rows" }, [...rows, addButton]), true);
 }
 
 function bossWarningTemplateEditor(boss) {
@@ -4828,6 +4894,9 @@ function renameBossWarningReferences(boss, oldId, newId) {
     if (warning.warning_id === oldId) {
       warning.warning_id = newId;
     }
+    if (Array.isArray(warning.warning_ids)) {
+      warning.warning_ids = warning.warning_ids.map((warningId) => warningId === oldId ? newId : warningId);
+    }
   }
   for (const warning of boss.warnings || []) {
     if (warning.success_warning_id === oldId) {
@@ -4843,7 +4912,15 @@ function deleteBossWarningReferences(boss, removedId) {
   const filter = (warning) => warning.warning_id !== removedId;
   boss.hp_warnings = (boss.hp_warnings || []).filter(filter);
   if (boss.ct?.warnings_by_hp) {
-    boss.ct.warnings_by_hp = boss.ct.warnings_by_hp.filter(filter);
+    boss.ct.warnings_by_hp = boss.ct.warnings_by_hp
+      .map((warning) => {
+        if (Array.isArray(warning.warning_ids)) {
+          warning.warning_ids = warning.warning_ids.filter((warningId) => warningId !== removedId);
+          warning.warning_id = warning.warning_ids[0] || "";
+        }
+        return warning;
+      })
+      .filter((warning) => warning.warning_id !== removedId && (!Array.isArray(warning.warning_ids) || warning.warning_ids.length));
   }
   for (const warning of boss.warnings || []) {
     if (warning.success_warning_id === removedId) {

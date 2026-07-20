@@ -443,6 +443,8 @@ class BossCTWarningTemplate:
     above: float
     warning_id: str
     warning: BossWarningTemplate | None = None
+    warning_ids: tuple[str, ...] = ()
+    warnings: tuple[BossWarningTemplate, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -1771,20 +1773,44 @@ def _ct_gauge(raw: dict[str, Any]) -> BossCTGaugeTemplate:
     )
 
 
+def _warning_trigger_ids(raw: dict[str, Any]) -> list[str]:
+    source = raw.get("warning_ids")
+    if source is None:
+        source = raw.get("warning_id", "")
+    if not isinstance(source, list):
+        source = [source]
+    ids: list[str] = []
+    for value in source:
+        warning_id = str(value or "")
+        if warning_id and warning_id not in ids:
+            ids.append(warning_id)
+    return ids
+
+
 def _ct_warning(
     raw: dict[str, Any],
     index: int,
     warning_by_id: dict[str, BossWarningTemplate],
 ) -> BossCTWarningTemplate:
-    warning_id = str(raw.get("warning_id", "") or "")
-    warning = warning_by_id.get(warning_id) if warning_id else None
-    if warning is None:
+    warning_ids = _warning_trigger_ids(raw)
+    warnings = [
+        warning_by_id[warning_id]
+        for warning_id in warning_ids
+        if warning_id in warning_by_id
+    ]
+    if not warning_ids:
         warning = _warning_template(raw, index, "ct_warning", "hits")
         warning_id = warning.id
+        warning_ids = [warning_id]
+        warnings = [warning]
+    else:
+        warning_id = warning_ids[0]
     return BossCTWarningTemplate(
         above=_hp_threshold(raw.get("above", 0.0)),
         warning_id=warning_id,
-        warning=warning,
+        warning=warnings[0] if warnings else None,
+        warning_ids=tuple(warning_ids),
+        warnings=tuple(warnings),
     )
 
 
@@ -1849,9 +1875,13 @@ def _boss(raw: dict[str, Any]) -> BossTemplate:
         reverse=True,
     )
     direct_warnings = [
-        warning.warning
+        template
         for warning in [*hp_warnings, *ct_warnings]
-        if warning.warning is not None and warning.warning.id not in warning_by_id
+        for template in (
+            list(getattr(warning, "warnings", ()))
+            or ([warning.warning] if warning.warning is not None else [])
+        )
+        if template is not None and template.id not in warning_by_id
     ]
     all_warnings = [*warnings, *direct_warnings]
     warning_by_id = {
@@ -2188,8 +2218,10 @@ def _validate_content() -> None:
                 errors.append(f"boss {boss.id} duplicate hp lock threshold: {threshold}")
             seen_hp_locks.add(threshold)
         for warning in boss.ct_warnings:
-            if warning.warning_id not in boss.warning_by_id:
-                errors.append(f"boss {boss.id} ct warning not found: {warning.warning_id}")
+            warning_ids = warning.warning_ids or ((warning.warning_id,) if warning.warning_id else ())
+            for warning_id in warning_ids:
+                if warning_id not in boss.warning_by_id:
+                    errors.append(f"boss {boss.id} ct warning not found: {warning_id}")
         for stack_effect in boss.stack_effects:
             if stack_effect.stack_effect_id not in STACK_EFFECT_BY_ID:
                 errors.append(f"boss {boss.id} stack effect not found: {stack_effect.stack_effect_id}")

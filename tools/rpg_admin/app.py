@@ -1728,10 +1728,21 @@ def validate_warning_trigger(
     errors: list[str],
     stack_effect_ids: set[str],
 ) -> None:
-    warning_id = str(warning.get("warning_id", ""))
-    if warning_id:
-        if warning_id not in warning_ids:
-            errors.append(f"{label} warning not found: {warning_id}")
+    raw_warning_ids = warning.get("warning_ids")
+    if raw_warning_ids is None:
+        raw_warning_ids = [warning.get("warning_id", "")]
+    elif not isinstance(raw_warning_ids, list):
+        errors.append(f"{label} warning ids is not an array")
+        raw_warning_ids = []
+    trigger_warning_ids = [
+        str(warning_id or "")
+        for warning_id in raw_warning_ids
+        if str(warning_id or "")
+    ]
+    if trigger_warning_ids:
+        for warning_id in trigger_warning_ids:
+            if warning_id not in warning_ids:
+                errors.append(f"{label} warning not found: {warning_id}")
         return
 
     # Legacy shape: HP/CT trigger owns its condition and failure pattern directly.

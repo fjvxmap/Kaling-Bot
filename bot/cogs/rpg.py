@@ -1524,9 +1524,9 @@ class RPGCog(commands.Cog):
         if session.completed or session.failed:
             return
         triggered_warning_ids = {
-            warning.warning_id
+            warning_id
             for warning in [*session.boss.hp_warnings, *session.boss.ct_warnings]
-            if warning.warning_id
+            for warning_id in self._trigger_warning_ids(warning)
         }
         for idx, template in enumerate(session.boss.warnings):
             if not template.activation_conditions or template.id in triggered_warning_ids:
@@ -1547,9 +1547,16 @@ class RPGCog(commands.Cog):
             return
         if (
             participant.ct >= self._current_ct_max(session)
-            and not self._has_pending_or_queued_warning(participant, rule.warning_id)
         ):
-            participant.queued_warnings.append(self._ct_warning(session, profile))
+            candidates = []
+            for template in self._ct_warning_templates(session, rule):
+                if self._has_pending_or_queued_warning(participant, template.id):
+                    continue
+                warning = self._ct_warning(session, profile, rule=rule, template=template)
+                if self._warning_activation_conditions_met(session, participant, warning):
+                    candidates.append(warning)
+            if candidates:
+                participant.queued_warnings.append(self.service.rng.choice(candidates))
 
     def _has_pending_or_queued_warning(self, participant: BossParticipant, warning_id: str) -> bool:
         warning_id = str(warning_id or "")
@@ -1692,8 +1699,15 @@ class RPGCog(commands.Cog):
             activation_conditions=list(getattr(template, "activation_conditions", [])),
         )
 
-    def _ct_warning(self, session: BossSession, profile: PlayerProfile | None = None) -> BossWarning:
-        rule = self._current_ct_warning(session)
+    def _ct_warning(
+        self,
+        session: BossSession,
+        profile: PlayerProfile | None = None,
+        *,
+        rule=None,
+        template: BossWarningTemplate | None = None,
+    ) -> BossWarning:
+        rule = rule or self._current_ct_warning(session)
         if rule is None:
             return BossWarning(
                 source="ct",
@@ -1701,7 +1715,9 @@ class RPGCog(commands.Cog):
                 pattern=BossPattern(0.0, f"{session.boss.name} CT"),
                 objectives=[BossWarningObjectiveProgress("hits", 1)],
             )
-        template = rule.warning or self._warning_for_trigger(session, rule.warning_id)
+        if template is None:
+            templates = self._ct_warning_templates(session, rule)
+            template = templates[0] if templates else rule.warning or self._warning_for_trigger(session, rule.warning_id)
         pattern = template.pattern or self._pattern_for_warning(session, template.pattern_id)
         name = template.name
         objectives = self._warning_objective_progress(template)
@@ -1720,6 +1736,33 @@ class RPGCog(commands.Cog):
             failure_variants=list(getattr(template, "failure_variants", [])),
             activation_conditions=list(getattr(template, "activation_conditions", [])),
         )
+
+    def _trigger_warning_ids(self, rule) -> list[str]:
+        warning_ids = list(getattr(rule, "warning_ids", ()) or [])
+        if not warning_ids and getattr(rule, "warning_id", ""):
+            warning_ids = [str(rule.warning_id)]
+        return [
+            warning_id
+            for warning_id in dict.fromkeys(str(warning_id or "") for warning_id in warning_ids)
+            if warning_id
+        ]
+
+    def _ct_warning_templates(self, session: BossSession, rule) -> list[BossWarningTemplate]:
+        templates: list[BossWarningTemplate] = []
+        seen: set[str] = set()
+        for warning_id in self._trigger_warning_ids(rule):
+            template = session.boss.warning_by_id.get(warning_id)
+            if template is None and getattr(rule, "warning", None) is not None and rule.warning.id == warning_id:
+                template = rule.warning
+            if template is None:
+                template = self._warning_for_trigger(session, warning_id)
+            if template.id in seen:
+                continue
+            seen.add(template.id)
+            templates.append(template)
+        if not templates and getattr(rule, "warning", None) is not None:
+            templates.append(rule.warning)
+        return templates
 
     def _direct_warning(self, session: BossSession, idx: int, template: BossWarningTemplate) -> BossWarning:
         pattern = template.pattern or self._pattern_for_warning(session, template.pattern_id)
