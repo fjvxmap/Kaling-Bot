@@ -1,0 +1,125 @@
+{
+  "id": "el_nath_dead_mine",
+  "name": "엘나스 폐광",
+  "level_req": 48,
+  "enemies": [
+    {
+      "id": "minor_zombie",
+      "name": "마이너 좀비",
+      "weight": 42,
+      "stats": {
+        "base_atk": 190,
+        "max_hp": 7800,
+        "dmg_mitigation": 12,
+        "enmity": 0.2
+      },
+      "gold": 9600,
+      "exp": 6500,
+      "description": "폐광 안에서 떠도는 좀비 광부. 체력이 빠질수록 악착같이 달라붙는다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.9,
+            "rarity": "rare",
+            "stars": 0,
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "materials": [
+          {
+            "id": "crystal",
+            "chance": 1.0,
+            "min": 660,
+            "max": 880
+          }
+        ]
+      }
+    },
+    {
+      "id": "flyeye",
+      "name": "플라이아이",
+      "weight": 36,
+      "stats": {
+        "base_atk": 210,
+        "max_hp": 8800,
+        "double_attack_rate": 0.25,
+        "critical_rate": 0.22
+      },
+      "gold": 11200,
+      "exp": 7600,
+      "description": "폐광 천장에서 날아드는 눈알 몬스터. 공격 간격이 짧아 회복 타이밍을 놓치기 쉽다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.94,
+            "rarity": "rare",
+            "stars": 0,
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 0.9,
+            "min": 28,
+            "max": 40
+          },
+          {
+            "id": "crystal",
+            "chance": 1.0,
+            "min": 780,
+            "max": 1020
+          }
+        ]
+      }
+    },
+    {
+      "id": "cerebes",
+      "name": "세르베스",
+      "weight": 22,
+      "stats": {
+        "base_atk": 235,
+        "max_hp": 10600,
+        "atk": 0.2,
+        "defense": 0.8,
+        "triple_attack_rate": 0.12
+      },
+      "gold": 13800,
+      "exp": 9200,
+      "description": "폐광 깊은 곳에서 길을 막는 사나운 괴수. 억지로 밀고 들어가면 그대로 밀려난다.",
+      "rare": true,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.5,
+            "rarity": "epic",
+            "stars": 0,
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1.0,
+            "min": 34,
+            "max": 48
+          },
+          {
+            "id": "crystal",
+            "chance": 1.0,
+            "min": 920,
+            "max": 1200
+          }
+        ]
+      }
+    }
+  ],
+  "description": "엘나스의 폐광. 장기전이 잦아져 회복, 방어, 디버프 운용의 차이가 크게 드러난다.",
+  "sort_order": 84,
+  "stats": {}
+}

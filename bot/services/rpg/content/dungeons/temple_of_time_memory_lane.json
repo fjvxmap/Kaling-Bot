@@ -1,0 +1,127 @@
+{
+  "id": "temple_of_time_memory_lane",
+  "name": "시간의 신전 추억의 길",
+  "level_req": 60,
+  "enemies": [
+    {
+      "id": "memory_monk",
+      "name": "추억의 사제",
+      "weight": 42,
+      "stats": {
+        "base_atk": 330,
+        "max_hp": 17200,
+        "defense": 0.7,
+        "damage_cut": 0.08
+      },
+      "gold": 23500,
+      "exp": 10000,
+      "description": "시간의 신전 입구를 지키는 사제. 단단한 시간의 결계가 가벼운 공격을 흘려낸다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.94,
+            "rarity": "rare",
+            "stars": 0,
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "materials": [
+          {
+            "id": "crystal",
+            "chance": 1.0,
+            "min": 1050,
+            "max": 1380
+          }
+        ]
+      }
+    },
+    {
+      "id": "memory_guardian",
+      "name": "추억의 수호병",
+      "weight": 36,
+      "stats": {
+        "base_atk": 365,
+        "max_hp": 19800,
+        "defense_ignore": 0.18,
+        "double_attack_rate": 0.28,
+        "dmg_mitigation": 18
+      },
+      "gold": 27600,
+      "exp": 11800,
+      "description": "낡은 기억을 지키는 병사. 방어 자세를 꿰뚫는 묵직한 연격이 위협적이다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.98,
+            "rarity": "rare",
+            "stars": 0,
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 0.9,
+            "min": 52,
+            "max": 72
+          },
+          {
+            "id": "crystal",
+            "chance": 1.0,
+            "min": 1240,
+            "max": 1600
+          }
+        ]
+      }
+    },
+    {
+      "id": "memory_keeper",
+      "name": "추억의 수호대장",
+      "weight": 22,
+      "stats": {
+        "base_atk": 410,
+        "max_hp": 23500,
+        "atk": 0.22,
+        "defense": 0.9,
+        "critical_rate": 0.32,
+        "triple_attack_rate": 0.2
+      },
+      "gold": 34000,
+      "exp": 14500,
+      "description": "추억의 길 끝에서 마주치는 수호대장. 60레벨 구간의 장비와 스킬 운용을 본격적으로 검증한다.",
+      "rare": true,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.6,
+            "rarity": "epic",
+            "stars": 0,
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1.0,
+            "min": 62,
+            "max": 86
+          },
+          {
+            "id": "crystal",
+            "chance": 1.0,
+            "min": 1450,
+            "max": 1850
+          }
+        ]
+      }
+    }
+  ],
+  "description": "시간의 신전 추억의 길. 아케인리버 이전 최상위 탐색지로, 버프-디버프-딜 사이클을 제대로 요구한다.",
+  "sort_order": 100,
+  "stats": {}
+}

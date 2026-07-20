@@ -1,0 +1,123 @@
+{
+  "id": "mu_lung_garden",
+  "name": "무릉도원 수련장",
+  "level_req": 36,
+  "enemies": [
+    {
+      "id": "training_dummy",
+      "name": "훈련용 짚인형",
+      "weight": 42,
+      "stats": {
+        "base_atk": 106,
+        "max_hp": 3400,
+        "defense": 0.35
+      },
+      "gold": 3600,
+      "exp": 3200,
+      "description": "무릉 수련장에서 끝없이 맞고도 다시 일어나는 짚인형. 얕보면 의외로 단단하다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.86,
+            "rarity": "rare",
+            "stars": 0,
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "materials": [
+          {
+            "id": "crystal",
+            "chance": 1.0,
+            "min": 390,
+            "max": 500
+          }
+        ]
+      }
+    },
+    {
+      "id": "bellflower_root",
+      "name": "도라지",
+      "weight": 36,
+      "stats": {
+        "base_atk": 122,
+        "max_hp": 3900,
+        "dmg_mitigation": 8,
+        "healing_bonus": 0.1
+      },
+      "gold": 4250,
+      "exp": 3800,
+      "description": "약초밭에서 튀어나오는 뿌리 몬스터. 오래 끌수록 질긴 회복력으로 버틴다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.88,
+            "rarity": "rare",
+            "stars": 0,
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 0.9,
+            "min": 12,
+            "max": 18
+          },
+          {
+            "id": "crystal",
+            "chance": 1.0,
+            "min": 450,
+            "max": 580
+          }
+        ]
+      }
+    },
+    {
+      "id": "sage_cat",
+      "name": "묘선",
+      "weight": 22,
+      "stats": {
+        "base_atk": 132,
+        "max_hp": 4550,
+        "critical_rate": 0.25,
+        "double_attack_rate": 0.2
+      },
+      "gold": 5200,
+      "exp": 4700,
+      "description": "무릉 깊은 곳의 신비한 고양이 요괴. 움직임은 가볍지만 일격은 꽤 매섭다.",
+      "rare": true,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.42,
+            "rarity": "epic",
+            "stars": 0,
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1.0,
+            "min": 16,
+            "max": 24
+          },
+          {
+            "id": "crystal",
+            "chance": 1.0,
+            "min": 520,
+            "max": 680
+          }
+        ]
+      }
+    }
+  ],
+  "description": "무릉도원의 수련장. 마가티아 이후 장비와 어빌리티 운용을 함께 시험하는 첫 구간이다.",
+  "sort_order": 68,
+  "stats": {}
+}

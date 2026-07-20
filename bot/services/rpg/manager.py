@@ -1611,34 +1611,25 @@ class RPGService:
         skills_used: list[str] = []
 
         for turn in range(1, 25):
-            player_stats = self._stats_with_effects(player_base, player_effects)
-            enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
-            skill = self._choose_skill(
-                skills,
-                uses_left,
-                cooldowns,
-                player_effects,
-                enemy_effects,
-                player_stats,
-                enemy_stats,
-                player_hp,
-                enemy_hp,
-            )
-            if skill is None:
-                attack = self._basic_attack(player_stats, player_hp, enemy_stats, enemy_hp, player_effects)
-                dealt_segments = self._clamped_damage_segments(attack.life_steal_segments, enemy_hp)
-                enemy_hp = max(0, enemy_hp - attack.damage)
-                attack.heal = self._life_steal_heal_segments(
-                    player_stats,
+            used_this_turn: set[str] = set()
+            for _ in range(len(skills)):
+                player_stats = self._stats_with_effects(player_base, player_effects)
+                enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
+                skill = self._choose_skill(
+                    skills,
+                    uses_left,
+                    cooldowns,
                     player_effects,
-                    dealt_segments,
-                    player_stats.final_hp,
+                    enemy_effects,
+                    player_stats,
+                    enemy_stats,
+                    player_hp,
+                    enemy_hp,
+                    used_this_turn=used_this_turn,
                 )
-                if attack.heal > 0:
-                    player_hp = min(player_stats.final_hp, player_hp + attack.heal)
-                log_text = self._attack_log_text(attack)
-                log.append(f"{turn}T 기본 공격: {enemy_name}에게 {log_text}")
-            else:
+                if skill is None:
+                    break
+                used_this_turn.add(skill.id)
                 self._mark_skill_used(skill, uses_left, cooldowns)
                 skills_used.append(skill.name)
                 skill_result = self._use_player_skill(
@@ -1685,6 +1676,25 @@ class RPGService:
                 if not action_bits:
                     action_bits.append("효과 발동")
                 log.append(f"{turn}T {skill.name}: {', '.join(action_bits)}")
+
+                if enemy_hp <= 0:
+                    return BattleReport(True, turn, player_hp, player_base.final_hp, 0, enemy_base.final_hp, self._trim_log(log), skills_used)
+
+            player_stats = self._stats_with_effects(player_base, player_effects)
+            enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
+            attack = self._basic_attack(player_stats, player_hp, enemy_stats, enemy_hp, player_effects)
+            dealt_segments = self._clamped_damage_segments(attack.life_steal_segments, enemy_hp)
+            enemy_hp = max(0, enemy_hp - attack.damage)
+            attack.heal = self._life_steal_heal_segments(
+                player_stats,
+                player_effects,
+                dealt_segments,
+                player_stats.final_hp,
+            )
+            if attack.heal > 0:
+                player_hp = min(player_stats.final_hp, player_hp + attack.heal)
+            log_text = self._attack_log_text(attack)
+            log.append(f"{turn}T 기본 공격: {enemy_name}에게 {log_text}")
 
             if enemy_hp <= 0:
                 return BattleReport(True, turn, player_hp, player_base.final_hp, 0, enemy_base.final_hp, self._trim_log(log), skills_used)
@@ -1738,10 +1748,13 @@ class RPGService:
         enemy_stats: CombatStats,
         player_hp: int,
         enemy_hp: int,
+        *,
+        used_this_turn: set[str] | None = None,
     ) -> SkillTemplate | None:
+        used_this_turn = used_this_turn or set()
         available = [
             skill for skill in skills
-            if self._skill_ready(skill, uses_left, cooldowns)
+            if skill.id not in used_this_turn and self._skill_ready(skill, uses_left, cooldowns)
         ]
         if not available:
             return None
@@ -1749,8 +1762,37 @@ class RPGService:
         player_ratio = self._hp_ratio(player_hp, player_stats.final_hp)
         enemy_ratio = self._hp_ratio(enemy_hp, enemy_stats.final_hp)
         incoming = self._estimated_basic_attack_damage(enemy_stats, enemy_hp, player_stats, player_hp, enemy_effects)
+        base_damage = self._estimated_basic_attack_damage(player_stats, player_hp, enemy_stats, enemy_hp, player_effects)
+        if base_damage >= enemy_hp:
+            return None
 
-        heal_skills = [skill for skill in available if skill.role == "heal" and skill.heal_power > 0]
+        attack_skills = [
+            skill for skill in available
+            if skill.damage_multiplier > 0 and skill.hits > 0
+        ]
+        if attack_skills:
+            attack_skills.sort(
+                key=lambda skill: self._estimated_skill_damage(
+                    skill,
+                    player_stats,
+                    player_hp,
+                    enemy_stats,
+                    enemy_hp,
+                    player_effects,
+                ),
+                reverse=True,
+            )
+            if self._estimated_skill_damage(
+                attack_skills[0],
+                player_stats,
+                player_hp,
+                enemy_stats,
+                enemy_hp,
+                player_effects,
+            ) >= enemy_hp:
+                return attack_skills[0]
+
+        heal_skills = [skill for skill in available if skill.heal_power > 0]
         if heal_skills:
             heal_skills.sort(key=lambda skill: skill.heal_power, reverse=True)
             best_heal = heal_skills[0]
@@ -1791,23 +1833,8 @@ class RPGService:
             debuff_skills.sort(key=lambda skill: abs(sum(skill.enemy_mods.values())) + skill.damage_cut, reverse=True)
             return debuff_skills[0]
 
-        attack_skills = [
-            skill for skill in available
-            if skill.damage_multiplier > 0 and skill.hits > 0
-        ]
         if not attack_skills:
             return None
-        attack_skills.sort(
-            key=lambda skill: self._estimated_skill_damage(
-                skill,
-                player_stats,
-                player_hp,
-                enemy_stats,
-                enemy_hp,
-                player_effects,
-            ),
-            reverse=True,
-        )
         best_attack = attack_skills[0]
         best_damage = self._estimated_skill_damage(
             best_attack,
@@ -1817,7 +1844,6 @@ class RPGService:
             enemy_hp,
             player_effects,
         )
-        base_damage = self._estimated_basic_attack_damage(player_stats, player_hp, enemy_stats, enemy_hp, player_effects)
         if best_damage >= enemy_hp or best_damage >= base_damage * 1.15:
             return best_attack
         return None

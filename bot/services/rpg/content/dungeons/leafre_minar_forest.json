@@ -1,0 +1,125 @@
+{
+  "id": "leafre_minar_forest",
+  "name": "리프레 미나르숲",
+  "level_req": 54,
+  "enemies": [
+    {
+      "id": "beetle",
+      "name": "비틀",
+      "weight": 42,
+      "stats": {
+        "base_atk": 250,
+        "max_hp": 11600,
+        "defense": 0.55,
+        "garrison": 0.25
+      },
+      "gold": 14800,
+      "exp": 8200,
+      "description": "미나르숲의 단단한 딱정벌레. 체력이 낮아질수록 껍질이 더 성가셔진다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.92,
+            "rarity": "rare",
+            "stars": 0,
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "materials": [
+          {
+            "id": "crystal",
+            "chance": 1.0,
+            "min": 820,
+            "max": 1100
+          }
+        ]
+      }
+    },
+    {
+      "id": "dark_rash",
+      "name": "다크 레쉬",
+      "weight": 36,
+      "stats": {
+        "base_atk": 282,
+        "max_hp": 13200,
+        "atk": 0.18,
+        "skill_damage": 0.2
+      },
+      "gold": 17400,
+      "exp": 9700,
+      "description": "검은 기운을 품은 숲의 몬스터. 한 번 흐름을 내주면 공격이 무겁게 이어진다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.95,
+            "rarity": "rare",
+            "stars": 0,
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 0.9,
+            "min": 38,
+            "max": 54
+          },
+          {
+            "id": "crystal",
+            "chance": 1.0,
+            "min": 980,
+            "max": 1280
+          }
+        ]
+      }
+    },
+    {
+      "id": "blood_harp",
+      "name": "블러드 하프",
+      "weight": 22,
+      "stats": {
+        "base_atk": 315,
+        "max_hp": 15800,
+        "critical_rate": 0.3,
+        "triple_attack_rate": 0.18,
+        "dmg_amplification": 0.15
+      },
+      "gold": 21800,
+      "exp": 11800,
+      "description": "날카로운 날개를 가진 붉은 하프. 긴 전투에서는 치명타가 누적되어 위험해진다.",
+      "rare": true,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.54,
+            "rarity": "epic",
+            "stars": 0,
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1.0,
+            "min": 46,
+            "max": 64
+          },
+          {
+            "id": "crystal",
+            "chance": 1.0,
+            "min": 1180,
+            "max": 1500
+          }
+        ]
+      }
+    }
+  ],
+  "description": "리프레의 미나르숲. 기본 체급이 크게 올라가며, 제대로 준비한 버프와 방깎의 가치가 커진다.",
+  "sort_order": 92,
+  "stats": {}
+}

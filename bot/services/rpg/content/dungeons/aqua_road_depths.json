@@ -1,0 +1,123 @@
+{
+  "id": "aqua_road_depths",
+  "name": "아쿠아로드 심해",
+  "level_req": 42,
+  "enemies": [
+    {
+      "id": "scuba_pepe",
+      "name": "스쿠버 페페",
+      "weight": 43,
+      "stats": {
+        "base_atk": 146,
+        "max_hp": 5200,
+        "damage_cut": 0.05
+      },
+      "gold": 6100,
+      "exp": 5400,
+      "description": "잠수 장비를 챙겨 입은 페페. 물속이라 움직임이 둔할 것 같지만 의외로 빠르다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.9,
+            "rarity": "rare",
+            "stars": 0,
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "materials": [
+          {
+            "id": "crystal",
+            "chance": 1.0,
+            "min": 520,
+            "max": 700
+          }
+        ]
+      }
+    },
+    {
+      "id": "flower_fish",
+      "name": "플라워 피쉬",
+      "weight": 35,
+      "stats": {
+        "base_atk": 162,
+        "max_hp": 6100,
+        "critical_rate": 0.2,
+        "dmg_amplification": 0.12
+      },
+      "gold": 7200,
+      "exp": 6600,
+      "description": "화려한 지느러미로 시선을 빼앗는 물고기. 정신을 차리면 이미 물살에 휩쓸린 뒤다.",
+      "rare": false,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.92,
+            "rarity": "rare",
+            "stars": 0,
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 0.9,
+            "min": 18,
+            "max": 27
+          },
+          {
+            "id": "crystal",
+            "chance": 1.0,
+            "min": 620,
+            "max": 820
+          }
+        ]
+      }
+    },
+    {
+      "id": "bone_fish",
+      "name": "본피쉬",
+      "weight": 22,
+      "stats": {
+        "base_atk": 178,
+        "max_hp": 7200,
+        "defense": 0.65,
+        "defense_ignore": 0.15
+      },
+      "gold": 8700,
+      "exp": 8100,
+      "description": "심해의 뼈만 남은 물고기. 단단한 골격과 날카로운 돌진이 동시에 까다롭다.",
+      "rare": true,
+      "rewards": {
+        "items": [
+          {
+            "chance": 0.46,
+            "rarity": "epic",
+            "stars": 0,
+            "min": 1,
+            "max": 1
+          }
+        ],
+        "materials": [
+          {
+            "id": "rare_power_crystal",
+            "chance": 1.0,
+            "min": 24,
+            "max": 34
+          },
+          {
+            "id": "crystal",
+            "chance": 1.0,
+            "min": 760,
+            "max": 980
+          }
+        ]
+      }
+    }
+  ],
+  "description": "아쿠아로드의 깊은 바다. 방어와 피해 감소를 뚫을 수 있는지가 점점 중요해진다.",
+  "sort_order": 76,
+  "stats": {}
+}
