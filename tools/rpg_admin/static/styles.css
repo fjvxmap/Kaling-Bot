@@ -423,6 +423,11 @@ textarea {
   background: var(--tint-green);
 }
 
+.skull-section {
+  border-left-color: #8f5f4f;
+  background: #fbf4f1;
+}
+
 .hp-lock-section {
   border-left-color: #2f8f9d;
   background: #eef9fb;

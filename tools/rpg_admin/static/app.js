@@ -1174,6 +1174,7 @@ function renderBossDetail(boss) {
     ]),
     statsEditor(boss, "stats", "보스 스탯"),
     bossStackEffectEditor(boss),
+    bossSkullSystemEditor(boss),
     bossHpLockEditor(boss),
     bossHpEffectEditor(boss),
     bossWarningTemplateEditor(boss),
@@ -1243,6 +1244,87 @@ function bossStackEffectEditor(boss) {
       }, "스택 추가"),
     ]),
     el("div", { className: "rows" }, rows.length ? rows : [el("div", { className: "empty" }, "보스전에 등록된 스택 없음")]),
+  ]);
+}
+
+function defaultBossSkullSystem(boss) {
+  return {
+    enabled: true,
+    total_skulls: 5,
+    soul_cleave_interval: 5,
+    red_thread_warning_id: boss.warnings?.[0]?.id || "",
+    altar_heal_ratio: 1.0,
+    altar_final_damage_ratio: 0.15,
+    altar_final_damage_turns: 1,
+  };
+}
+
+function normalizeBossSkullSystem(boss) {
+  if (!boss.skull_system || typeof boss.skull_system !== "object") {
+    return null;
+  }
+  const skull = boss.skull_system;
+  skull.enabled = skull.enabled !== false;
+  skull.total_skulls = Math.max(1, Math.floor(Number(skull.total_skulls ?? skull.skulls ?? 5)));
+  skull.soul_cleave_interval = Math.max(1, Math.floor(Number(skull.soul_cleave_interval ?? skull.interval ?? 5)));
+  skull.red_thread_warning_id = String(skull.red_thread_warning_id || boss.warnings?.[0]?.id || "");
+  if (skull.red_thread_warning_id && !findBossWarning(boss, skull.red_thread_warning_id)) {
+    skull.red_thread_warning_id = boss.warnings?.[0]?.id || "";
+  }
+  skull.altar_heal_ratio = Math.max(0, Number(skull.altar_heal_ratio ?? skull.heal_ratio ?? 1.0));
+  skull.altar_final_damage_ratio = Number(skull.altar_final_damage_ratio ?? skull.final_damage_ratio ?? 0.15);
+  skull.altar_final_damage_turns = Math.max(1, Math.floor(Number(skull.altar_final_damage_turns ?? skull.final_damage_turns ?? 1)));
+  delete skull.skulls;
+  delete skull.interval;
+  delete skull.heal_ratio;
+  delete skull.final_damage_ratio;
+  delete skull.final_damage_turns;
+  return skull;
+}
+
+function bossSkullSystemEditor(boss) {
+  const skull = normalizeBossSkullSystem(boss);
+  if (!skull) {
+    return el("section", { className: "section themed skull-section" }, [
+      el("div", { className: "section-head" }, [
+        el("h3", {}, "해골/제단 시스템"),
+        el("button", {
+          type: "button",
+          onclick: () => {
+            boss.skull_system = defaultBossSkullSystem(boss);
+            markDirty();
+            render();
+          },
+        }, "시스템 추가"),
+      ]),
+      el("div", { className: "empty" }, "해골/제단 시스템 없음"),
+    ]);
+  }
+
+  const required = Math.max(1, Math.floor(Number(skull.total_skulls || 1) / 2) + 1);
+  return el("section", { className: "section themed skull-section" }, [
+    el("div", { className: "section-head" }, [
+      el("h3", {}, "해골/제단 시스템"),
+      el("button", {
+        type: "button",
+        className: "danger",
+        onclick: () => {
+          delete boss.skull_system;
+          markDirty();
+          render();
+        },
+      }, "시스템 제거"),
+    ]),
+    el("div", { className: "form-grid three" }, [
+      checkboxField("사용", skull, "enabled"),
+      numberField("총 해골 수", skull, "total_skulls", { step: 1 }),
+      fieldWrap("초기 제단 기준", el("div", { className: "readonly-value" }, `붉은 해골 ${required}개`)),
+      numberField("영혼 베기 주기", skull, "soul_cleave_interval", { step: 1 }),
+      selectField("붉은 실 전조", skull, "red_thread_warning_id", bossWarningOptions(boss)),
+      numberField("제단 회복량", skull, "altar_heal_ratio", { step: 0.01 }),
+      numberField("제단 최종 데미지", skull, "altar_final_damage_ratio", { step: 0.01 }),
+      numberField("제단 효과 턴", skull, "altar_final_damage_turns", { step: 1 }),
+    ]),
   ]);
 }
 

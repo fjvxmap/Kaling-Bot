@@ -799,7 +799,7 @@ class RPGCog(commands.Cog):
         return session.boss.skull_system is not None
 
     def _altar_required_red_skulls(self, participant: BossParticipant) -> int:
-        return max(1, ceil(max(1, participant.skulls) / 2))
+        return max(1, max(1, participant.skulls) // 2 + 1)
 
     def _altar_available(self, session: BossSession, participant: BossParticipant) -> bool:
         return (
