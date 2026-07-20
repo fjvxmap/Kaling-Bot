@@ -635,5 +635,246 @@
     ],
     "conditions": [],
     "stats": {}
+  },
+  {
+    "id": "red_threads",
+    "name": "붉은 실",
+    "max_stacks": 5,
+    "description": "진 힐라가 참전자의 생명과 회복을 옥죄는 개인별 죽음 압박입니다.",
+    "tiers": [
+      {
+        "stack": 1,
+        "stat_effects": [
+          {
+            "stat": "heal_cap_bonus",
+            "target": "self",
+            "value": -0.1,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 2,
+        "stat_effects": [
+          {
+            "stat": "heal_cap_bonus",
+            "target": "self",
+            "value": -0.2,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "healing_bonus",
+            "target": "self",
+            "value": -0.1,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 3,
+        "stat_effects": [
+          {
+            "stat": "hp_bonus",
+            "target": "self",
+            "value": -0.1,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "healing_bonus",
+            "target": "self",
+            "value": -0.2,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "heal_cap_bonus",
+            "target": "self",
+            "value": -0.35,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 4,
+        "stat_effects": [
+          {
+            "stat": "hp_bonus",
+            "target": "self",
+            "value": -0.18,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": -0.08,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "healing_bonus",
+            "target": "self",
+            "value": -0.35,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "heal_cap_bonus",
+            "target": "self",
+            "value": -0.55,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 5,
+        "stat_effects": [
+          {
+            "stat": "hp_bonus",
+            "target": "self",
+            "value": -0.3,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": -0.15,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "healing_bonus",
+            "target": "self",
+            "value": -0.55,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "heal_cap_bonus",
+            "target": "self",
+            "value": -0.8,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      }
+    ],
+    "conditions": [
+      {
+        "objective": "warning_success",
+        "target": "none",
+        "operation": "decrease",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      }
+    ],
+    "stats": {}
+  },
+  {
+    "id": "altar_flame",
+    "name": "정화의 불꽃",
+    "max_stacks": 3,
+    "description": "진 힐라의 제단을 정화해 방어를 허무는 개인별 보스 스택입니다.",
+    "tiers": [
+      {
+        "stack": 1,
+        "stat_effects": [
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -0.08,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "dmg_mitigation",
+            "target": "self",
+            "value": -5.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 2,
+        "stat_effects": [
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -0.16,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "dmg_mitigation",
+            "target": "self",
+            "value": -12.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 3,
+        "stat_effects": [
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -0.25,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": -0.05,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "dmg_mitigation",
+            "target": "self",
+            "value": -20.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      }
+    ],
+    "conditions": [
+      {
+        "objective": "warning_success",
+        "target": "none",
+        "operation": "increase",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "objective": "warning_failure",
+        "target": "none",
+        "operation": "decrease",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      }
+    ],
+    "stats": {}
   }
 ]
