@@ -448,6 +448,16 @@ class BossCTWarningTemplate:
 
 
 @dataclass(frozen=True)
+class BossSkullSystemTemplate:
+    total_skulls: int = 5
+    soul_cleave_interval: int = 5
+    red_thread_warning_id: str = "red_thread"
+    altar_heal_ratio: float = 1.0
+    altar_final_damage_ratio: float = 0.15
+    altar_final_damage_turns: int = 1
+
+
+@dataclass(frozen=True)
 class BossStackEffectTemplate:
     stack_effect_id: str
     initial_stacks: int = 0
@@ -590,6 +600,7 @@ class BossTemplate:
     hp_locks: list[float] = field(default_factory=list)
     ct_gauge: list[BossCTGaugeTemplate] = field(default_factory=list)
     ct_warnings: list[BossCTWarningTemplate] = field(default_factory=list)
+    skull_system: BossSkullSystemTemplate | None = None
     stack_effects: list[BossStackEffectTemplate] = field(default_factory=list)
     pattern_by_id: dict[str, BossPattern] = field(default_factory=dict)
     warning_by_id: dict[str, BossWarningTemplate] = field(default_factory=dict)
@@ -1814,6 +1825,19 @@ def _ct_warning(
     )
 
 
+def _boss_skull_system(raw: Any) -> BossSkullSystemTemplate | None:
+    if not isinstance(raw, dict) or not raw.get("enabled", True):
+        return None
+    return BossSkullSystemTemplate(
+        total_skulls=max(1, _safe_int(raw.get("total_skulls", raw.get("skulls", 5)), 5)),
+        soul_cleave_interval=max(1, _safe_int(raw.get("soul_cleave_interval", raw.get("interval", 5)), 5)),
+        red_thread_warning_id=str(raw.get("red_thread_warning_id", "red_thread") or "red_thread"),
+        altar_heal_ratio=max(0.0, _safe_float(raw.get("altar_heal_ratio", raw.get("heal_ratio", 1.0)), 1.0)),
+        altar_final_damage_ratio=_signed_ratio(raw.get("altar_final_damage_ratio", raw.get("final_damage_ratio", 0.15))),
+        altar_final_damage_turns=max(1, _safe_int(raw.get("altar_final_damage_turns", raw.get("final_damage_turns", 1)), 1)),
+    )
+
+
 def _boss_stack_effect(raw: dict[str, Any]) -> BossStackEffectTemplate:
     stack_effect_id = str(raw.get("stack_effect_id", raw.get("id", raw.get("effect_id", ""))) or "")
     return BossStackEffectTemplate(
@@ -1929,6 +1953,7 @@ def _boss(raw: dict[str, Any]) -> BossTemplate:
             reverse=True,
         ),
         ct_warnings=ct_warnings,
+        skull_system=_boss_skull_system(raw.get("skull_system")),
         stack_effects=[
             _boss_stack_effect(effect)
             for effect in raw.get("stack_effects", [])
@@ -2222,6 +2247,12 @@ def _validate_content() -> None:
             for warning_id in warning_ids:
                 if warning_id not in boss.warning_by_id:
                     errors.append(f"boss {boss.id} ct warning not found: {warning_id}")
+        if boss.skull_system is not None:
+            if boss.skull_system.red_thread_warning_id not in boss.warning_by_id:
+                errors.append(
+                    f"boss {boss.id} skull system red thread warning not found: "
+                    f"{boss.skull_system.red_thread_warning_id}"
+                )
         for stack_effect in boss.stack_effects:
             if stack_effect.stack_effect_id not in STACK_EFFECT_BY_ID:
                 errors.append(f"boss {boss.id} stack effect not found: {stack_effect.stack_effect_id}")

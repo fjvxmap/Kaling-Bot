@@ -1,101 +1,51 @@
 {
   "id": "verus_hilla",
   "name": "진 힐라",
-  "level_req": 22,
+  "level_req": 15,
   "stats": {
-    "base_atk": 38,
-    "max_hp": 42000,
-    "defense": 0.32,
-    "dmg_mitigation": 12,
+    "base_atk": 28,
+    "max_hp": 25000,
+    "defense": 0.25,
+    "dmg_mitigation": 8,
     "critical_rate": 0.1
   },
-  "gold": 8000,
+  "gold": 3600,
   "exp": 1,
   "patterns": [],
   "warnings": [
     {
-      "id": "red_thread_sweep",
-      "name": "붉은 실 휩쓸기",
+      "id": "red_thread",
+      "name": "붉은 실",
       "pattern": {
-        "id": "red_thread_sweep",
-        "name": "붉은 실 휩쓸기",
-        "damage_multiplier": 0.75,
-        "hits": 10,
+        "id": "red_thread",
+        "name": "붉은 실",
+        "damage_multiplier": 0.7,
+        "hits": 4,
+        "plain_damage": {
+          "mode": "target_max_hp_ratio",
+          "value": 0.06
+        },
         "player_mods": {},
         "boss_mods": {},
-        "player_stat_effects": [
-          {
-            "stat": "heal_cap_bonus",
-            "target": "self",
-            "value": -0.2,
-            "duration": 3,
-            "undispellable": false
-          }
-        ],
-        "effect_actions": [
-          {
-            "action": "stack_increase",
-            "target": "enemy",
-            "count": 1,
-            "stack_effect_id": "red_threads",
-            "value": 1
-          }
-        ],
         "duration": 0,
         "stats": {}
       },
       "objectives": [
         {
           "objective": "hits",
-          "required": 14,
-          "min_damage": 30
-        }
-      ],
-      "failure_variants": [
-        {
-          "name": "붉은 실 난무",
-          "conditions": [
-            {
-              "stack_effect_id": "red_threads",
-              "target": "player",
-              "min_stacks": 4,
-              "max_stacks": -1
-            }
-          ],
-          "pattern": {
-            "id": "red_thread_sweep_failure_variant",
-            "name": "붉은 실 난무",
-            "damage_multiplier": 0.85,
-            "hits": 16,
-            "plain_damage": {
-              "mode": "target_max_hp_ratio",
-              "value": 0.12
-            },
-            "player_mods": {},
-            "boss_mods": {},
-            "effect_actions": [
-              {
-                "action": "stack_increase",
-                "target": "enemy",
-                "count": 1,
-                "stack_effect_id": "red_threads",
-                "value": 2
-              }
-            ],
-            "duration": 0,
-            "stats": {}
-          }
+          "required": 2,
+          "min_damage": 0
         }
       ],
       "turns": 1
     },
     {
-      "id": "soul_harvest",
-      "name": "영혼 수확",
+      "id": "fragment",
+      "name": "파편",
       "pattern": {
-        "id": "soul_harvest",
-        "name": "영혼 수확",
-        "damage_multiplier": 1.4,
+        "id": "fragment",
+        "name": "파편",
+        "damage_multiplier": 1.0,
         "hits": 3,
         "plain_damage": {
           "mode": "target_max_hp_ratio",
@@ -103,605 +53,75 @@
         },
         "player_mods": {},
         "boss_mods": {},
-        "player_stat_effects": [
-          {
-            "stat": "healing_bonus",
-            "target": "self",
-            "value": -0.3,
-            "duration": 4,
-            "undispellable": false
-          },
-          {
-            "stat": "heal_cap_bonus",
-            "target": "self",
-            "value": -0.3,
-            "duration": 4,
-            "undispellable": false
-          }
-        ],
-        "effect_actions": [
-          {
-            "action": "stack_increase",
-            "target": "enemy",
-            "count": 1,
-            "stack_effect_id": "red_threads",
-            "value": 1
-          }
-        ],
-        "duration": 0,
-        "stats": {}
-      },
-      "objectives": [
-        {
-          "objective": "ability_damage",
-          "required": 2400,
-          "min_damage": 0
-        }
-      ],
-      "failure_variants": [
-        {
-          "name": "영혼 수확 강화",
-          "conditions": [
-            {
-              "stack_effect_id": "red_threads",
-              "target": "player",
-              "min_stacks": 4,
-              "max_stacks": -1
-            }
-          ],
-          "pattern": {
-            "id": "soul_harvest_failure_variant",
-            "name": "영혼 수확 강화",
-            "damage_multiplier": 1.8,
-            "hits": 4,
-            "plain_damage": {
-              "mode": "target_max_hp_ratio",
-              "value": 0.18
-            },
-            "player_mods": {},
-            "boss_mods": {},
-            "player_stat_effects": [
-              {
-                "stat": "hp_bonus",
-                "target": "self",
-                "value": -0.12,
-                "duration": -1,
-                "undispellable": true
-              },
-              {
-                "stat": "healing_bonus",
-                "target": "self",
-                "value": -0.45,
-                "duration": 5,
-                "undispellable": true
-              }
-            ],
-            "effect_actions": [
-              {
-                "action": "stack_increase",
-                "target": "enemy",
-                "count": 1,
-                "stack_effect_id": "red_threads",
-                "value": 1
-              }
-            ],
-            "duration": 0,
-            "stats": {}
-          }
-        }
-      ],
-      "success_pattern": {
-        "id": "soul_harvest_success",
-        "name": "영혼 역류",
-        "damage_multiplier": 0,
-        "hits": 0,
-        "self_hp_loss_ratio": 0.02,
-        "player_mods": {},
-        "boss_mods": {},
-        "duration": 0,
-        "stats": {}
-      },
-      "turns": 2
-    },
-    {
-      "id": "altar_seal",
-      "name": "제단 봉인",
-      "pattern": {
-        "id": "altar_seal",
-        "name": "제단 봉인",
-        "damage_multiplier": 0.6,
-        "hits": 6,
-        "player_mods": {},
-        "boss_mods": {},
-        "player_stat_effects": [
-          {
-            "stat": "heal_cap_bonus",
-            "target": "self",
-            "value": -0.25,
-            "duration": 5,
-            "undispellable": false
-          }
-        ],
-        "effect_actions": [
-          {
-            "action": "stack_increase",
-            "target": "enemy",
-            "count": 1,
-            "stack_effect_id": "red_threads",
-            "value": 1
-          },
-          {
-            "action": "stack_decrease",
-            "target": "self",
-            "count": 1,
-            "stack_effect_id": "altar_flame",
-            "value": 1
-          }
-        ],
-        "duration": 0,
-        "stats": {}
-      },
-      "objectives": [
-        {
-          "objective": "clear_all",
-          "required": 1,
-          "min_damage": 0
-        },
-        {
-          "objective": "dispel",
-          "required": 1,
-          "min_damage": 0
-        }
-      ],
-      "failure_variants": [
-        {
-          "name": "제단 완전 봉인",
-          "conditions": [
-            {
-              "stack_effect_id": "red_threads",
-              "target": "player",
-              "min_stacks": 3,
-              "max_stacks": -1
-            }
-          ],
-          "pattern": {
-            "id": "altar_seal_failure_variant",
-            "name": "제단 완전 봉인",
-            "damage_multiplier": 0.8,
-            "hits": 8,
-            "plain_damage": {
-              "mode": "target_max_hp_ratio",
-              "value": 0.2
-            },
-            "player_mods": {},
-            "boss_mods": {},
-            "effect_actions": [
-              {
-                "action": "stack_increase",
-                "target": "enemy",
-                "count": 1,
-                "stack_effect_id": "red_threads",
-                "value": 2
-              },
-              {
-                "action": "stack_remove",
-                "target": "self",
-                "count": 1,
-                "stack_effect_id": "altar_flame",
-                "value": 1
-              }
-            ],
-            "duration": 0,
-            "stats": {}
-          }
-        }
-      ],
-      "success_warning_id": "altar_purification",
-      "turns": 2
-    },
-    {
-      "id": "altar_purification",
-      "name": "제단 정화",
-      "pattern": {
-        "id": "altar_purification",
-        "name": "제단 정화 실패",
-        "damage_multiplier": 0,
-        "hits": 0,
-        "player_mods": {},
-        "boss_mods": {},
-        "effect_actions": [
-          {
-            "action": "stack_increase",
-            "target": "enemy",
-            "count": 1,
-            "stack_effect_id": "red_threads",
-            "value": 1
-          },
-          {
-            "action": "stack_decrease",
-            "target": "self",
-            "count": 1,
-            "stack_effect_id": "altar_flame",
-            "value": 1
-          }
-        ],
         "duration": 0,
         "stats": {}
       },
       "objectives": [
         {
           "objective": "damage",
-          "required": 3500,
-          "min_damage": 0
-        },
-        {
-          "objective": "ability",
-          "required": 2,
+          "required": 900,
           "min_damage": 0
         }
       ],
-      "success_pattern": {
-        "id": "altar_purification_success",
-        "name": "정화 완료",
+      "turns": 1
+    },
+    {
+      "id": "poison_gas",
+      "name": "독가스",
+      "pattern": {
+        "id": "poison_gas",
+        "name": "독가스",
         "damage_multiplier": 0,
         "hits": 0,
-        "self_hp_loss_ratio": 0.04,
+        "plain_damage": {
+          "mode": "target_max_hp_ratio",
+          "value": 0.12
+        },
         "player_mods": {},
         "boss_mods": {},
-        "effect_actions": [
+        "player_stat_effects": [
           {
-            "action": "stack_decrease",
-            "target": "enemy",
-            "count": 1,
-            "stack_effect_id": "red_threads",
-            "value": 1
+            "stat": "healing_bonus",
+            "target": "self",
+            "value": -0.2,
+            "duration": 2,
+            "undispellable": false
           }
         ],
         "duration": 0,
         "stats": {}
       },
-      "turns": 2
+      "objectives": [
+        {
+          "objective": "ability",
+          "required": 1,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1
     },
     {
-      "id": "death_scythe",
-      "name": "죽음의 낫",
+      "id": "manifestation_of_desire",
+      "name": "욕망의 현신",
       "pattern": {
-        "id": "death_scythe",
-        "name": "죽음의 낫",
-        "damage_multiplier": 2.2,
-        "hits": 2,
+        "id": "manifestation_of_desire",
+        "name": "욕망의 현신",
+        "damage_multiplier": 1.2,
+        "hits": 5,
         "plain_damage": {
           "mode": "target_max_hp_ratio",
           "value": 0.1
         },
         "player_mods": {},
         "boss_mods": {},
-        "effect_actions": [
-          {
-            "action": "dispel",
-            "target": "enemy",
-            "count": 1
-          },
-          {
-            "action": "stack_increase",
-            "target": "enemy",
-            "count": 1,
-            "stack_effect_id": "red_threads",
-            "value": 1
-          }
-        ],
         "duration": 0,
         "stats": {}
       },
       "objectives": [
-        {
-          "objective": "damage",
-          "required": 3000,
-          "min_damage": 0
-        },
-        {
-          "objective": "debuff",
-          "required": 2,
-          "min_damage": 0
-        }
-      ],
-      "failure_variants": [
-        {
-          "name": "거대한 죽음의 낫",
-          "conditions": [
-            {
-              "stack_effect_id": "red_threads",
-              "target": "player",
-              "min_stacks": 4,
-              "max_stacks": -1
-            }
-          ],
-          "pattern": {
-            "id": "death_scythe_failure_variant",
-            "name": "거대한 죽음의 낫",
-            "damage_multiplier": 3.4,
-            "hits": 2,
-            "plain_damage": {
-              "mode": "target_max_hp_ratio",
-              "value": 0.25
-            },
-            "player_mods": {},
-            "boss_mods": {},
-            "effect_actions": [
-              {
-                "action": "dispel",
-                "target": "enemy",
-                "count": 3
-              },
-              {
-                "action": "stack_increase",
-                "target": "enemy",
-                "count": 1,
-                "stack_effect_id": "red_threads",
-                "value": 2
-              }
-            ],
-            "duration": 0,
-            "stats": {}
-          }
-        }
-      ],
-      "turns": 1
-    },
-    {
-      "id": "necromancy",
-      "name": "망자의 행렬",
-      "pattern": {
-        "id": "necromancy",
-        "name": "망자의 행렬",
-        "damage_multiplier": 0.8,
-        "hits": 18,
-        "player_mods": {},
-        "boss_mods": {},
-        "boss_stat_effects": [
-          {
-            "stat": "atk",
-            "target": "self",
-            "value": 0.35,
-            "duration": 3,
-            "undispellable": false
-          },
-          {
-            "stat": "defense",
-            "target": "self",
-            "value": 0.15,
-            "duration": 3,
-            "undispellable": false
-          }
-        ],
-        "effect_actions": [
-          {
-            "action": "stack_increase",
-            "target": "enemy",
-            "count": 1,
-            "stack_effect_id": "red_threads",
-            "value": 1
-          }
-        ],
-        "duration": 0,
-        "stats": {}
-      },
-      "objectives": [
-        {
-          "objective": "hits",
-          "required": 10,
-          "min_damage": 80
-        },
-        {
-          "objective": "clear_all",
-          "required": 1,
-          "min_damage": 0
-        }
-      ],
-      "success_pattern": {
-        "id": "necromancy_success",
-        "name": "망자 소멸",
-        "damage_multiplier": 0,
-        "hits": 0,
-        "self_hp_loss_ratio": 0.03,
-        "player_mods": {},
-        "boss_mods": {},
-        "duration": 0,
-        "stats": {}
-      },
-      "turns": 2
-    },
-    {
-      "id": "final_harvest",
-      "name": "최종 수확",
-      "pattern": {
-        "id": "final_harvest",
-        "name": "최종 수확",
-        "damage_multiplier": 3.0,
-        "hits": 5,
-        "plain_damage": {
-          "mode": "target_max_hp_ratio",
-          "value": 0.2
-        },
-        "player_mods": {},
-        "boss_mods": {},
-        "player_stat_effects": [
-          {
-            "stat": "healing_bonus",
-            "target": "self",
-            "value": -0.5,
-            "duration": 5,
-            "undispellable": true
-          },
-          {
-            "stat": "heal_cap_bonus",
-            "target": "self",
-            "value": -0.5,
-            "duration": 5,
-            "undispellable": true
-          }
-        ],
-        "effect_actions": [
-          {
-            "action": "stack_increase",
-            "target": "enemy",
-            "count": 1,
-            "stack_effect_id": "red_threads",
-            "value": 2
-          }
-        ],
-        "duration": 0,
-        "stats": {}
-      },
-      "objectives": [
-        {
-          "objective": "hits",
-          "required": 25,
-          "min_damage": 50
-        },
         {
           "objective": "ability_damage",
-          "required": 5000,
+          "required": 700,
           "min_damage": 0
-        },
-        {
-          "objective": "dispel",
-          "required": 1,
-          "min_damage": 0
-        }
-      ],
-      "failure_variants": [
-        {
-          "name": "참된 최종 수확",
-          "conditions": [
-            {
-              "stack_effect_id": "red_threads",
-              "target": "player",
-              "min_stacks": 5,
-              "max_stacks": -1
-            }
-          ],
-          "pattern": {
-            "id": "final_harvest_failure_variant",
-            "name": "참된 최종 수확",
-            "damage_multiplier": 5.0,
-            "hits": 5,
-            "plain_damage": {
-              "mode": "target_max_hp_ratio",
-              "value": 0.75
-            },
-            "player_mods": {},
-            "boss_mods": {},
-            "effect_actions": [
-              {
-                "action": "dispel",
-                "target": "enemy",
-                "count": 5
-              },
-              {
-                "action": "stack_max",
-                "target": "enemy",
-                "count": 1,
-                "stack_effect_id": "red_threads",
-                "value": 1
-              }
-            ],
-            "duration": 0,
-            "stats": {}
-          }
-        }
-      ],
-      "success_pattern": {
-        "id": "final_harvest_success",
-        "name": "실 끊기",
-        "damage_multiplier": 0,
-        "hits": 0,
-        "self_hp_loss_ratio": 0.08,
-        "player_mods": {},
-        "boss_mods": {},
-        "effect_actions": [
-          {
-            "action": "stack_decrease",
-            "target": "enemy",
-            "count": 1,
-            "stack_effect_id": "red_threads",
-            "value": 2
-          }
-        ],
-        "duration": 0,
-        "stats": {}
-      },
-      "turns": 2
-    },
-    {
-      "id": "red_thread_execution",
-      "name": "붉은 실 처형",
-      "pattern": {
-        "id": "red_thread_execution",
-        "name": "붉은 실 처형",
-        "damage_multiplier": 0,
-        "hits": 0,
-        "plain_damage": {
-          "mode": "target_max_hp_ratio",
-          "value": 0.45
-        },
-        "player_mods": {},
-        "boss_mods": {},
-        "effect_actions": [
-          {
-            "action": "stack_set",
-            "target": "enemy",
-            "count": 1,
-            "stack_effect_id": "red_threads",
-            "value": 5
-          }
-        ],
-        "duration": 0,
-        "stats": {}
-      },
-      "objectives": [
-        {
-          "objective": "clear_all",
-          "required": 1,
-          "min_damage": 0
-        },
-        {
-          "objective": "ability",
-          "required": 1,
-          "min_damage": 0
-        }
-      ],
-      "success_pattern": {
-        "id": "red_thread_execution_success",
-        "name": "처형 회피",
-        "damage_multiplier": 0,
-        "hits": 0,
-        "self_hp_loss_ratio": 0.02,
-        "player_mods": {},
-        "boss_mods": {},
-        "effect_actions": [
-          {
-            "action": "stack_decrease",
-            "target": "enemy",
-            "count": 1,
-            "stack_effect_id": "red_threads",
-            "value": 2
-          }
-        ],
-        "duration": 0,
-        "stats": {}
-      },
-      "activation_conditions": [
-        {
-          "kind": "stack",
-          "stack_effect_id": "red_threads",
-          "target": "player",
-          "min_stacks": 4,
-          "max_stacks": -1
-        },
-        {
-          "kind": "turn_multiple",
-          "multiple": 5
         }
       ],
       "turns": 1
@@ -709,160 +129,67 @@
   ],
   "hp_warnings": [
     {
-      "threshold": 0.95,
-      "warning_id": "red_thread_sweep"
-    },
-    {
-      "threshold": 0.8,
-      "warning_id": "soul_harvest"
+      "threshold": 0.85,
+      "warning_id": "red_thread"
     },
     {
       "threshold": 0.7,
-      "warning_id": "altar_seal"
+      "warning_id": "fragment"
     },
     {
       "threshold": 0.55,
-      "warning_id": "death_scythe"
+      "warning_id": "poison_gas"
     },
     {
       "threshold": 0.4,
-      "warning_id": "necromancy"
+      "warning_id": "manifestation_of_desire"
     },
     {
       "threshold": 0.25,
-      "warning_id": "final_harvest"
-    },
-    {
-      "threshold": 0.1,
-      "warning_id": "final_harvest"
-    }
-  ],
-  "hp_effects": [
-    {
-      "thresholds": [
-        1.0
-      ],
-      "pattern": {
-        "id": "verus_hilla_death_contract",
-        "name": "죽음의 계약",
-        "damage_multiplier": 0,
-        "hits": 0,
-        "player_mods": {},
-        "boss_mods": {},
-        "effect_actions": [
-          {
-            "action": "stack_increase",
-            "target": "enemy",
-            "count": 1,
-            "stack_effect_id": "red_threads",
-            "value": 1
-          }
-        ],
-        "duration": 0,
-        "stats": {}
-      }
-    },
-    {
-      "thresholds": [
-        0.75,
-        0.5
-      ],
-      "pattern": {
-        "id": "verus_hilla_thread_tightening",
-        "name": "붉은 실 조임",
-        "damage_multiplier": 0,
-        "hits": 0,
-        "player_mods": {},
-        "boss_mods": {},
-        "effect_actions": [
-          {
-            "action": "stack_increase",
-            "target": "enemy",
-            "count": 1,
-            "stack_effect_id": "red_threads",
-            "value": 1
-          },
-          {
-            "action": "stack_decrease",
-            "target": "self",
-            "count": 1,
-            "stack_effect_id": "altar_flame",
-            "value": 1
-          }
-        ],
-        "duration": 0,
-        "stats": {}
-      }
-    },
-    {
-      "thresholds": [
-        0.25
-      ],
-      "pattern": {
-        "id": "verus_hilla_final_contract",
-        "name": "최후의 붉은 실",
-        "damage_multiplier": 0,
-        "hits": 0,
-        "player_mods": {},
-        "boss_mods": {},
-        "effect_actions": [
-          {
-            "action": "stack_increase",
-            "target": "enemy",
-            "count": 1,
-            "stack_effect_id": "red_threads",
-            "value": 2
-          },
-          {
-            "action": "stack_decrease",
-            "target": "self",
-            "count": 1,
-            "stack_effect_id": "altar_flame",
-            "value": 2
-          }
-        ],
-        "duration": 0,
-        "stats": {}
-      }
+      "warning_id": "red_thread"
     }
   ],
   "ct": {
     "gauge_by_hp": [
       {
-        "above": 0.5,
-        "max": 4
-      },
-      {
         "above": 0,
-        "max": 3
+        "max": 4
       }
     ],
     "warnings_by_hp": [
       {
-        "above": 1.0,
+        "above": 0.65,
         "warning_ids": [
-          "red_thread_sweep",
-          "soul_harvest"
+          "red_thread",
+          "fragment"
         ]
       },
       {
-        "above": 0.66,
+        "above": 0.35,
         "warning_ids": [
-          "red_thread_sweep",
-          "soul_harvest",
-          "altar_seal",
-          "death_scythe"
+          "red_thread",
+          "fragment",
+          "poison_gas"
         ]
       },
       {
-        "above": 0.33,
+        "above": 0,
         "warning_ids": [
-          "death_scythe",
-          "necromancy",
-          "final_harvest"
+          "red_thread",
+          "poison_gas",
+          "manifestation_of_desire"
         ]
       }
     ]
+  },
+  "skull_system": {
+    "enabled": true,
+    "total_skulls": 5,
+    "soul_cleave_interval": 5,
+    "red_thread_warning_id": "red_thread",
+    "altar_heal_ratio": 1.0,
+    "altar_final_damage_ratio": 0.15,
+    "altar_final_damage_turns": 1
   },
   "rewards": {
     "items": [],
@@ -877,34 +204,17 @@
         "participant_max": 1
       },
       {
-        "id": "red_thread_fragment",
-        "chance": 1.0,
-        "min": 2,
-        "max": 4,
-        "owner_chance": 1.0,
-        "owner_min": 4,
-        "owner_max": 7,
-        "participant_chance": 1.0,
-        "participant_min": 1,
-        "participant_max": 3
-      },
-      {
         "id": "gold_brick",
-        "chance": 0.025,
+        "chance": 0.002,
         "min": 1,
         "max": 1,
-        "participant_chance": 0.012,
-        "participant_min": 1,
-        "participant_max": 1
+        "owner_chance": 0.004,
+        "owner_min": 1,
+        "owner_max": 1
       }
     ]
   },
-  "description": "\"나의 실에 묶인 이상, 죽음조차 네 뜻대로 오지 않는다.\"",
+  "description": "욕망의 제단에서 붉은 실과 영혼 베기를 견뎌야 합니다.",
   "sort_order": 14,
-  "stack_effects": [
-    {
-      "stack_effect_id": "altar_flame",
-      "initial_stacks": 0
-    }
-  ]
+  "stack_effects": []
 }

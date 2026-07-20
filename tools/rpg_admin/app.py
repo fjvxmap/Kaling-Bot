@@ -1362,6 +1362,13 @@ def validate_content(content: dict[str, Any]) -> list[str]:
         )
         for warning in boss.get("ct", {}).get("warnings_by_hp", []):
             validate_warning_trigger(warning, warning_ids, pattern_ids, stat_ids, f"boss {boss.get('id')} ct warning", errors, stack_effects)
+        skull_system = boss.get("skull_system")
+        if isinstance(skull_system, dict) and skull_system.get("enabled", True):
+            red_thread_warning_id = str(skull_system.get("red_thread_warning_id", "red_thread") or "")
+            if red_thread_warning_id and red_thread_warning_id not in warning_ids:
+                errors.append(
+                    f"boss {boss.get('id')} skull system red thread warning not found: {red_thread_warning_id}"
+                )
         validate_boss_stack_effects(
             boss.get("stack_effects", []),
             content.get("stack_effects", []),
