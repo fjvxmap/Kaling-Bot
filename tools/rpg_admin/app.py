@@ -2255,6 +2255,8 @@ class AdminHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/":
             self.send_static("index.html")
+        elif path in {"/favicon.ico", "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"}:
+            self.send_no_content()
         elif path == "/api/content":
             self.send_json({"ok": True, "content": read_content()})
         elif path.startswith("/static/"):
@@ -2292,6 +2294,11 @@ class AdminHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
         self.wfile.write(raw)
+
+    def send_no_content(self) -> None:
+        self.send_response(HTTPStatus.NO_CONTENT)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def send_static(self, relative_path: str) -> None:
         path = (STATIC_DIR / relative_path).resolve()
