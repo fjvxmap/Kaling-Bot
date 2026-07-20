@@ -342,6 +342,14 @@ class RPGService:
         profile, _created = self.start_profile(user_id, display_name)
         return profile
 
+    def cached_profile(self, user_id: int, display_name: str = "") -> PlayerProfile:
+        profile = self._profiles.get(user_id)
+        if profile is None:
+            return self.get_profile(user_id, display_name)
+        if display_name:
+            profile.display_name = display_name
+        return profile
+
     def profile_stats(self, profile: PlayerProfile) -> CombatStats:
         return self._player_stats(profile)
 
@@ -1599,16 +1607,30 @@ class RPGService:
     ) -> BattleReport:
         player_base = self._player_stats(profile)
         enemy_base = enemy_base_stats
-        player_hp = player_base.final_hp
-        enemy_hp = enemy_base.final_hp
         player_effects: list[ActiveEffect] = self._permanent_effects(profile)
         enemy_effects: list[ActiveEffect] = []
+        player_hp = self._stats_with_effects(player_base, player_effects).final_hp
+        enemy_hp = self._stats_with_effects(enemy_base, enemy_effects).final_hp
         triggered_patterns: set[int] = set()
         skills = self.equipped_skills(profile)
         uses_left = {skill.id: skill.uses for skill in skills if skill.uses > 0}
         cooldowns = {skill.id: 0 for skill in skills}
         log: list[str] = []
         skills_used: list[str] = []
+
+        def battle_report(won: bool, turn: int, current_player_hp: int, current_enemy_hp: int) -> BattleReport:
+            current_player_max_hp = self._stats_with_effects(player_base, player_effects).final_hp
+            current_enemy_max_hp = self._stats_with_effects(enemy_base, enemy_effects).final_hp
+            return BattleReport(
+                won,
+                turn,
+                min(max(0, current_player_hp), current_player_max_hp),
+                current_player_max_hp,
+                min(max(0, current_enemy_hp), current_enemy_max_hp),
+                current_enemy_max_hp,
+                self._trim_log(log),
+                skills_used,
+            )
 
         for turn in range(1, 25):
             used_this_turn: set[str] = set()
@@ -1632,6 +1654,8 @@ class RPGService:
                 used_this_turn.add(skill.id)
                 self._mark_skill_used(skill, uses_left, cooldowns)
                 skills_used.append(skill.name)
+                before_player_max_hp = player_stats.final_hp
+                before_enemy_max_hp = enemy_stats.final_hp
                 skill_result = self._use_player_skill(
                     skill,
                     player_stats,
@@ -1643,6 +1667,10 @@ class RPGService:
                     ally_effects=[player_effects],
                     opponent_effects=[enemy_effects],
                 )
+                player_stats = self._stats_with_effects(player_base, player_effects)
+                enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
+                player_hp = self._rescale_current_hp_for_max_change(player_hp, before_player_max_hp, player_stats.final_hp)
+                enemy_hp = self._rescale_current_hp_for_max_change(enemy_hp, before_enemy_max_hp, enemy_stats.final_hp)
                 life_steal_heal = 0
                 if skill_result.damage > 0:
                     dealt_damage = min(enemy_hp, skill_result.damage)
@@ -1678,7 +1706,7 @@ class RPGService:
                 log.append(f"{turn}T {skill.name}: {', '.join(action_bits)}")
 
                 if enemy_hp <= 0:
-                    return BattleReport(True, turn, player_hp, player_base.final_hp, 0, enemy_base.final_hp, self._trim_log(log), skills_used)
+                    return battle_report(True, turn, player_hp, 0)
 
             player_stats = self._stats_with_effects(player_base, player_effects)
             enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
@@ -1697,7 +1725,7 @@ class RPGService:
             log.append(f"{turn}T 기본 공격: {enemy_name}에게 {log_text}")
 
             if enemy_hp <= 0:
-                return BattleReport(True, turn, player_hp, player_base.final_hp, 0, enemy_base.final_hp, self._trim_log(log), skills_used)
+                return battle_report(True, turn, player_hp, 0)
 
             enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
             player_stats = self._stats_with_effects(player_base, player_effects)
@@ -1716,7 +1744,13 @@ class RPGService:
                     enemy_hp = min(enemy_stats.final_hp, enemy_hp + attack.heal)
                 log.append(f"{turn}T {enemy_name} 반격: {self._attack_log_text(attack)}")
             else:
+                before_player_max_hp = player_stats.final_hp
+                before_enemy_max_hp = enemy_stats.final_hp
                 damage = self._use_boss_pattern(pattern, enemy_stats, player_stats, enemy_hp, player_hp, player_effects, enemy_effects)
+                player_stats = self._stats_with_effects(player_base, player_effects)
+                enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
+                player_hp = self._rescale_current_hp_for_max_change(player_hp, before_player_max_hp, player_stats.final_hp)
+                enemy_hp = self._rescale_current_hp_for_max_change(enemy_hp, before_enemy_max_hp, enemy_stats.final_hp)
                 if damage > 0:
                     dealt_damage = min(player_hp, damage)
                     player_hp = max(0, player_hp - damage)
@@ -1729,13 +1763,21 @@ class RPGService:
                     log.append(f"{turn}T {pattern.name}: 특수 효과 발동")
 
             if player_hp <= 0:
-                return BattleReport(False, turn, 0, player_base.final_hp, enemy_hp, enemy_base.final_hp, self._trim_log(log), skills_used)
+                return battle_report(False, turn, 0, enemy_hp)
 
+            player_stats = self._stats_with_effects(player_base, player_effects)
+            enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
+            before_player_max_hp = player_stats.final_hp
+            before_enemy_max_hp = enemy_stats.final_hp
             player_effects = self._tick_effects(player_effects)
             enemy_effects = self._tick_effects(enemy_effects)
+            player_stats = self._stats_with_effects(player_base, player_effects)
+            enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
+            player_hp = self._rescale_current_hp_for_max_change(player_hp, before_player_max_hp, player_stats.final_hp)
+            enemy_hp = self._rescale_current_hp_for_max_change(enemy_hp, before_enemy_max_hp, enemy_stats.final_hp)
             self._tick_cooldowns(cooldowns)
 
-        return BattleReport(False, 24, player_hp, player_base.final_hp, enemy_hp, enemy_base.final_hp, self._trim_log(log), skills_used)
+        return battle_report(False, 24, player_hp, enemy_hp)
 
     def _choose_skill(
         self,
@@ -3496,6 +3538,22 @@ class RPGService:
 
     def _hp_ratio(self, current_hp: int, max_hp: int) -> float:
         return max(0.0, min(1.0, current_hp / max(1, max_hp)))
+
+    def _rescale_current_hp_for_max_change(
+        self,
+        current_hp: int,
+        before_max_hp: int,
+        after_max_hp: int,
+    ) -> int:
+        current_hp = max(0, int(current_hp))
+        before_max_hp = max(1, int(before_max_hp))
+        after_max_hp = max(1, int(after_max_hp))
+        if current_hp <= 0:
+            return 0
+        if before_max_hp == after_max_hp:
+            return min(current_hp, after_max_hp)
+        ratio = current_hp / before_max_hp
+        return max(1, min(after_max_hp, int(round(after_max_hp * ratio))))
 
     def _grant_exp(self, profile: PlayerProfile, exp: int) -> int:
         profile.exp += max(0, int(exp))

@@ -777,6 +777,44 @@ class RPGCog(commands.Cog):
             participant.max_hp = stats.final_hp
             participant.hp = stats.final_hp
 
+    def _participant_max_hp(self, participant: BossParticipant) -> int:
+        profile = self.service.cached_profile(participant.user_id, participant.display_name)
+        stats = self.service._stats_with_effects(
+            self.service.profile_stats(profile),
+            participant.player_effects,
+            participant.player_stack_effects,
+        )
+        return stats.final_hp
+
+    def _participant_hp_snapshots(self, session: BossSession) -> dict[int, int]:
+        return {
+            participant.user_id: self._participant_max_hp(participant)
+            for participant in session.participants.values()
+        }
+
+    def _sync_participant_hp_from_snapshot(
+        self,
+        participant: BossParticipant,
+        before_max_hp: int,
+    ) -> None:
+        after_max_hp = self._participant_max_hp(participant)
+        participant.hp = self.service._rescale_current_hp_for_max_change(
+            participant.hp,
+            before_max_hp,
+            after_max_hp,
+        )
+        participant.max_hp = after_max_hp
+
+    def _sync_participant_hps_from_snapshots(
+        self,
+        session: BossSession,
+        snapshots: dict[int, int],
+    ) -> None:
+        for user_id, before_max_hp in snapshots.items():
+            participant = session.participants.get(user_id)
+            if participant is not None:
+                self._sync_participant_hp_from_snapshot(participant, before_max_hp)
+
     def _initial_boss_stack_effects(self, boss: BossTemplate) -> list[ActiveStackEffect]:
         effects: list[ActiveStackEffect] = []
         for stack_effect in boss.stack_effects:
@@ -844,6 +882,7 @@ class RPGCog(commands.Cog):
             for ally in session.participants.values()
             if ally.alive
         ]
+        hp_snapshots = self._participant_hp_snapshots(session)
         skill_result = self.service._use_player_skill(
             skill,
             player_stats,
@@ -864,6 +903,9 @@ class RPGCog(commands.Cog):
             opponent_stack_effects=boss_stack_lists,
         )
         self._sync_shared_effect_changes(participant.boss_effects, boss_effect_lists, boss_effects_before)
+        self._sync_participant_hps_from_snapshots(session, hp_snapshots)
+        player_stats = self.service._stats_with_effects(player_base, participant.player_effects, participant.player_stack_effects)
+        boss_stats = self.service._stats_with_effects(boss_base, participant.boss_effects, participant.boss_stack_effects)
         life_steal_heal = 0
         actual_dealt_damage = 0
         actual_dealt_segments: list[int] = []
@@ -1250,6 +1292,7 @@ class RPGCog(commands.Cog):
         self._apply_warning_stack_event(participant, "warning_failure")
         failure_pattern = self._warning_failure_pattern(warning, participant)
         failure_effect_name = failure_pattern.name or warning.name
+        hp_snapshots = self._participant_hp_snapshots(session)
         pattern_damage = self.service._use_boss_pattern(
             failure_pattern,
             boss_stats,
@@ -1269,6 +1312,7 @@ class RPGCog(commands.Cog):
         for effects in [*boss_effect_lists, *player_effect_lists]:
             self._dedupe_effects_by_key(effects)
         self._sync_shared_effect_changes(participant.boss_effects, boss_effect_lists, boss_effects_before)
+        self._sync_participant_hps_from_snapshots(session, hp_snapshots)
         if pattern_damage > 0:
             dealt_damage = min(participant.hp, pattern_damage)
             participant.hp = max(0, participant.hp - pattern_damage)
@@ -1424,6 +1468,7 @@ class RPGCog(commands.Cog):
             if member.alive
         ]
         hit_damages: list[int] = []
+        hp_snapshots = self._participant_hp_snapshots(session)
         damage = self.service._use_boss_pattern(
             pattern,
             boss_stats,
@@ -1443,6 +1488,7 @@ class RPGCog(commands.Cog):
         for effects in [*boss_effect_lists, *player_effect_lists]:
             self._dedupe_effects_by_key(effects)
         self._sync_shared_effect_changes(participant.boss_effects, boss_effect_lists, boss_effects_before)
+        self._sync_participant_hps_from_snapshots(session, hp_snapshots)
         effect_name = pattern.name or detail_action
         if damage > 0:
             dealt_damage = min(participant.hp, damage)
@@ -1665,8 +1711,10 @@ class RPGCog(commands.Cog):
 
     def _finish_boss_turn(self, session: BossSession, participant: BossParticipant, profile: PlayerProfile) -> None:
         self._release_pending_hp_locks(session, participant)
+        before_max_hp = self._participant_max_hp(participant)
         participant.player_effects = self.service._tick_effects(participant.player_effects)
         participant.boss_effects = self.service._tick_effects(participant.boss_effects)
+        self._sync_participant_hp_from_snapshot(participant, before_max_hp)
         self._tick_ability_cooldowns(participant)
         participant.turn += 1
         participant.suppress_warning_activation = False
@@ -2444,6 +2492,7 @@ class RPGCog(commands.Cog):
         *,
         hit_damages: list[int] | None = None,
     ) -> None:
+        before_max_hp = self._participant_max_hp(participant)
         self.service._apply_stack_conditions(
             participant.player_stack_effects,
             objective=objective,
@@ -2458,6 +2507,7 @@ class RPGCog(commands.Cog):
             actor_is_holder=False,
             hit_damages=hit_damages,
         )
+        self._sync_participant_hp_from_snapshot(participant, before_max_hp)
 
     def _apply_boss_stack_event(
         self,
@@ -2467,6 +2517,7 @@ class RPGCog(commands.Cog):
         *,
         hit_damages: list[int] | None = None,
     ) -> None:
+        before_max_hp = self._participant_max_hp(participant)
         self.service._apply_stack_conditions(
             participant.boss_stack_effects,
             objective=objective,
@@ -2481,6 +2532,7 @@ class RPGCog(commands.Cog):
             actor_is_holder=False,
             hit_damages=hit_damages,
         )
+        self._sync_participant_hp_from_snapshot(participant, before_max_hp)
 
     def _apply_player_received_damage_stack_event(self, participant: BossParticipant, amount: int) -> None:
         self._apply_player_stack_event(participant, "received_damage", max(0, int(amount)))
@@ -2489,6 +2541,7 @@ class RPGCog(commands.Cog):
         self._apply_boss_stack_event(participant, "received_damage", max(0, int(amount)))
 
     def _apply_warning_stack_event(self, participant: BossParticipant, objective: str) -> None:
+        before_max_hp = self._participant_max_hp(participant)
         self.service._apply_stack_conditions(
             participant.player_stack_effects,
             objective=objective,
@@ -2501,6 +2554,7 @@ class RPGCog(commands.Cog):
             amount=1,
             actor_is_holder=True,
         )
+        self._sync_participant_hp_from_snapshot(participant, before_max_hp)
 
     def _effect_snapshot(self, effects: list[ActiveEffect]) -> list[tuple[int, tuple]]:
         return [(id(effect), self._effect_key(effect)) for effect in effects]
