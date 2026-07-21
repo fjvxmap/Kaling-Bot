@@ -86,7 +86,8 @@
           }
         }
       ],
-      "turns": 1
+      "turns": 1,
+      "activation_priority": 0
     },
     {
       "id": "dive",
@@ -149,7 +150,8 @@
           }
         }
       ],
-      "turns": 1
+      "turns": 1,
+      "activation_priority": 0
     },
     {
       "id": "dark_thrust",
@@ -212,7 +214,8 @@
           }
         }
       ],
-      "turns": 1
+      "turns": 1,
+      "activation_priority": 0
     },
     {
       "id": "sword_of_destruction",
@@ -234,7 +237,8 @@
           "min_damage": 0
         }
       ],
-      "turns": 1
+      "turns": 1,
+      "activation_priority": 0
     },
     {
       "id": "corrupted_world_tree",
@@ -265,7 +269,8 @@
           "min_damage": 0
         }
       ],
-      "turns": 3
+      "turns": 3,
+      "activation_priority": 0
     }
   ],
   "hp_warnings": [

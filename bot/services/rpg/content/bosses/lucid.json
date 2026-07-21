@@ -74,7 +74,8 @@
             }
           }
         }
-      ]
+      ],
+      "activation_priority": 0
     },
     {
       "id": "illusion_dragon",
@@ -106,7 +107,8 @@
           "min_damage": 75
         }
       ],
-      "turns": 1
+      "turns": 1,
+      "activation_priority": 0
     },
     {
       "id": "illusion_bloom",
@@ -179,7 +181,8 @@
           }
         }
       ],
-      "turns": 1
+      "turns": 1,
+      "activation_priority": 0
     },
     {
       "id": "rend_reverie",
@@ -257,7 +260,8 @@
           }
         }
       ],
-      "turns": 1
+      "turns": 1,
+      "activation_priority": 0
     },
     {
       "id": "nightmare_rush",
@@ -310,7 +314,8 @@
           }
         }
       ],
-      "turns": 1
+      "turns": 1,
+      "activation_priority": 0
     },
     {
       "id": "dimension_rend",
@@ -336,7 +341,8 @@
           "min_damage": 0
         }
       ],
-      "turns": 5
+      "turns": 5,
+      "activation_priority": 0
     }
   ],
   "hp_warnings": [

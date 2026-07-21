@@ -73,7 +73,8 @@
           "kind": "turn_multiple",
           "multiple": 6
         }
-      ]
+      ],
+      "activation_priority": 0
     },
     {
       "id": "laser",
@@ -136,7 +137,8 @@
         ],
         "duration": 0,
         "stats": {}
-      }
+      },
+      "activation_priority": 0
     }
   ],
   "hp_warnings": [],

@@ -29,7 +29,8 @@
         "duration": 0,
         "stats": {}
       },
-      "turns": 1
+      "turns": 1,
+      "activation_priority": 0
     },
     {
       "id": "guardian_bonk",
@@ -68,7 +69,8 @@
         ],
         "stats": {}
       },
-      "turns": 1
+      "turns": 1,
+      "activation_priority": 0
     },
     {
       "id": "guardian_laser",
@@ -100,7 +102,8 @@
         ],
         "stats": {}
       },
-      "turns": 1
+      "turns": 1,
+      "activation_priority": 0
     }
   ],
   "hp_warnings": [

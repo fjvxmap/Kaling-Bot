@@ -47,7 +47,8 @@
           "kind": "turn_multiple",
           "multiple": 2
         }
-      ]
+      ],
+      "activation_priority": 1
     },
     {
       "id": "fragment",
@@ -69,7 +70,8 @@
           "min_damage": 0
         }
       ],
-      "turns": 1
+      "turns": 1,
+      "activation_priority": 0
     },
     {
       "id": "manifestation_of_desire",
@@ -95,7 +97,8 @@
           "min_damage": 0
         }
       ],
-      "turns": 1
+      "turns": 1,
+      "activation_priority": 0
     },
     {
       "id": "altar",
@@ -152,7 +155,8 @@
           "multiplier": 1.0,
           "offset": 0
         }
-      ]
+      ],
+      "activation_priority": 2
     },
     {
       "id": "soul_harvest",
@@ -205,7 +209,8 @@
           "min_stacks": 1,
           "max_stacks": -1
         }
-      ]
+      ],
+      "activation_priority": 3
     },
     {
       "id": "bone_wave_a",
@@ -227,7 +232,8 @@
           "min_damage": 150
         }
       ],
-      "turns": 1
+      "turns": 1,
+      "activation_priority": 0
     },
     {
       "id": "bone_wave_b",
@@ -249,7 +255,8 @@
           "min_damage": 0
         }
       ],
-      "turns": 1
+      "turns": 1,
+      "activation_priority": 0
     },
     {
       "id": "the_end",
@@ -287,7 +294,8 @@
           "multiplier": 1.0,
           "offset": 0
         }
-      ]
+      ],
+      "activation_priority": 4
     }
   ],
   "hp_warnings": [],
