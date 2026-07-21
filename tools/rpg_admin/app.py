@@ -177,6 +177,12 @@ def normalize_content(content: dict[str, Any]) -> None:
             normalize_boss_hp_effects(boss, stat_order_index)
             for warning in boss.get("warnings", []):
                 if isinstance(warning, dict):
+                    warning["activation_priority"] = safe_int(
+                        warning.get("activation_priority", warning.get("priority", warning.get("spawn_priority"))),
+                        0,
+                    )
+                    warning.pop("priority", None)
+                    warning.pop("spawn_priority", None)
                     if isinstance(warning.get("pattern"), dict):
                         warning["pattern"]["id"] = str(warning.get("id", warning["pattern"].get("id", "")))
                         warning["pattern"]["name"] = str(warning.get("name", warning["pattern"].get("name", "")))

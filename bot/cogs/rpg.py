@@ -112,6 +112,7 @@ class BossWarning:
     failure_warning_name: str = ""
     failure_variants: list[BossWarningFailureVariant] = field(default_factory=list)
     activation_conditions: list[BossWarningActivationCondition] = field(default_factory=list)
+    activation_priority: int = 0
 
 
 @dataclass
@@ -1603,7 +1604,7 @@ class RPGCog(commands.Cog):
                 if self._warning_activation_conditions_met(session, participant, warning):
                     candidates.append(warning)
             if candidates:
-                participant.queued_warnings.append(self.service.rng.choice(candidates))
+                participant.queued_warnings.append(self._choose_ct_warning_candidate(candidates))
 
     def _has_pending_or_queued_warning(self, participant: BossParticipant, warning_id: str) -> bool:
         warning_id = str(warning_id or "")
@@ -1651,7 +1652,13 @@ class RPGCog(commands.Cog):
         elif hp_indices:
             idx = hp_indices[-1]
         else:
-            idx = active_indices[0]
+            idx = max(
+                active_indices,
+                key=lambda active_idx: (
+                    participant.queued_warnings[active_idx].activation_priority,
+                    -active_idx,
+                ),
+            )
         warning = participant.queued_warnings.pop(idx)
         participant.pending_warning = warning
         if warning.source.startswith("hp:"):
@@ -1767,6 +1774,7 @@ class RPGCog(commands.Cog):
             failure_warning_name=self._warning_name(session, getattr(template, "failure_warning_id", "")),
             failure_variants=list(getattr(template, "failure_variants", [])),
             activation_conditions=list(getattr(template, "activation_conditions", [])),
+            activation_priority=int(getattr(template, "activation_priority", 0)),
         )
 
     def _ct_warning(
@@ -1805,6 +1813,7 @@ class RPGCog(commands.Cog):
             failure_warning_name=self._warning_name(session, getattr(template, "failure_warning_id", "")),
             failure_variants=list(getattr(template, "failure_variants", [])),
             activation_conditions=list(getattr(template, "activation_conditions", [])),
+            activation_priority=int(getattr(template, "activation_priority", 0)),
         )
 
     def _trigger_warning_ids(self, rule) -> list[str]:
@@ -1834,6 +1843,16 @@ class RPGCog(commands.Cog):
             templates.append(rule.warning)
         return templates
 
+    def _choose_ct_warning_candidate(self, candidates: list[BossWarning]) -> BossWarning:
+        if not candidates:
+            raise ValueError("CT warning candidates must not be empty")
+        highest_priority = max(warning.activation_priority for warning in candidates)
+        top = [
+            warning for warning in candidates
+            if warning.activation_priority == highest_priority
+        ]
+        return self.service.rng.choice(top)
+
     def _direct_warning(self, session: BossSession, idx: int, template: BossWarningTemplate) -> BossWarning:
         pattern = template.pattern or self._pattern_for_warning(session, template.pattern_id)
         return BossWarning(
@@ -1850,6 +1869,7 @@ class RPGCog(commands.Cog):
             failure_warning_name=self._warning_name(session, getattr(template, "failure_warning_id", "")),
             failure_variants=list(getattr(template, "failure_variants", [])),
             activation_conditions=list(getattr(template, "activation_conditions", [])),
+            activation_priority=int(getattr(template, "activation_priority", 0)),
         )
 
     def _linked_warning(self, session: BossSession, warning_id: str, source: str) -> BossWarning | None:
@@ -1871,6 +1891,7 @@ class RPGCog(commands.Cog):
             failure_warning_name=self._warning_name(session, getattr(template, "failure_warning_id", "")),
             failure_variants=list(getattr(template, "failure_variants", [])),
             activation_conditions=list(getattr(template, "activation_conditions", [])),
+            activation_priority=int(getattr(template, "activation_priority", 0)),
         )
 
     def _warning_name(self, session: BossSession, warning_id: str) -> str:
@@ -2929,9 +2950,6 @@ class RPGCog(commands.Cog):
             lines.append("전조: 없음")
         if participant.queued_warnings:
             lines.append(f"대기 전조: {len(participant.queued_warnings)}개")
-        boss_stacks = self._stack_effects_text(participant.boss_stack_effects)
-        if boss_stacks:
-            lines.append("보스 스택: " + boss_stacks)
         return "\n".join(lines)
 
     def _stack_effects_text(self, stacks: list[ActiveStackEffect]) -> str:
@@ -3005,7 +3023,11 @@ class RPGCog(commands.Cog):
         sections.append(hp_line)
         sections.append(self._participant_boss_state_text(session, participant, ct_max))
         boss_effects = self._effects_text(participant.boss_effects, limit=520, compact=True)
-        sections.append(f"버프/디버프: {boss_effects}")
+        boss_effect_lines = [f"버프/디버프: {boss_effects}"]
+        boss_stacks = self._stack_effects_text(participant.boss_stack_effects)
+        if boss_stacks:
+            boss_effect_lines.append(boss_stacks)
+        sections.append("\n".join(boss_effect_lines))
         participant_status = self._participant_status_line(participant)
         participant_extra = self._participant_extra_status_text(participant)
         if participant_extra:

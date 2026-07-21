@@ -2072,6 +2072,9 @@ function normalizeWarningTemplate(boss, warning) {
   normalizeFailureVariants(boss, warning);
   warning.name ||= warning.pattern.name || warning.id || "전조";
   warning.id ||= nextId("warning", boss.warnings);
+  warning.activation_priority = Math.trunc(Number(warning.activation_priority ?? warning.priority ?? warning.spawn_priority ?? 0) || 0);
+  delete warning.priority;
+  delete warning.spawn_priority;
   normalizeWarningFollowupIds(warning);
   normalizeWarningActivationConditions(warning);
   warning.pattern.id = warning.id;
@@ -2406,6 +2409,7 @@ function makeBossWarningTemplate(boss, prefix = "warning") {
   return {
     id: nextId(prefix, boss.warnings || []),
     name: "새 전조",
+    activation_priority: 0,
     pattern: blankBossPattern(boss, `${prefix}_failure`, "전조 실패 효과"),
     objectives: [{ objective: "damage", required: 1 }],
   };
@@ -2969,10 +2973,11 @@ function bossWarningTemplatePanel(boss, warning, index) {
         render();
       }),
     ]),
-    el("div", { className: "form-grid three" }, [
+    el("div", { className: "form-grid four" }, [
       nestedIdField("전조 ID", warning, boss.warnings, (oldId, newId) => renameBossWarningReferences(boss, oldId, newId)),
       textField("전조 이름", warning, "name"),
       numberField("제한 턴", warning, "turns", { step: 1 }),
+      numberField("발생 우선순위", warning, "activation_priority", { step: 1 }),
     ]),
     warningActivationConditionsEditor(warning),
     warningObjectivesEditor(warning),

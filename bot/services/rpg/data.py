@@ -419,6 +419,7 @@ class BossWarningTemplate:
     pattern_id: str
     objectives: list[BossWarningObjective]
     turns: int = 1
+    activation_priority: int = 0
     pattern: BossPattern | None = None
     success_pattern: BossPattern | None = None
     success_warning_id: str = ""
@@ -1752,6 +1753,10 @@ def _warning_template(
         pattern_id=pattern_id,
         objectives=_warning_objectives(raw, default_objective),
         turns=max(1, _safe_int(raw.get("turns", raw.get("limit_turns", 1)), 1)),
+        activation_priority=_safe_int(
+            raw.get("activation_priority", raw.get("priority", raw.get("spawn_priority", 0))),
+            0,
+        ),
         pattern=pattern,
         success_pattern=success_pattern,
         success_warning_id=success_warning_id,
