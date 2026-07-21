@@ -18,7 +18,10 @@ from .data import (
     DUNGEONS,
     EffectAction,
     ENHANCEMENT_METHODS,
+    EXPLORE_BASIC_ATTACK_MULTIPLIER,
     EXPLORE_LIMIT_ENABLED,
+    EXPLORE_PLAYER_DEFENSE_BONUS,
+    EXPLORE_SKILL_DAMAGE_MULTIPLIER,
     GACHA_DEFAULT_POOL_ID,
     GACHA_POOL_BY_ID,
     GACHA_POOLS,
@@ -1606,6 +1609,11 @@ class RPGService:
         boss: BossTemplate | None = None,
     ) -> BattleReport:
         player_base = self._player_stats(profile)
+        explore_mode = boss is None
+        explore_basic_attack_multiplier = EXPLORE_BASIC_ATTACK_MULTIPLIER if explore_mode else 1.0
+        explore_skill_damage_multiplier = EXPLORE_SKILL_DAMAGE_MULTIPLIER if explore_mode else 1.0
+        if explore_mode and EXPLORE_PLAYER_DEFENSE_BONUS:
+            player_base.defense = self._capped_defense(player_base.defense + EXPLORE_PLAYER_DEFENSE_BONUS)
         enemy_base = enemy_base_stats
         player_effects: list[ActiveEffect] = self._permanent_effects(profile)
         enemy_effects: list[ActiveEffect] = []
@@ -1648,6 +1656,8 @@ class RPGService:
                     player_hp,
                     enemy_hp,
                     used_this_turn=used_this_turn,
+                    basic_attack_multiplier=explore_basic_attack_multiplier,
+                    skill_damage_multiplier=explore_skill_damage_multiplier,
                 )
                 if skill is None:
                     break
@@ -1666,6 +1676,7 @@ class RPGService:
                     enemy_effects,
                     ally_effects=[player_effects],
                     opponent_effects=[enemy_effects],
+                    skill_damage_multiplier=explore_skill_damage_multiplier,
                 )
                 player_stats = self._stats_with_effects(player_base, player_effects)
                 enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
@@ -1710,7 +1721,14 @@ class RPGService:
 
             player_stats = self._stats_with_effects(player_base, player_effects)
             enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
-            attack = self._basic_attack(player_stats, player_hp, enemy_stats, enemy_hp, player_effects)
+            attack = self._basic_attack(
+                player_stats,
+                player_hp,
+                enemy_stats,
+                enemy_hp,
+                player_effects,
+                multiplier=explore_basic_attack_multiplier,
+            )
             dealt_segments = self._clamped_damage_segments(attack.life_steal_segments, enemy_hp)
             enemy_hp = max(0, enemy_hp - attack.damage)
             attack.heal = self._life_steal_heal_segments(
@@ -1792,6 +1810,8 @@ class RPGService:
         enemy_hp: int,
         *,
         used_this_turn: set[str] | None = None,
+        basic_attack_multiplier: float = 1.0,
+        skill_damage_multiplier: float = 1.0,
     ) -> SkillTemplate | None:
         used_this_turn = used_this_turn or set()
         available = [
@@ -1804,7 +1824,14 @@ class RPGService:
         player_ratio = self._hp_ratio(player_hp, player_stats.final_hp)
         enemy_ratio = self._hp_ratio(enemy_hp, enemy_stats.final_hp)
         incoming = self._estimated_basic_attack_damage(enemy_stats, enemy_hp, player_stats, player_hp, enemy_effects)
-        base_damage = self._estimated_basic_attack_damage(player_stats, player_hp, enemy_stats, enemy_hp, player_effects)
+        base_damage = self._estimated_basic_attack_damage(
+            player_stats,
+            player_hp,
+            enemy_stats,
+            enemy_hp,
+            player_effects,
+            multiplier=basic_attack_multiplier,
+        )
         if base_damage >= enemy_hp:
             return None
 
@@ -1821,6 +1848,7 @@ class RPGService:
                     enemy_stats,
                     enemy_hp,
                     player_effects,
+                    skill_damage_multiplier=skill_damage_multiplier,
                 ),
                 reverse=True,
             )
@@ -1831,6 +1859,7 @@ class RPGService:
                 enemy_stats,
                 enemy_hp,
                 player_effects,
+                skill_damage_multiplier=skill_damage_multiplier,
             ) >= enemy_hp:
                 return attack_skills[0]
 
@@ -1885,6 +1914,7 @@ class RPGService:
             enemy_stats,
             enemy_hp,
             player_effects,
+            skill_damage_multiplier=skill_damage_multiplier,
         )
         if best_damage >= enemy_hp or best_damage >= base_damage * 1.15:
             return best_attack
@@ -1921,6 +1951,8 @@ class RPGService:
         enemy_stats: CombatStats,
         enemy_hp: int,
         player_effects: list[ActiveEffect] | None = None,
+        *,
+        skill_damage_multiplier: float = 1.0,
     ) -> float:
         if skill.damage_multiplier <= 0 or skill.hits <= 0:
             return 0.0
@@ -1932,6 +1964,7 @@ class RPGService:
                 enemy_hp,
                 skill.damage_multiplier,
                 player_effects,
+                skill_damage_multiplier=skill_damage_multiplier,
             )
             for _ in range(skill.hits)
         )
@@ -1951,6 +1984,7 @@ class RPGService:
         enemy_stack_effects: list[ActiveStackEffect] | None = None,
         ally_stack_effects: list[list[ActiveStackEffect]] | None = None,
         opponent_stack_effects: list[list[ActiveStackEffect]] | None = None,
+        skill_damage_multiplier: float = 1.0,
     ) -> SkillUseResult:
         self._remove_effects_by_source(
             [
@@ -2009,6 +2043,7 @@ class RPGService:
                         enemy_hp,
                         skill.damage_multiplier,
                         active_player_effects,
+                        skill_damage_multiplier=skill_damage_multiplier,
                         forced_critical=critical,
                     )
                     result.damage += hit_damage
@@ -3104,6 +3139,8 @@ class RPGService:
         defender: CombatStats,
         defender_hp: int,
         attacker_effects: list[ActiveEffect],
+        *,
+        multiplier: float = 1.0,
     ) -> AttackOutcome:
         flurry_count, actions, bonus_effects, post_attack_effects = self._attack_specials(attacker_effects)
         final_damage_multiplier = self._combined_final_damage_multiplier(attacker_effects, attacker, defender)
@@ -3124,6 +3161,7 @@ class RPGService:
                     attacker_hp,
                     defender,
                     defender_hp,
+                    multiplier,
                     attacker_effects=attacker_effects,
                     include_supplement=False,
                     include_final_damage=False,
@@ -3451,8 +3489,9 @@ class RPGService:
         include_supplement: bool = True,
         include_final_damage: bool = True,
         include_flat_mitigation: bool = True,
+        skill_damage_multiplier: float = 1.0,
     ) -> float:
-        damage = self._skill_outgoing_damage(attacker) * multiplier
+        damage = self._skill_outgoing_damage(attacker) * multiplier * max(0.0, skill_damage_multiplier)
         mitigated = damage / self._defense_factor(defender, defender_hp, attacker.defense_ignore)
         final = max(1.0, mitigated * max(0.05, 1 - defender.damage_cut))
         critical_chance = max(0.0, min(1.0, attacker.critical_rate))
@@ -3517,8 +3556,9 @@ class RPGService:
         include_final_damage: bool = True,
         include_flat_mitigation: bool = True,
         forced_critical: bool | None = None,
+        skill_damage_multiplier: float = 1.0,
     ) -> int:
-        damage = self._skill_outgoing_damage(attacker) * multiplier
+        damage = self._skill_outgoing_damage(attacker) * multiplier * max(0.0, skill_damage_multiplier)
         mitigated = damage / self._defense_factor(defender, defender_hp, attacker.defense_ignore)
         estimated = max(1.0, mitigated * max(0.05, 1 - defender.damage_cut))
         spread = 0.95 + self.rng.random() * 0.10

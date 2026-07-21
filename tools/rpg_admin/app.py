@@ -1893,6 +1893,19 @@ def validate_settings(settings: Any, errors: list[str]) -> None:
                 errors.append(f"settings level_damage_multipliers {index} is not a number")
             elif value < 0:
                 errors.append(f"settings level_damage_multipliers {index} must be non-negative")
+    explore_combat = settings.get("explore_combat", {})
+    if explore_combat is not None and not isinstance(explore_combat, dict):
+        errors.append("settings explore_combat is not an object")
+    elif isinstance(explore_combat, dict):
+        for key in ("basic_attack_multiplier", "skill_damage_multiplier"):
+            value = safe_float(explore_combat.get(key), None)
+            if value is None:
+                errors.append(f"settings explore_combat {key} is not a number")
+            elif value < 0:
+                errors.append(f"settings explore_combat {key} must be non-negative")
+        defense_bonus = safe_float(explore_combat.get("player_defense_bonus"), None)
+        if defense_bonus is None:
+            errors.append("settings explore_combat player_defense_bonus is not a number")
     multipliers = settings.get("reward_multipliers", {})
     if not isinstance(multipliers, dict):
         errors.append("settings reward_multipliers is not an object")

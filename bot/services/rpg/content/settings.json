@@ -18,6 +18,11 @@
     1.2,
     1.25
   ],
+  "explore_combat": {
+    "basic_attack_multiplier": 1.25,
+    "skill_damage_multiplier": 0.85,
+    "player_defense_bonus": 0
+  },
   "reward_multipliers": {
     "win_min": 1,
     "win_max": 1.2,

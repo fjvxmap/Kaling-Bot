@@ -1694,6 +1694,10 @@ function settingsControls() {
   const settings = state.content.settings ||= {};
   settings.reward_multipliers ||= {};
   settings.level_up_growth ||= {};
+  settings.explore_combat ||= {};
+  settings.explore_combat.basic_attack_multiplier ??= 1.0;
+  settings.explore_combat.skill_damage_multiplier ??= 1.0;
+  settings.explore_combat.player_defense_bonus ??= 0;
   settings.level_damage_multipliers = normalizeLevelDamageMultipliers(settings.level_damage_multipliers);
   settings.max_equipped_skills ??= 4;
   return el("section", { className: "panel" }, [
@@ -1711,6 +1715,9 @@ function settingsControls() {
         numberField("레벨업 공격력", settings.level_up_growth, "base_atk", { step: 0.1 }),
         numberField("레벨업 체력", settings.level_up_growth, "max_hp", { step: 1 }),
         numberField("레벨업 방어", settings.level_up_growth, "defense", { step: 0.001 }),
+        numberField("탐색 평타 배율", settings.explore_combat, "basic_attack_multiplier", { step: 0.01 }),
+        numberField("탐색 어빌 피해 배율", settings.explore_combat, "skill_damage_multiplier", { step: 0.01 }),
+        numberField("탐색 방어 보너스", settings.explore_combat, "player_defense_bonus", { step: 0.01 }),
         ...settings.level_damage_multipliers.map((_, index) => (
           numberField(
             index >= DEFAULT_LEVEL_DAMAGE_MULTIPLIERS.length - 1 ? "레벨 차 5+ 배율" : `레벨 차 ${index} 배율`,

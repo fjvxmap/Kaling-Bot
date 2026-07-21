@@ -1989,6 +1989,21 @@ LEVEL_DAMAGE_MULTIPLIERS = tuple(
     max(0.0, _safe_float(value, _DEFAULT_LEVEL_DAMAGE_MULTIPLIERS[min(index, len(_DEFAULT_LEVEL_DAMAGE_MULTIPLIERS) - 1)]))
     for index, value in enumerate(_LEVEL_DAMAGE_MULTIPLIERS_RAW)
 )
+_EXPLORE_COMBAT = _SETTINGS.get("explore_combat", {})
+if not isinstance(_EXPLORE_COMBAT, dict):
+    _EXPLORE_COMBAT = {}
+EXPLORE_BASIC_ATTACK_MULTIPLIER = _env_float(
+    "KALING_EXPLORE_BASIC_ATTACK_MULTIPLIER",
+    max(0.0, _safe_float(_EXPLORE_COMBAT.get("basic_attack_multiplier"), 1.0)),
+)
+EXPLORE_SKILL_DAMAGE_MULTIPLIER = _env_float(
+    "KALING_EXPLORE_SKILL_DAMAGE_MULTIPLIER",
+    max(0.0, _safe_float(_EXPLORE_COMBAT.get("skill_damage_multiplier"), 1.0)),
+)
+EXPLORE_PLAYER_DEFENSE_BONUS = _env_float(
+    "KALING_EXPLORE_PLAYER_DEFENSE_BONUS",
+    _safe_float(_EXPLORE_COMBAT.get("player_defense_bonus"), 0.0),
+)
 _REWARD_MULTIPLIERS = _SETTINGS.get("reward_multipliers", {})
 if not isinstance(_REWARD_MULTIPLIERS, dict):
     _REWARD_MULTIPLIERS = {}
