@@ -1629,6 +1629,7 @@ class RPGCog(commands.Cog):
         participant.queued_warnings.insert(0, warning)
 
     def _activate_next_warning(self, session: BossSession, participant: BossParticipant) -> None:
+        self._prune_inactive_queued_warnings(session, participant)
         if participant.pending_warning is not None or not participant.queued_warnings:
             return
         active_indices = [
@@ -1670,6 +1671,16 @@ class RPGCog(commands.Cog):
         else:
             kind = "CT"
         session.log.append(f"{participant.display_name}: {kind} 전조 {warning.name}")
+
+    def _prune_inactive_queued_warnings(self, session: BossSession, participant: BossParticipant) -> None:
+        if not participant.queued_warnings:
+            return
+        participant.queued_warnings = [
+            warning
+            for warning in participant.queued_warnings
+            if not warning.activation_conditions
+            or self._warning_activation_conditions_met(session, participant, warning)
+        ]
 
     def _warning_activation_conditions_met(
         self,
@@ -2909,8 +2920,6 @@ class RPGCog(commands.Cog):
         state = "전투 불능" if not participant.alive else f"HP {participant.hp}/{participant.max_hp}"
         if participant.pending_warning is not None:
             warning = f"전조 {participant.pending_warning.name}"
-        elif participant.queued_warnings:
-            warning = f"전조 대기 {len(participant.queued_warnings)}"
         else:
             warning = "전조 없음"
         parts = [
@@ -2948,8 +2957,6 @@ class RPGCog(commands.Cog):
             lines.append("전조\n" + self._warning_display_text(participant.pending_warning, participant))
         else:
             lines.append("전조: 없음")
-        if participant.queued_warnings:
-            lines.append(f"대기 전조: {len(participant.queued_warnings)}개")
         return "\n".join(lines)
 
     def _stack_effects_text(self, stacks: list[ActiveStackEffect]) -> str:
