@@ -3,11 +3,10 @@
   "name": "진 힐라",
   "level_req": 15,
   "stats": {
-    "base_atk": 28,
-    "max_hp": 25000,
+    "base_atk": 30,
+    "max_hp": 20000,
     "defense": 0.25,
-    "dmg_mitigation": 8,
-    "critical_rate": 0.1
+    "dmg_mitigation": 5
   },
   "gold": 4500,
   "exp": 1,
@@ -19,12 +18,8 @@
       "pattern": {
         "id": "red_thread",
         "name": "붉은 실",
-        "damage_multiplier": 0.7,
-        "hits": 4,
-        "plain_damage": {
-          "mode": "target_max_hp_ratio",
-          "value": 0.06
-        },
+        "damage_multiplier": 0,
+        "hits": 0,
         "player_mods": {},
         "boss_mods": {},
         "duration": 0,
@@ -34,7 +29,8 @@
             "action": "stack_increase",
             "target": "self",
             "stack_effect_id": "verus_hilla_red_thread",
-            "value": 1
+            "value": 1,
+            "count": 1
           }
         ]
       },
@@ -45,20 +41,22 @@
           "min_damage": 0
         }
       ],
-      "turns": 1
+      "turns": 1,
+      "activation_conditions": [
+        {
+          "kind": "turn_multiple",
+          "multiple": 2
+        }
+      ]
     },
     {
       "id": "fragment",
-      "name": "파편",
+      "name": "영혼 파편",
       "pattern": {
         "id": "fragment",
-        "name": "파편",
+        "name": "영혼 파편",
         "damage_multiplier": 1,
         "hits": 3,
-        "plain_damage": {
-          "mode": "target_max_hp_ratio",
-          "value": 0.08
-        },
         "player_mods": {},
         "boss_mods": {},
         "duration": 0,
@@ -68,41 +66,6 @@
         {
           "objective": "damage",
           "required": 900,
-          "min_damage": 0
-        }
-      ],
-      "turns": 1
-    },
-    {
-      "id": "poison_gas",
-      "name": "독가스",
-      "pattern": {
-        "id": "poison_gas",
-        "name": "독가스",
-        "damage_multiplier": 0,
-        "hits": 0,
-        "plain_damage": {
-          "mode": "target_max_hp_ratio",
-          "value": 0.12
-        },
-        "player_mods": {},
-        "boss_mods": {},
-        "player_stat_effects": [
-          {
-            "stat": "healing_bonus",
-            "target": "self",
-            "value": -0.2,
-            "duration": 2,
-            "undispellable": false
-          }
-        ],
-        "duration": 0,
-        "stats": {}
-      },
-      "objectives": [
-        {
-          "objective": "ability",
-          "required": 1,
           "min_damage": 0
         }
       ],
@@ -165,7 +128,8 @@
             "action": "stack_remove",
             "target": "self",
             "stack_effect_id": "verus_hilla_red_thread",
-            "value": 1
+            "value": 1,
+            "count": 1
           }
         ]
       },
@@ -185,7 +149,7 @@
           "compare_stack_effect_id": "verus_hilla_skulls",
           "compare_target": "boss",
           "operator": "majority",
-          "multiplier": 1,
+          "multiplier": 1.0,
           "offset": 0
         }
       ]
@@ -198,10 +162,6 @@
         "name": "영혼 수확",
         "damage_multiplier": 0,
         "hits": 0,
-        "plain_damage": {
-          "mode": "target_max_hp_ratio",
-          "value": 0.1
-        },
         "player_mods": {},
         "boss_mods": {},
         "duration": 0,
@@ -213,20 +173,22 @@
             "stack_effect_id": "verus_hilla_skulls",
             "value": 1,
             "value_from_stack_effect_id": "verus_hilla_red_thread",
-            "value_from_target": "self"
+            "value_from_target": "self",
+            "count": 1
           },
           {
             "action": "stack_remove",
             "target": "self",
             "stack_effect_id": "verus_hilla_red_thread",
-            "value": 1
+            "value": 1,
+            "count": 1
           }
         ]
       },
       "objectives": [
         {
           "objective": "damage",
-          "required": 1200,
+          "required": 99999,
           "min_damage": 0
         }
       ],
@@ -234,7 +196,7 @@
       "activation_conditions": [
         {
           "kind": "turn_multiple",
-          "multiple": 5
+          "multiple": 12
         },
         {
           "kind": "stack",
@@ -244,68 +206,145 @@
           "max_stacks": -1
         }
       ]
+    },
+    {
+      "id": "bone_wave_a",
+      "name": "뼈 파동",
+      "pattern": {
+        "id": "bone_wave_a",
+        "name": "뼈 파동",
+        "damage_multiplier": 1.6,
+        "hits": 8,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 5,
+          "min_damage": 150
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "bone_wave_b",
+      "name": "뼈 파동",
+      "pattern": {
+        "id": "bone_wave_b",
+        "name": "뼈 파동",
+        "damage_multiplier": 1.6,
+        "hits": 8,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "debuff",
+          "required": 2,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "the_end",
+      "name": "디 엔드",
+      "pattern": {
+        "id": "the_end",
+        "name": "디 엔드",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "plain_damage": {
+          "mode": "target_max_hp_ratio",
+          "value": 1.0
+        },
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 99,
+          "min_damage": 9999
+        }
+      ],
+      "turns": 1,
+      "activation_conditions": [
+        {
+          "kind": "stack_compare",
+          "stack_effect_id": "verus_hilla_skulls",
+          "target": "boss",
+          "compare_stack_effect_id": "verus_hilla_red_thread",
+          "compare_target": "boss",
+          "operator": "eq",
+          "multiplier": 1.0,
+          "offset": 0
+        }
+      ]
     }
   ],
-  "hp_warnings": [
-    {
-      "threshold": 0.85,
-      "warning_id": "red_thread"
-    },
-    {
-      "threshold": 0.7,
-      "warning_id": "fragment"
-    },
-    {
-      "threshold": 0.55,
-      "warning_id": "poison_gas"
-    },
-    {
-      "threshold": 0.4,
-      "warning_id": "manifestation_of_desire"
-    },
-    {
-      "threshold": 0.25,
-      "warning_id": "red_thread"
-    }
-  ],
+  "hp_warnings": [],
   "ct": {
     "gauge_by_hp": [
       {
         "above": 0,
-        "max": 4
+        "max": 2
       }
     ],
     "warnings_by_hp": [
       {
-        "above": 0.65,
+        "above": 1,
         "warning_ids": [
-          "red_thread",
           "fragment"
         ],
-        "warning_id": "red_thread"
+        "warning_id": "fragment"
       },
       {
-        "above": 0.35,
+        "above": 0.75,
         "warning_ids": [
-          "red_thread",
           "fragment",
-          "poison_gas"
-        ],
-        "warning_id": "red_thread"
-      },
-      {
-        "above": 0,
-        "warning_ids": [
-          "red_thread",
-          "poison_gas",
           "manifestation_of_desire"
         ],
-        "warning_id": "red_thread"
+        "warning_id": "fragment"
+      },
+      {
+        "above": 0.5,
+        "warning_ids": [
+          "fragment",
+          "manifestation_of_desire",
+          "bone_wave_a",
+          "bone_wave_b"
+        ],
+        "warning_id": "fragment"
+      },
+      {
+        "above": 0.25,
+        "warning_id": "bone_wave_a",
+        "warning_ids": [
+          "bone_wave_a",
+          "bone_wave_b"
+        ]
       }
     ]
   },
   "rewards": {
-    "items": [],
+    "items": [
+      {
+        "chance": 0.008,
+        "min": 1,
+        "max": 1,
+        "template_id": "source_of_suffering",
+        "owner_chance": 0.02,
+        "stars": 0
+      }
+    ],
     "materials": [
       {
         "id": "boss_power_crystal",
@@ -318,10 +357,10 @@
       },
       {
         "id": "gold_brick",
-        "chance": 0.002,
+        "chance": 0.01,
         "min": 1,
         "max": 1,
-        "owner_chance": 0.004,
+        "owner_chance": 0.02,
         "owner_min": 1,
         "owner_max": 1
       }

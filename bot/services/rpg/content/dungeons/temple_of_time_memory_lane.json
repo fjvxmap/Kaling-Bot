@@ -45,8 +45,8 @@
         "base_atk": 365,
         "max_hp": 19800,
         "defense_ignore": 0.18,
-        "double_attack_rate": 0.28,
-        "dmg_mitigation": 18
+        "dmg_mitigation": 18,
+        "double_attack_rate": 0.28
       },
       "gold": 27600,
       "exp": 11800,

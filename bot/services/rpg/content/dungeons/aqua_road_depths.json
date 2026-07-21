@@ -43,8 +43,8 @@
       "stats": {
         "base_atk": 162,
         "max_hp": 6100,
-        "critical_rate": 0.2,
-        "dmg_amplification": 0.12
+        "dmg_amplification": 0.12,
+        "critical_rate": 0.2
       },
       "gold": 7200,
       "exp": 6600,

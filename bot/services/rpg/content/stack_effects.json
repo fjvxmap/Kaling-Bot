@@ -638,18 +638,18 @@
   },
   {
     "id": "verus_hilla_skulls",
-    "name": "해골 수",
+    "name": "영혼",
     "max_stacks": 5,
-    "description": "진 힐라 보스전의 남은 해골 수입니다.",
+    "description": ".",
     "tiers": [],
     "conditions": [],
     "stats": {}
   },
   {
     "id": "verus_hilla_red_thread",
-    "name": "붉은 실",
+    "name": "영혼 강탈",
     "max_stacks": 5,
-    "description": "진 힐라 보스전의 붉은 실 누적량입니다.",
+    "description": ".",
     "tiers": [],
     "conditions": [],
     "stats": {}

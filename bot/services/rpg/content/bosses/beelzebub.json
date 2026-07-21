@@ -381,15 +381,24 @@
     "warnings_by_hp": [
       {
         "above": 1,
-        "warning_id": "unisonic"
+        "warning_id": "unisonic",
+        "warning_ids": [
+          "unisonic"
+        ]
       },
       {
         "above": 0.75,
-        "warning_id": "black_flies"
+        "warning_id": "black_flies",
+        "warning_ids": [
+          "black_flies"
+        ]
       },
       {
         "above": 0,
-        "warning_id": "just_execution"
+        "warning_id": "just_execution",
+        "warning_ids": [
+          "just_execution"
+        ]
       }
     ]
   },

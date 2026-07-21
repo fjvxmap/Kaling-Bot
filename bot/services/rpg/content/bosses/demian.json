@@ -304,11 +304,17 @@
     "warnings_by_hp": [
       {
         "above": 1,
-        "warning_id": "dive"
+        "warning_id": "dive",
+        "warning_ids": [
+          "dive"
+        ]
       },
       {
         "above": 0.3,
-        "warning_id": "dark_thrust"
+        "warning_id": "dark_thrust",
+        "warning_ids": [
+          "dark_thrust"
+        ]
       }
     ]
   },

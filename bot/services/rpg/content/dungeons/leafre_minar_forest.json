@@ -84,9 +84,9 @@
       "stats": {
         "base_atk": 315,
         "max_hp": 15800,
+        "dmg_amplification": 0.15,
         "critical_rate": 0.3,
-        "triple_attack_rate": 0.18,
-        "dmg_amplification": 0.15
+        "triple_attack_rate": 0.18
       },
       "gold": 21800,
       "exp": 11800,

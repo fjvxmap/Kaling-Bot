@@ -10,8 +10,8 @@
       "stats": {
         "base_atk": 190,
         "max_hp": 7800,
-        "dmg_mitigation": 12,
-        "enmity": 0.2
+        "enmity": 0.2,
+        "dmg_mitigation": 12
       },
       "gold": 9600,
       "exp": 6500,
@@ -44,8 +44,8 @@
       "stats": {
         "base_atk": 210,
         "max_hp": 8800,
-        "double_attack_rate": 0.25,
-        "critical_rate": 0.22
+        "critical_rate": 0.22,
+        "double_attack_rate": 0.25
       },
       "gold": 11200,
       "exp": 7600,

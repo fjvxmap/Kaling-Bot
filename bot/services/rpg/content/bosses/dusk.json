@@ -8,7 +8,7 @@
     "defense": 50,
     "dmg_mitigation": 25
   },
-  "gold": 0,
+  "gold": 3000,
   "exp": 0,
   "patterns": [],
   "warnings": [
@@ -145,7 +145,16 @@
     "warnings_by_hp": []
   },
   "rewards": {
-    "items": [],
+    "items": [
+      {
+        "chance": 0.008,
+        "min": 1,
+        "max": 1,
+        "template_id": "endless_terror",
+        "owner_chance": 0.02,
+        "stars": 0
+      }
+    ],
     "materials": [
       {
         "id": "boss_power_crystal",

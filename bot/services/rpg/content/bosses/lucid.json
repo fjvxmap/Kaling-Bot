@@ -407,7 +407,10 @@
     "warnings_by_hp": [
       {
         "above": 1,
-        "warning_id": "fairy_dust"
+        "warning_id": "fairy_dust",
+        "warning_ids": [
+          "fairy_dust"
+        ]
       }
     ]
   },

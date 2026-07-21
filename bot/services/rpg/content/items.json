@@ -2105,5 +2105,35 @@
     "fixed_stats": [
       "atk"
     ]
+  },
+  {
+    "id": "source_of_suffering",
+    "name": "고통의 근원",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 115,
+      "max_hp": 250,
+      "life_steal": 0.02,
+      "life_steal_cap": 0.02
+    },
+    "base_price": 1,
+    "excluded_from_gacha": true,
+    "effects": {
+      "final_damage": [
+        {
+          "ratio": 0.05,
+          "target": "self",
+          "duration": -1,
+          "undispellable": true
+        }
+      ]
+    },
+    "description": ".",
+    "fixed_stats": [
+      "base_atk",
+      "max_hp",
+      "life_steal",
+      "life_steal_cap"
+    ]
   }
 ]

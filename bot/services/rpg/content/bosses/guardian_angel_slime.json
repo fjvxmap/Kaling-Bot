@@ -135,7 +135,10 @@
     "warnings_by_hp": [
       {
         "above": 0,
-        "warning_id": "guardian_jump"
+        "warning_id": "guardian_jump",
+        "warning_ids": [
+          "guardian_jump"
+        ]
       }
     ]
   },
