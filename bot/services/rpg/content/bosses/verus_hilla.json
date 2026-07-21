@@ -154,6 +154,10 @@
           "operator": "majority",
           "multiplier": 1.0,
           "offset": 0
+        },
+        {
+          "kind": "turn_multiple",
+          "multiple": 5
         }
       ],
       "activation_priority": 2
