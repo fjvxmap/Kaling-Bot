@@ -53,7 +53,7 @@ STACK_CONDITION_OBJECTIVE_IDS = OBJECTIVE_IDS | {"received_damage"}
 EFFECT_ACTION_IDS = {"dispel", "clear_all"}
 STACK_EFFECT_ACTION_IDS = {"stack_increase", "stack_decrease", "stack_set", "stack_remove", "stack_max"}
 EFFECT_ACTION_IDS = EFFECT_ACTION_IDS | STACK_EFFECT_ACTION_IDS
-WARNING_ACTIVATION_CONDITION_IDS = {"stack", "turn_multiple", "turn_range", "boss_hp_ratio", "ct_ready"}
+WARNING_ACTIVATION_CONDITION_IDS = {"stack", "stack_compare", "turn_multiple", "turn_range", "boss_hp_ratio", "ct_ready"}
 WARNING_ACTIVATION_STACK_TARGET_IDS = {"boss", "player"}
 EFFECT_TARGET_IDS = {"self", "me", "enemy", "ally", "allies", "opponent", "opponents", "enemies"}
 EFFECT_ACTION_CONDITION_TARGET_IDS = {"self", "enemy", "allies", "opponents", "boss", "player"}
@@ -171,6 +171,7 @@ def normalize_content(content: dict[str, Any]) -> None:
             boss.pop("drop_chance", None)
             boss.pop("rank", None)
             boss.pop("stat_points", None)
+            boss.pop("skull_system", None)
             normalize_boss_stack_effects(boss)
             normalize_boss_hp_locks(boss)
             normalize_boss_hp_effects(boss, stat_order_index)
@@ -398,6 +399,10 @@ def warning_activation_condition_kind(value: Any) -> str:
         "stack_count": "stack",
         "stacks": "stack",
         "stack_level": "stack",
+        "stack_ratio": "stack_compare",
+        "stack_majority": "stack_compare",
+        "stack_greater": "stack_compare",
+        "compare_stack": "stack_compare",
         "turn_mod": "turn_multiple",
         "turn_modulo": "turn_multiple",
         "turn_divisible": "turn_multiple",
@@ -434,6 +439,48 @@ def normalize_warning_activation_condition(condition: dict[str, Any]) -> dict[st
             "target": normalize_warning_activation_condition_target(condition.get("target", "boss")),
             "min_stacks": max(0, safe_int(condition.get("min_stacks", condition.get("min", condition.get("stacks"))), 1)),
             "max_stacks": safe_int(condition.get("max_stacks", condition.get("max")), -1),
+        }
+    if kind == "stack_compare":
+        effect_id = str(condition.get("stack_effect_id", condition.get("effect_id", condition.get("id", ""))) or "")
+        compare_id = str(
+            condition.get(
+                "compare_stack_effect_id",
+                condition.get("other_stack_effect_id", condition.get("right_stack_effect_id", condition.get("compare_effect_id", ""))),
+            )
+            or ""
+        )
+        if not effect_id or not compare_id:
+            return None
+        operator = str(condition.get("operator", condition.get("op", condition.get("comparison", "gte"))) or "gte")
+        operator_aliases = {
+            ">": "gt",
+            "greater": "gt",
+            ">=": "gte",
+            "at_least": "gte",
+            "<": "lt",
+            "less": "lt",
+            "<=": "lte",
+            "at_most": "lte",
+            "=": "eq",
+            "==": "eq",
+            "equal": "eq",
+            "more_than_half": "majority",
+            "strict_majority": "majority",
+        }
+        operator = operator_aliases.get(operator, operator)
+        if operator not in {"gt", "gte", "lt", "lte", "eq", "majority"}:
+            operator = "gte"
+        return {
+            "kind": "stack_compare",
+            "stack_effect_id": effect_id,
+            "target": normalize_warning_activation_condition_target(condition.get("target", "boss")),
+            "compare_stack_effect_id": compare_id,
+            "compare_target": normalize_warning_activation_condition_target(
+                condition.get("compare_target", condition.get("other_target", condition.get("right_target", condition.get("target", "boss"))))
+            ),
+            "operator": operator,
+            "multiplier": safe_float(condition.get("multiplier", condition.get("ratio")), 1.0),
+            "offset": safe_int(condition.get("offset"), 0),
         }
     if kind == "turn_multiple":
         return {
@@ -1002,8 +1049,25 @@ def normalize_effect_actions(row: dict[str, Any], key: str) -> None:
         if action_id in STACK_EFFECT_ACTION_IDS:
             action["stack_effect_id"] = str(action.get("stack_effect_id", action.get("effect_id", "")) or "")
             action["value"] = max(1, safe_int(action.get("value", action.get("stacks", action.get("count"))), 1))
+            action["value_from_stack_effect_id"] = str(
+                action.get(
+                    "value_from_stack_effect_id",
+                    action.get("value_from_stack", action.get("source_stack_effect_id", "")),
+                )
+                or ""
+            )
+            if action["value_from_stack_effect_id"]:
+                action["value_from_target"] = normalize_effect_action_stack_condition_target(
+                    action.get("value_from_target", action.get("source_target", action.get("target")))
+                )
+            else:
+                action.pop("value_from_stack_effect_id", None)
+                action.pop("value_from_target", None)
             action.pop("effect_id", None)
             action.pop("stacks", None)
+            action.pop("value_from_stack", None)
+            action.pop("source_stack_effect_id", None)
+            action.pop("source_target", None)
         conditions = normalize_effect_action_stack_conditions(action.get("conditions", action.get("stack_conditions")))
         action.pop("stack_conditions", None)
         if conditions:
@@ -1362,13 +1426,6 @@ def validate_content(content: dict[str, Any]) -> list[str]:
         )
         for warning in boss.get("ct", {}).get("warnings_by_hp", []):
             validate_warning_trigger(warning, warning_ids, pattern_ids, stat_ids, f"boss {boss.get('id')} ct warning", errors, stack_effects)
-        skull_system = boss.get("skull_system")
-        if isinstance(skull_system, dict) and skull_system.get("enabled", True):
-            red_thread_warning_id = str(skull_system.get("red_thread_warning_id", "red_thread") or "")
-            if red_thread_warning_id and red_thread_warning_id not in warning_ids:
-                errors.append(
-                    f"boss {boss.get('id')} skull system red thread warning not found: {red_thread_warning_id}"
-                )
         validate_boss_stack_effects(
             boss.get("stack_effects", []),
             content.get("stack_effects", []),
@@ -1709,6 +1766,22 @@ def validate_warning_activation_conditions(
                 errors.append(f"{label} {index} min stacks must be non-negative")
             if max_stacks >= 0 and max_stacks < min_stacks:
                 errors.append(f"{label} {index} max stacks must be at least min stacks")
+        elif kind == "stack_compare":
+            effect_id = str(condition.get("stack_effect_id", "") or "")
+            compare_id = str(condition.get("compare_stack_effect_id", "") or "")
+            if effect_id not in stack_effect_ids:
+                errors.append(f"{label} {index} stack effect not found: {effect_id}")
+            if compare_id not in stack_effect_ids:
+                errors.append(f"{label} {index} compare stack effect not found: {compare_id}")
+            target = str(condition.get("target", "boss") or "boss")
+            compare_target = str(condition.get("compare_target", target) or target)
+            if target not in WARNING_ACTIVATION_STACK_TARGET_IDS:
+                errors.append(f"{label} {index} target is invalid: {target}")
+            if compare_target not in WARNING_ACTIVATION_STACK_TARGET_IDS:
+                errors.append(f"{label} {index} compare target is invalid: {compare_target}")
+            operator = str(condition.get("operator", "gte") or "gte")
+            if operator not in {"gt", "gte", "lt", "lte", "eq", "majority"}:
+                errors.append(f"{label} {index} operator is invalid: {operator}")
         elif kind == "turn_multiple":
             if safe_int(condition.get("multiple"), 0) < 1:
                 errors.append(f"{label} {index} multiple must be at least 1")
@@ -2133,6 +2206,12 @@ def validate_effect_actions(
                 errors.append(f"{label} {index} stack effect is required")
             elif stack_effect_ids is not None and effect_id not in stack_effect_ids:
                 errors.append(f"{label} {index} stack effect not found: {effect_id}")
+            source_effect_id = str(action.get("value_from_stack_effect_id", "") or "")
+            if source_effect_id and stack_effect_ids is not None and source_effect_id not in stack_effect_ids:
+                errors.append(f"{label} {index} value source stack effect not found: {source_effect_id}")
+            source_target = str(action.get("value_from_target", action.get("target", "self")) or "self")
+            if source_effect_id and source_target not in EFFECT_ACTION_CONDITION_TARGET_IDS:
+                errors.append(f"{label} {index} value source target is invalid: {source_target}")
             if safe_int(action.get("value", action.get("stacks", 1)), 1) < 1:
                 errors.append(f"{label} {index} value must be at least 1")
         conditions = action.get("conditions")

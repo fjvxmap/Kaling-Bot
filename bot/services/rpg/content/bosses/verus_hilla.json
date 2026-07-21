@@ -9,7 +9,7 @@
     "dmg_mitigation": 8,
     "critical_rate": 0.1
   },
-  "gold": 3600,
+  "gold": 4500,
   "exp": 1,
   "patterns": [],
   "warnings": [
@@ -28,7 +28,15 @@
         "player_mods": {},
         "boss_mods": {},
         "duration": 0,
-        "stats": {}
+        "stats": {},
+        "effect_actions": [
+          {
+            "action": "stack_increase",
+            "target": "self",
+            "stack_effect_id": "verus_hilla_red_thread",
+            "value": 1
+          }
+        ]
       },
       "objectives": [
         {
@@ -45,7 +53,7 @@
       "pattern": {
         "id": "fragment",
         "name": "파편",
-        "damage_multiplier": 1.0,
+        "damage_multiplier": 1,
         "hits": 3,
         "plain_damage": {
           "mode": "target_max_hp_ratio",
@@ -125,6 +133,117 @@
         }
       ],
       "turns": 1
+    },
+    {
+      "id": "altar",
+      "name": "제단",
+      "pattern": {
+        "id": "altar",
+        "name": "제단",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "plain_damage": {
+          "mode": "target_max_hp_ratio",
+          "value": 0.08
+        },
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "success_pattern": {
+        "id": "altar_success",
+        "name": "제단",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {},
+        "effect_actions": [
+          {
+            "action": "stack_remove",
+            "target": "self",
+            "stack_effect_id": "verus_hilla_red_thread",
+            "value": 1
+          }
+        ]
+      },
+      "objectives": [
+        {
+          "objective": "ability",
+          "required": 1,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1,
+      "activation_conditions": [
+        {
+          "kind": "stack_compare",
+          "stack_effect_id": "verus_hilla_red_thread",
+          "target": "boss",
+          "compare_stack_effect_id": "verus_hilla_skulls",
+          "compare_target": "boss",
+          "operator": "majority",
+          "multiplier": 1,
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "id": "soul_harvest",
+      "name": "영혼 수확",
+      "pattern": {
+        "id": "soul_harvest",
+        "name": "영혼 수확",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "plain_damage": {
+          "mode": "target_max_hp_ratio",
+          "value": 0.1
+        },
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {},
+        "effect_actions": [
+          {
+            "action": "stack_decrease",
+            "target": "self",
+            "stack_effect_id": "verus_hilla_skulls",
+            "value": 1,
+            "value_from_stack_effect_id": "verus_hilla_red_thread",
+            "value_from_target": "self"
+          },
+          {
+            "action": "stack_remove",
+            "target": "self",
+            "stack_effect_id": "verus_hilla_red_thread",
+            "value": 1
+          }
+        ]
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 1200,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1,
+      "activation_conditions": [
+        {
+          "kind": "turn_multiple",
+          "multiple": 5
+        },
+        {
+          "kind": "stack",
+          "stack_effect_id": "verus_hilla_red_thread",
+          "target": "boss",
+          "min_stacks": 1,
+          "max_stacks": -1
+        }
+      ]
     }
   ],
   "hp_warnings": [
@@ -162,7 +281,8 @@
         "warning_ids": [
           "red_thread",
           "fragment"
-        ]
+        ],
+        "warning_id": "red_thread"
       },
       {
         "above": 0.35,
@@ -170,7 +290,8 @@
           "red_thread",
           "fragment",
           "poison_gas"
-        ]
+        ],
+        "warning_id": "red_thread"
       },
       {
         "above": 0,
@@ -178,18 +299,10 @@
           "red_thread",
           "poison_gas",
           "manifestation_of_desire"
-        ]
+        ],
+        "warning_id": "red_thread"
       }
     ]
-  },
-  "skull_system": {
-    "enabled": true,
-    "total_skulls": 5,
-    "soul_cleave_interval": 5,
-    "red_thread_warning_id": "red_thread",
-    "altar_heal_ratio": 1.0,
-    "altar_final_damage_ratio": 0.15,
-    "altar_final_damage_turns": 1
   },
   "rewards": {
     "items": [],
@@ -214,7 +327,16 @@
       }
     ]
   },
-  "description": "욕망의 제단에서 붉은 실과 영혼 베기를 견뎌야 합니다.",
+  "description": "붉은 실이 쌓이면 제단 전조가 유도되고, 주기적인 영혼 수확을 견뎌야 합니다.",
   "sort_order": 14,
-  "stack_effects": []
+  "stack_effects": [
+    {
+      "stack_effect_id": "verus_hilla_skulls",
+      "initial_stacks": 5
+    },
+    {
+      "stack_effect_id": "verus_hilla_red_thread",
+      "initial_stacks": 0
+    }
+  ]
 }

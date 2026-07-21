@@ -1587,7 +1587,14 @@ class RPGService:
             if action.action in STACK_EFFECT_ACTIONS:
                 template = STACK_EFFECT_BY_ID.get(action.stack_effect_id)
                 effect_name = template.name if template is not None else action.stack_effect_id
-                value = "" if action.action in {"stack_remove", "stack_max"} else f" {action.value}"
+                value = ""
+                if action.action not in {"stack_remove", "stack_max"}:
+                    if action.value_from_stack_effect_id:
+                        source = STACK_EFFECT_BY_ID.get(action.value_from_stack_effect_id)
+                        source_name = source.name if source is not None else action.value_from_stack_effect_id
+                        value = f" {source_name} 기준"
+                    else:
+                        value = f" {action.value}"
                 parts.append(f"{label}({target}, {effect_name}{value})")
             else:
                 count = f" x{action.count}" if action.count > 1 else ""
@@ -2705,8 +2712,22 @@ class RPGService:
                     opponent_stacks=opponent_stacks,
                     source_role=source_role,
                 )
-                for target in stack_targets:
-                    self._apply_stack_action(target, action)
+                source_targets = self._stack_action_targets(
+                    action.value_from_target or action.target,
+                    self_stacks=self_stacks,
+                    enemy_stacks=enemy_stacks,
+                    ally_stacks=ally_stacks,
+                    opponent_stacks=opponent_stacks,
+                    source_role=source_role,
+                )
+                for target_index, target in enumerate(stack_targets):
+                    if not source_targets:
+                        source_stacks = target
+                    elif target_index < len(source_targets):
+                        source_stacks = source_targets[target_index]
+                    else:
+                        source_stacks = source_targets[0]
+                    self._apply_stack_action(target, action, source_stacks=source_stacks)
                 continue
             targets = self._effect_action_targets(
                 action.target,
@@ -2836,12 +2857,21 @@ class RPGService:
             return "allies"
         return target
 
-    def _apply_stack_action(self, stacks: list[ActiveStackEffect], action: EffectAction) -> None:
+    def _apply_stack_action(
+        self,
+        stacks: list[ActiveStackEffect],
+        action: EffectAction,
+        *,
+        source_stacks: list[ActiveStackEffect] | None = None,
+    ) -> None:
         template = STACK_EFFECT_BY_ID.get(action.stack_effect_id)
         if template is None:
             return
         operation = action.action.removeprefix("stack_")
-        value = max(1, int(action.value or action.count or 1))
+        if action.value_from_stack_effect_id:
+            value = max(0, self._active_stack_count(source_stacks or stacks, action.value_from_stack_effect_id))
+        else:
+            value = max(1, int(action.value or action.count or 1))
         current = next((effect for effect in stacks if effect.template_id == template.id), None)
         current_stacks = max(0, int(current.stacks)) if current is not None else 0
         if operation == "increase":
@@ -2868,6 +2898,12 @@ class RPGService:
             stacks[:] = [effect for effect in stacks if effect.template_id != template.id]
             return
         current.stacks = next_stacks
+
+    def _active_stack_count(self, stacks: list[ActiveStackEffect], template_id: str) -> int:
+        for effect in stacks:
+            if effect.template_id == template_id:
+                return max(0, int(effect.stacks))
+        return 0
 
     def _apply_stack_conditions(
         self,

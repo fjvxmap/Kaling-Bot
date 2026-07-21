@@ -126,10 +126,20 @@ const FAILURE_STACK_TARGETS = [
 
 const WARNING_ACTIVATION_CONDITIONS = [
   ["stack", "스택 수"],
+  ["stack_compare", "스택 비교"],
   ["turn_multiple", "턴 배수"],
   ["turn_range", "턴 범위"],
   ["boss_hp_ratio", "보스 HP 비율"],
   ["ct_ready", "CT 충전 여부"],
+];
+
+const STACK_COMPARE_OPERATORS = [
+  ["majority", "과반"],
+  ["gte", "이상"],
+  ["gt", "초과"],
+  ["lte", "이하"],
+  ["lt", "미만"],
+  ["eq", "같음"],
 ];
 
 const ACTION_STACK_CONDITION_TARGETS = [
@@ -1160,6 +1170,7 @@ function renderBossDetail(boss) {
   boss.ct ||= { gauge_by_hp: [], warnings_by_hp: [] };
   boss.ct.gauge_by_hp ||= [];
   boss.ct.warnings_by_hp ||= [];
+  delete boss.skull_system;
   normalizeBossStackEffects(boss);
   boss.rewards ||= blankReward();
   const body = el("div", { className: "panel-body" }, [
@@ -1174,7 +1185,6 @@ function renderBossDetail(boss) {
     ]),
     statsEditor(boss, "stats", "보스 스탯"),
     bossStackEffectEditor(boss),
-    bossSkullSystemEditor(boss),
     bossHpLockEditor(boss),
     bossHpEffectEditor(boss),
     bossWarningTemplateEditor(boss),
@@ -1244,87 +1254,6 @@ function bossStackEffectEditor(boss) {
       }, "스택 추가"),
     ]),
     el("div", { className: "rows" }, rows.length ? rows : [el("div", { className: "empty" }, "보스전에 등록된 스택 없음")]),
-  ]);
-}
-
-function defaultBossSkullSystem(boss) {
-  return {
-    enabled: true,
-    total_skulls: 5,
-    soul_cleave_interval: 5,
-    red_thread_warning_id: boss.warnings?.[0]?.id || "",
-    altar_heal_ratio: 1.0,
-    altar_final_damage_ratio: 0.15,
-    altar_final_damage_turns: 1,
-  };
-}
-
-function normalizeBossSkullSystem(boss) {
-  if (!boss.skull_system || typeof boss.skull_system !== "object") {
-    return null;
-  }
-  const skull = boss.skull_system;
-  skull.enabled = skull.enabled !== false;
-  skull.total_skulls = Math.max(1, Math.floor(Number(skull.total_skulls ?? skull.skulls ?? 5)));
-  skull.soul_cleave_interval = Math.max(1, Math.floor(Number(skull.soul_cleave_interval ?? skull.interval ?? 5)));
-  skull.red_thread_warning_id = String(skull.red_thread_warning_id || boss.warnings?.[0]?.id || "");
-  if (skull.red_thread_warning_id && !findBossWarning(boss, skull.red_thread_warning_id)) {
-    skull.red_thread_warning_id = boss.warnings?.[0]?.id || "";
-  }
-  skull.altar_heal_ratio = Math.max(0, Number(skull.altar_heal_ratio ?? skull.heal_ratio ?? 1.0));
-  skull.altar_final_damage_ratio = Number(skull.altar_final_damage_ratio ?? skull.final_damage_ratio ?? 0.15);
-  skull.altar_final_damage_turns = Math.max(1, Math.floor(Number(skull.altar_final_damage_turns ?? skull.final_damage_turns ?? 1)));
-  delete skull.skulls;
-  delete skull.interval;
-  delete skull.heal_ratio;
-  delete skull.final_damage_ratio;
-  delete skull.final_damage_turns;
-  return skull;
-}
-
-function bossSkullSystemEditor(boss) {
-  const skull = normalizeBossSkullSystem(boss);
-  if (!skull) {
-    return el("section", { className: "section themed skull-section" }, [
-      el("div", { className: "section-head" }, [
-        el("h3", {}, "해골/제단 시스템"),
-        el("button", {
-          type: "button",
-          onclick: () => {
-            boss.skull_system = defaultBossSkullSystem(boss);
-            markDirty();
-            render();
-          },
-        }, "시스템 추가"),
-      ]),
-      el("div", { className: "empty" }, "해골/제단 시스템 없음"),
-    ]);
-  }
-
-  const required = Math.max(1, Math.floor(Number(skull.total_skulls || 1) / 2) + 1);
-  return el("section", { className: "section themed skull-section" }, [
-    el("div", { className: "section-head" }, [
-      el("h3", {}, "해골/제단 시스템"),
-      el("button", {
-        type: "button",
-        className: "danger",
-        onclick: () => {
-          delete boss.skull_system;
-          markDirty();
-          render();
-        },
-      }, "시스템 제거"),
-    ]),
-    el("div", { className: "form-grid three" }, [
-      checkboxField("사용", skull, "enabled"),
-      numberField("총 해골 수", skull, "total_skulls", { step: 1 }),
-      fieldWrap("초기 제단 기준", el("div", { className: "readonly-value" }, `붉은 해골 ${required}개`)),
-      numberField("영혼 베기 주기", skull, "soul_cleave_interval", { step: 1 }),
-      selectField("붉은 실 전조", skull, "red_thread_warning_id", bossWarningOptions(boss)),
-      numberField("제단 회복량", skull, "altar_heal_ratio", { step: 0.01 }),
-      numberField("제단 최종 데미지", skull, "altar_final_damage_ratio", { step: 0.01 }),
-      numberField("제단 효과 턴", skull, "altar_final_damage_turns", { step: 1 }),
-    ]),
   ]);
 }
 
@@ -2198,6 +2127,10 @@ function warningActivationConditionKind(condition) {
     stack_count: "stack",
     stacks: "stack",
     stack_level: "stack",
+    stack_ratio: "stack_compare",
+    stack_majority: "stack_compare",
+    stack_greater: "stack_compare",
+    compare_stack: "stack_compare",
     turn_mod: "turn_multiple",
     turn_modulo: "turn_multiple",
     turn_divisible: "turn_multiple",
@@ -2231,6 +2164,50 @@ function normalizeWarningActivationCondition(condition) {
       target: condition.target === "player" ? "player" : "boss",
       min_stacks: Math.max(0, Number.isFinite(minStacks) ? minStacks : 1),
       max_stacks: Number.isFinite(maxStacks) ? maxStacks : -1,
+    };
+  }
+  if (kind === "stack_compare") {
+    const stackId = condition.stack_effect_id || condition.effect_id || condition.id || state.content.stack_effects?.[0]?.id || "";
+    const compareStackId = condition.compare_stack_effect_id
+      || condition.other_stack_effect_id
+      || condition.right_stack_effect_id
+      || condition.compare_effect_id
+      || state.content.stack_effects?.[1]?.id
+      || stackId;
+    if (!stackId || !compareStackId) {
+      return null;
+    }
+    const aliases = {
+      ">": "gt",
+      greater: "gt",
+      ">=": "gte",
+      at_least: "gte",
+      "<": "lt",
+      less: "lt",
+      "<=": "lte",
+      at_most: "lte",
+      "=": "eq",
+      "==": "eq",
+      equal: "eq",
+      more_than_half: "majority",
+      strict_majority: "majority",
+    };
+    let operator = aliases[condition.operator || condition.op || condition.comparison] || condition.operator || condition.op || condition.comparison || "gte";
+    if (!STACK_COMPARE_OPERATORS.some(([id]) => id === operator)) {
+      operator = "gte";
+    }
+    const compareTargetSource = condition.compare_target ?? condition.other_target ?? condition.right_target ?? condition.target;
+    return {
+      kind,
+      stack_effect_id: stackId,
+      target: condition.target === "player" ? "player" : "boss",
+      compare_stack_effect_id: compareStackId,
+      compare_target: compareTargetSource === "player" ? "player" : "boss",
+      operator,
+      multiplier: Number.isFinite(Number(condition.multiplier ?? condition.ratio))
+        ? Number(condition.multiplier ?? condition.ratio)
+        : 1,
+      offset: Number.isFinite(Number(condition.offset)) ? Number(condition.offset) : 0,
     };
   }
   if (kind === "turn_multiple") {
@@ -3015,7 +2992,7 @@ function bossWarningTemplatePanel(boss, warning, index) {
 }
 
 function makeWarningActivationCondition(kind = "stack") {
-  if (kind === "stack" && !state.content.stack_effects?.length) {
+  if ((kind === "stack" || kind === "stack_compare") && !state.content.stack_effects?.length) {
     kind = "turn_multiple";
   }
   if (kind === "stack") {
@@ -3025,6 +3002,18 @@ function makeWarningActivationCondition(kind = "stack") {
       target: "boss",
       min_stacks: 1,
       max_stacks: -1,
+    };
+  }
+  if (kind === "stack_compare") {
+    return {
+      kind,
+      stack_effect_id: state.content.stack_effects?.[0]?.id || "",
+      target: "boss",
+      compare_stack_effect_id: state.content.stack_effects?.[1]?.id || state.content.stack_effects?.[0]?.id || "",
+      compare_target: "boss",
+      operator: "majority",
+      multiplier: 1,
+      offset: 0,
     };
   }
   if (kind === "turn_multiple") {
@@ -3080,6 +3069,20 @@ function warningActivationConditionRow(warning, condition, index) {
       numberField("최소 스택", condition, "min_stacks", { step: 1 }),
       numberField("최대 스택 (-1=없음)", condition, "max_stacks", { step: 1 }),
     );
+  } else if (condition.kind === "stack_compare") {
+    fields.push(
+      selectField("왼쪽 스택", condition, "stack_effect_id", stackEffectOptions()),
+      selectField("왼쪽 대상", condition, "target", FAILURE_STACK_TARGETS),
+      selectField("비교", condition, "operator", STACK_COMPARE_OPERATORS, { rerender: true }),
+      selectField("오른쪽 스택", condition, "compare_stack_effect_id", stackEffectOptions()),
+      selectField("오른쪽 대상", condition, "compare_target", FAILURE_STACK_TARGETS),
+    );
+    if (condition.operator !== "majority") {
+      fields.push(
+        numberField("오른쪽 배율", condition, "multiplier", { step: 0.01 }),
+        numberField("보정값", condition, "offset", { step: 1 }),
+      );
+    }
   } else if (condition.kind === "turn_multiple") {
     fields.push(numberField("몇 턴마다", condition, "multiple", { step: 1 }));
   } else if (condition.kind === "turn_range") {
@@ -3110,7 +3113,12 @@ function warningActivationConditionRow(warning, condition, index) {
     markDirty();
     render();
   }));
-  return el("div", { className: `row ${condition.kind === "stack" ? "five" : "three"}` }, fields);
+  const rowClass = condition.kind === "stack_compare"
+    ? "seven"
+    : condition.kind === "stack"
+      ? "five"
+      : "three";
+  return el("div", { className: `row ${rowClass}` }, fields);
 }
 
 function warningSuccessEffectEditor(boss, warning) {
@@ -4553,6 +4561,16 @@ function effectActionEditor(owner, key, title, config = {}) {
     if (isStackAction) {
       action.stack_effect_id ||= state.content.stack_effects?.[0]?.id || "";
       action.value = Math.max(1, Number(action.value || action.stacks || action.count || 1));
+      action.value_from_stack_effect_id ||= action.value_from_stack || action.source_stack_effect_id || "";
+      if (action.value_from_stack_effect_id) {
+        action.value_from_target ||= action.source_target || action.target || "self";
+      } else {
+        delete action.value_from_stack_effect_id;
+        delete action.value_from_target;
+      }
+      delete action.value_from_stack;
+      delete action.source_stack_effect_id;
+      delete action.source_target;
       delete action.stacks;
     }
     const fields = [
@@ -4571,7 +4589,15 @@ function effectActionEditor(owner, key, title, config = {}) {
     if (isStackAction) {
       fields.push(selectField("스택 효과", action, "stack_effect_id", stackEffectOptions()));
       if (!["stack_remove", "stack_max"].includes(action.action)) {
-        fields.push(numberField("스택 수", action, "value", { step: 1 }));
+        fields.push(
+          numberField("스택 수", action, "value", { step: 1 }),
+          selectField("수량 참조 스택", action, "value_from_stack_effect_id", [["", "고정값"], ...stackEffectOptions()], {
+            rerender: true,
+          }),
+        );
+        if (action.value_from_stack_effect_id) {
+          fields.push(selectField("참조 대상", action, "value_from_target", ACTION_STACK_CONDITION_TARGETS));
+        }
       }
     } else {
       fields.push(numberField("횟수", action, "count", { step: 1 }));
@@ -4581,8 +4607,17 @@ function effectActionEditor(owner, key, title, config = {}) {
       markDirty();
       render();
     }));
+    const rowClass = fields.length >= 8
+      ? "seven"
+      : fields.length >= 7
+        ? "six"
+        : fields.length >= 6
+          ? "five"
+          : fields.length >= 4
+            ? "three"
+            : "two";
     return el("div", { className: "subpanel" }, [
-      el("div", { className: "row two" }, fields),
+      el("div", { className: `row ${rowClass}` }, fields),
       effectActionStackConditionsEditor(action, conditionTargets),
     ]);
   });

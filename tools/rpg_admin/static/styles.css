@@ -423,11 +423,6 @@ textarea {
   background: var(--tint-green);
 }
 
-.skull-section {
-  border-left-color: #8f5f4f;
-  background: #fbf4f1;
-}
-
 .hp-lock-section {
   border-left-color: #2f8f9d;
   background: #eef9fb;
@@ -511,6 +506,10 @@ textarea {
 
 .row.six {
   grid-template-columns: repeat(6, minmax(0, 1fr)) auto;
+}
+
+.row.seven {
+  grid-template-columns: repeat(7, minmax(0, 1fr)) auto;
 }
 
 .subpanel {
@@ -688,7 +687,8 @@ details.subpanel > summary.subpanel-head {
   .row.two,
   .row.three,
   .row.five,
-  .row.six {
+  .row.six,
+  .row.seven {
     grid-template-columns: 1fr;
   }
 }

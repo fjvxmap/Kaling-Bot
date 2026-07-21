@@ -28,8 +28,6 @@ from bot.services.rpg.data import (
     BossWarningActivationCondition,
     BossWarningFailureVariant,
     BossWarningTemplate,
-    CombatSpecialEffects,
-    FinalDamageEffect,
     SkillTemplate,
     STACK_EFFECT_BY_ID,
 )
@@ -156,9 +154,6 @@ class BossParticipant:
     ability_uses_left: dict[str, int] = field(default_factory=dict)
     last_damage_detail: BossDamageDetail | None = None
     suppress_warning_activation: bool = False
-    skulls: int = 0
-    red_skulls: int = 0
-    last_soul_cleave_turn: int = 0
 
 
 @dataclass
@@ -555,7 +550,6 @@ class RPGCog(commands.Cog):
             max_hp=stats.final_hp,
             boss_stack_effects=self._initial_boss_stack_effects(session.boss),
         )
-        self._initialize_boss_participant_skulls(session, participant)
         session.participants[user_id] = participant
         self._refresh_boss_permanent_effects(session)
         session.log.append(f"{display_name} 참가")
@@ -783,115 +777,6 @@ class RPGCog(commands.Cog):
             )
             participant.max_hp = stats.final_hp
             participant.hp = stats.final_hp
-
-    def _initialize_boss_participant_skulls(self, session: BossSession, participant: BossParticipant) -> None:
-        skull_system = session.boss.skull_system
-        if skull_system is None:
-            participant.skulls = 0
-            participant.red_skulls = 0
-            participant.last_soul_cleave_turn = 0
-            return
-        participant.skulls = max(1, int(skull_system.total_skulls))
-        participant.red_skulls = 0
-        participant.last_soul_cleave_turn = 0
-
-    def _boss_has_skull_system(self, session: BossSession) -> bool:
-        return session.boss.skull_system is not None
-
-    def _altar_required_red_skulls(self, participant: BossParticipant) -> int:
-        return max(1, max(1, participant.skulls) // 2 + 1)
-
-    def _altar_available(self, session: BossSession, participant: BossParticipant) -> bool:
-        return (
-            self._boss_has_skull_system(session)
-            and participant.alive
-            and participant.skulls > 0
-            and participant.red_skulls >= self._altar_required_red_skulls(participant)
-        )
-
-    def _apply_red_thread(self, session: BossSession, participant: BossParticipant, amount: int = 1) -> None:
-        if not self._boss_has_skull_system(session) or not participant.alive:
-            return
-        before = participant.red_skulls
-        participant.red_skulls = min(participant.skulls, participant.red_skulls + max(1, int(amount)))
-        if participant.red_skulls != before:
-            session.log.append(f"{participant.display_name}: 붉은 실 {participant.red_skulls}/{participant.skulls}")
-
-    def _apply_warning_skull_failure(
-        self,
-        session: BossSession,
-        participant: BossParticipant,
-        warning: BossWarning,
-    ) -> None:
-        skull_system = session.boss.skull_system
-        if skull_system is None:
-            return
-        warning_id = str(getattr(warning, "template_id", getattr(warning, "id", "")) or "")
-        if warning_id == skull_system.red_thread_warning_id:
-            self._apply_red_thread(session, participant)
-
-    def _apply_soul_cleave_if_due(self, session: BossSession, participant: BossParticipant) -> None:
-        skull_system = session.boss.skull_system
-        if skull_system is None or not participant.alive or participant.skulls <= 0:
-            return
-        interval = max(1, int(skull_system.soul_cleave_interval))
-        if participant.turn <= 1 or participant.turn % interval != 0:
-            return
-        if participant.last_soul_cleave_turn == participant.turn:
-            return
-        participant.last_soul_cleave_turn = participant.turn
-        removed = max(0, min(participant.skulls, participant.red_skulls))
-        if removed <= 0:
-            session.log.append(f"{participant.display_name}: 영혼 베기")
-            return
-        participant.skulls = max(0, participant.skulls - removed)
-        participant.red_skulls = 0
-        session.log.append(f"{participant.display_name}: 영혼 베기 · 해골 {removed}개 감소")
-        if participant.skulls <= 0:
-            participant.hp = 0
-            participant.alive = False
-            session.log.append(f"{participant.display_name}: 전투 불능")
-
-    def _use_altar(self, session: BossSession, participant: BossParticipant, profile: PlayerProfile) -> tuple[bool, str]:
-        skull_system = session.boss.skull_system
-        if skull_system is None:
-            return False, "이 보스전에는 제단이 없습니다."
-        if not self._altar_available(session, participant):
-            return False, "아직 제단을 사용할 수 없습니다."
-        before_red = participant.red_skulls
-        participant.red_skulls = 0
-        player_base = self.service.profile_stats(profile)
-        player_stats = self.service._stats_with_effects(player_base, participant.player_effects, participant.player_stack_effects)
-        heal = int(player_stats.final_hp * max(0.0, skull_system.altar_heal_ratio))
-        if heal > 0:
-            participant.hp = min(player_stats.final_hp, participant.hp + heal)
-        source_id = "boss:제단"
-        participant.player_effects[:] = [
-            effect for effect in participant.player_effects
-            if effect.source_id != source_id
-        ]
-        final_damage_ratio = skull_system.altar_final_damage_ratio
-        if final_damage_ratio:
-            participant.player_effects.append(
-                ActiveEffect(
-                    turns=max(1, int(skull_system.altar_final_damage_turns)),
-                    mods={},
-                    source_id=source_id,
-                    special=CombatSpecialEffects(
-                        final_damage=[
-                            FinalDamageEffect(
-                                ratio=final_damage_ratio,
-                                duration=max(1, int(skull_system.altar_final_damage_turns)),
-                                undispellable=False,
-                                target="self",
-                            )
-                        ]
-                    ),
-                    undispellable=False,
-                )
-            )
-        session.log.append(f"{participant.display_name}: 제단 · 붉은 해골 {before_red}개 회수")
-        return True, f"제단을 사용했습니다. 붉은 해골 {before_red}개를 회수했습니다."
 
     def _participant_max_hp(self, participant: BossParticipant) -> int:
         profile = self.service.cached_profile(participant.user_id, participant.display_name)
@@ -1304,17 +1189,6 @@ class RPGCog(commands.Cog):
         self._check_boss_party_failed(session)
         return True, "가드로 턴을 넘겼습니다."
 
-    def _boss_use_altar(self, session: BossSession, user_id: int, display_name: str) -> tuple[bool, str]:
-        participant = session.participants.get(user_id)
-        if participant is None:
-            return False, "이 보스전에 참가하지 않았습니다."
-        if not session.started or session.completed or session.failed or session.cancelled:
-            return False, "진행 중인 보스전이 아닙니다."
-        if not participant.alive:
-            return False, "전투 불능 상태입니다."
-        profile = self.service.get_profile(user_id, display_name)
-        return self._use_altar(session, participant, profile)
-
     def _finish_pending_warning_turn(
         self,
         session: BossSession,
@@ -1417,7 +1291,6 @@ class RPGCog(commands.Cog):
             if member.alive
         ]
         self._apply_warning_stack_event(participant, "warning_failure")
-        self._apply_warning_skull_failure(session, participant, warning)
         failure_pattern = self._warning_failure_pattern(warning, participant)
         failure_effect_name = failure_pattern.name or warning.name
         hp_snapshots = self._participant_hp_snapshots(session)
@@ -1498,10 +1371,6 @@ class RPGCog(commands.Cog):
         if participant.pending_warning is not None or session.completed or session.failed:
             return
         if participant.suppress_warning_activation:
-            return
-        self._apply_soul_cleave_if_due(session, participant)
-        self._check_boss_party_failed(session)
-        if participant.hp <= 0 or session.failed:
             return
         if self._trigger_due_hp_effect(session, participant, profile):
             self._check_boss_party_failed(session)
@@ -1815,14 +1684,32 @@ class RPGCog(commands.Cog):
         kind = condition.kind
         if kind == "stack":
             stacks = participant.player_stack_effects if condition.target == "player" else participant.boss_stack_effects
-            current = 0
-            for stack in stacks:
-                if stack.template_id == condition.stack_effect_id:
-                    current = max(0, int(stack.stacks))
-                    break
+            current = self._stack_count(stacks, condition.stack_effect_id)
             return current >= condition.min_stacks and (
                 condition.max_stacks < 0 or current <= condition.max_stacks
             )
+        if kind == "stack_compare":
+            left_stacks = participant.player_stack_effects if condition.target == "player" else participant.boss_stack_effects
+            right_stacks = (
+                participant.player_stack_effects
+                if condition.compare_target == "player"
+                else participant.boss_stack_effects
+            )
+            left = self._stack_count(left_stacks, condition.stack_effect_id)
+            right = self._stack_count(right_stacks, condition.compare_stack_effect_id)
+            operator = condition.operator
+            if operator == "majority":
+                return right > 0 and left >= right // 2 + 1
+            threshold = right * float(condition.multiplier or 1.0) + int(condition.offset or 0)
+            if operator == "gt":
+                return left > threshold
+            if operator == "lt":
+                return left < threshold
+            if operator == "lte":
+                return left <= threshold
+            if operator == "eq":
+                return left == threshold
+            return left >= threshold
         if kind == "turn_multiple":
             multiple = max(1, int(condition.multiple or 1))
             return participant.turn % multiple == 0
@@ -1850,7 +1737,6 @@ class RPGCog(commands.Cog):
         self._tick_ability_cooldowns(participant)
         participant.turn += 1
         participant.suppress_warning_activation = False
-        self._apply_soul_cleave_if_due(session, participant)
         self._check_boss_party_failed(session)
         if participant.hp <= 0 or session.failed:
             return
@@ -2530,13 +2416,19 @@ class RPGCog(commands.Cog):
     def _boss_pattern_stack_action_text(self, action) -> str:
         template = STACK_EFFECT_BY_ID.get(action.stack_effect_id)
         name = template.name if template is not None else "스택"
+        if action.value_from_stack_effect_id:
+            source = STACK_EFFECT_BY_ID.get(action.value_from_stack_effect_id)
+            source_name = source.name if source is not None else action.value_from_stack_effect_id
+            value_text = f"{source_name} 레벨만큼"
+        else:
+            value_text = f"{max(0, int(action.value))}레벨"
         value = max(0, int(action.value))
         if action.action == "stack_increase":
-            return f"{name} +{value}레벨"
+            return f"{name} +{value_text}"
         if action.action == "stack_decrease":
-            return f"{name} -{value}레벨"
+            return f"{name} -{value_text}"
         if action.action == "stack_set":
-            return f"{name} lv.{value}"
+            return f"{name} lv.{value_text}" if action.value_from_stack_effect_id else f"{name} lv.{value}"
         if action.action == "stack_remove":
             return f"{name} 제거"
         if action.action == "stack_max":
@@ -3008,8 +2900,6 @@ class RPGCog(commands.Cog):
         ]
         if ct_max > 0:
             parts.append(f"CT {min(participant.ct, ct_max)}/{ct_max}")
-        if self._boss_has_skull_system(session):
-            parts.append(f"해골 {participant.skulls} · 붉은 해골 {participant.red_skulls}")
         parts.append(warning)
         return " · ".join(parts)
 
@@ -3021,12 +2911,6 @@ class RPGCog(commands.Cog):
     ) -> str:
         state = "전투 불능" if not participant.alive else f"HP {participant.hp}/{participant.max_hp}"
         lines = [f"상태: Lv.{participant.level} · {participant.turn}턴째 · {state}"]
-        if participant.skulls > 0:
-            altar_text = " · 제단 가능" if participant.red_skulls >= self._altar_required_red_skulls(participant) else ""
-            lines.append(
-                f"해골 {participant.skulls} · 붉은 해골 {participant.red_skulls}"
-                f"/{self._altar_required_red_skulls(participant)}{altar_text}"
-            )
         if include_cooldowns:
             cooldowns = self._participant_ability_cooldown_text(participant, multiline=True)
             lines.append(f"어빌리티 쿨\n{cooldowns}")
@@ -3042,13 +2926,6 @@ class RPGCog(commands.Cog):
 
     def _participant_boss_state_text(self, session: BossSession, participant: BossParticipant, ct_max: int) -> str:
         lines = [f"{participant.turn}턴째"]
-        skull_system = session.boss.skull_system
-        if participant.skulls > 0 and skull_system is not None:
-            interval = max(1, int(skull_system.soul_cleave_interval))
-            if interval > 0:
-                elapsed = participant.turn - participant.last_soul_cleave_turn
-                remaining = interval - (elapsed % interval)
-                lines.append(f"영혼 베기: {remaining}턴 후")
         if ct_max > 0:
             lines.append(f"CT: {min(participant.ct, ct_max)}/{ct_max}")
         if participant.pending_warning is not None:
@@ -5042,15 +4919,6 @@ class BossAbilityView(discord.ui.View):
         )
         self.add_item(BossAttackButton(disabled=controls_disabled, row=0))
         self.add_item(BossGuardButton(disabled=controls_disabled, row=0))
-        if cog._boss_has_skull_system(session):
-            self.add_item(
-                BossAltarButton(
-                    disabled=controls_disabled
-                    or participant is None
-                    or not cog._altar_available(session, participant),
-                    row=0,
-                )
-            )
         self.add_item(BossDamageDetailButton(disabled=participant is None, row=0))
         for skill in skills[:MAX_EQUIPPED_SKILLS]:
             cooldown = participant.ability_cooldowns.get(skill.id, 0) if participant is not None else 0
@@ -5090,23 +4958,6 @@ class BossAbilityView(discord.ui.View):
             embed=self.cog._boss_ability_embed(self.session, participant, skills, message),
             view=view,
         )
-
-
-class BossAltarButton(discord.ui.Button):
-    def __init__(self, *, disabled: bool = False, row: int | None = None) -> None:
-        super().__init__(label="제단", style=discord.ButtonStyle.success, disabled=disabled, row=row)
-
-    async def callback(self, interaction: discord.Interaction) -> None:
-        assert isinstance(self.view, BossAbilityView)
-        ok, message = self.view.cog._boss_use_altar(
-            self.view.session,
-            self.view.user_id,
-            self.view.display_name,
-        )
-        await self.view.cog._refresh_boss_public_message(self.view.session)
-        await self.view._edit(interaction, message)
-        if ok:
-            await self.view.cog._refresh_boss_damage_detail_message(self.view.session, self.view.user_id)
 
 
 class BossAbilityButton(discord.ui.Button):

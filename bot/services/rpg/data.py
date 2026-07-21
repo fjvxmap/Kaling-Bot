@@ -25,6 +25,7 @@ WARNING_OBJECTIVES = {
 STACK_CONDITION_OBJECTIVES = WARNING_OBJECTIVES | {"received_damage"}
 WARNING_ACTIVATION_CONDITIONS = {
     "stack",
+    "stack_compare",
     "turn_multiple",
     "turn_range",
     "boss_hp_ratio",
@@ -260,6 +261,8 @@ class EffectAction:
     count: int = 1
     stack_effect_id: str = ""
     value: int = 1
+    value_from_stack_effect_id: str = ""
+    value_from_target: str = ""
     conditions: list[EffectActionStackCondition] = field(default_factory=list)
 
 
@@ -387,6 +390,11 @@ class BossWarningActivationCondition:
     kind: str
     stack_effect_id: str = ""
     target: str = "boss"
+    compare_stack_effect_id: str = ""
+    compare_target: str = "boss"
+    operator: str = "gte"
+    multiplier: float = 1.0
+    offset: int = 0
     min_stacks: int = 0
     max_stacks: int = -1
     multiple: int = 1
@@ -445,16 +453,6 @@ class BossCTWarningTemplate:
     warning: BossWarningTemplate | None = None
     warning_ids: tuple[str, ...] = ()
     warnings: tuple[BossWarningTemplate, ...] = ()
-
-
-@dataclass(frozen=True)
-class BossSkullSystemTemplate:
-    total_skulls: int = 5
-    soul_cleave_interval: int = 5
-    red_thread_warning_id: str = "red_thread"
-    altar_heal_ratio: float = 1.0
-    altar_final_damage_ratio: float = 0.15
-    altar_final_damage_turns: int = 1
 
 
 @dataclass(frozen=True)
@@ -600,7 +598,6 @@ class BossTemplate:
     hp_locks: list[float] = field(default_factory=list)
     ct_gauge: list[BossCTGaugeTemplate] = field(default_factory=list)
     ct_warnings: list[BossCTWarningTemplate] = field(default_factory=list)
-    skull_system: BossSkullSystemTemplate | None = None
     stack_effects: list[BossStackEffectTemplate] = field(default_factory=list)
     pattern_by_id: dict[str, BossPattern] = field(default_factory=dict)
     warning_by_id: dict[str, BossWarningTemplate] = field(default_factory=dict)
@@ -1017,6 +1014,14 @@ def _effect_actions(raw: Any) -> list[EffectAction]:
                 count=max(1, _safe_int(row.get("count"), 1)),
                 stack_effect_id=str(row.get("stack_effect_id", row.get("effect_id", "")) or ""),
                 value=value,
+                value_from_stack_effect_id=str(
+                    row.get(
+                        "value_from_stack_effect_id",
+                        row.get("value_from_stack", row.get("source_stack_effect_id", "")),
+                    )
+                    or ""
+                ),
+                value_from_target=str(row.get("value_from_target", row.get("source_target", "")) or ""),
                 conditions=[
                     condition
                     for condition in (
@@ -1563,6 +1568,10 @@ def _warning_activation_condition_kind(raw: Any) -> str:
         "stack_count": "stack",
         "stacks": "stack",
         "stack_level": "stack",
+        "stack_ratio": "stack_compare",
+        "stack_majority": "stack_compare",
+        "stack_greater": "stack_compare",
+        "compare_stack": "stack_compare",
         "turn_mod": "turn_multiple",
         "turn_modulo": "turn_multiple",
         "turn_divisible": "turn_multiple",
@@ -1593,10 +1602,38 @@ def _warning_activation_condition(raw: dict[str, Any]) -> BossWarningActivationC
     max_turn = _safe_int(raw.get("max_turn", raw.get("max", -1)), -1)
     min_ratio_raw = raw.get("min_ratio", raw.get("min_hp", raw.get("min_hp_ratio", raw.get("min", 0.0))))
     max_ratio_raw = raw.get("max_ratio", raw.get("max_hp", raw.get("max_hp_ratio", raw.get("max", 1.0))))
+    operator = str(raw.get("operator", raw.get("op", raw.get("comparison", "gte"))) or "gte")
+    if operator in {"majority", "more_than_half", "strict_majority"}:
+        operator = "majority"
+    elif operator in {">", "gt", "greater"}:
+        operator = "gt"
+    elif operator in {">=", "gte", "at_least"}:
+        operator = "gte"
+    elif operator in {"<", "lt", "less"}:
+        operator = "lt"
+    elif operator in {"<=", "lte", "at_most"}:
+        operator = "lte"
+    elif operator in {"=", "==", "eq", "equal"}:
+        operator = "eq"
+    else:
+        operator = "gte"
     return BossWarningActivationCondition(
         kind=kind,
         stack_effect_id=str(raw.get("stack_effect_id", raw.get("effect_id", raw.get("id", ""))) or ""),
         target=_warning_activation_condition_target(raw.get("target", "boss")),
+        compare_stack_effect_id=str(
+            raw.get(
+                "compare_stack_effect_id",
+                raw.get("other_stack_effect_id", raw.get("right_stack_effect_id", raw.get("compare_effect_id", ""))),
+            )
+            or ""
+        ),
+        compare_target=_warning_activation_condition_target(
+            raw.get("compare_target", raw.get("other_target", raw.get("right_target", raw.get("target", "boss"))))
+        ),
+        operator=operator,
+        multiplier=_safe_float(raw.get("multiplier", raw.get("ratio", 1.0)), 1.0),
+        offset=_safe_int(raw.get("offset", 0), 0),
         min_stacks=max(0, _safe_int(raw.get("min_stacks", raw.get("min", raw.get("stacks", 1))), 1)),
         max_stacks=_safe_int(raw.get("max_stacks", raw.get("max", -1)), -1),
         multiple=max(1, _safe_int(raw.get("multiple", raw.get("mod", raw.get("divisor", raw.get("value", 1)))), 1)),
@@ -1825,19 +1862,6 @@ def _ct_warning(
     )
 
 
-def _boss_skull_system(raw: Any) -> BossSkullSystemTemplate | None:
-    if not isinstance(raw, dict) or not raw.get("enabled", True):
-        return None
-    return BossSkullSystemTemplate(
-        total_skulls=max(1, _safe_int(raw.get("total_skulls", raw.get("skulls", 5)), 5)),
-        soul_cleave_interval=max(1, _safe_int(raw.get("soul_cleave_interval", raw.get("interval", 5)), 5)),
-        red_thread_warning_id=str(raw.get("red_thread_warning_id", "red_thread") or "red_thread"),
-        altar_heal_ratio=max(0.0, _safe_float(raw.get("altar_heal_ratio", raw.get("heal_ratio", 1.0)), 1.0)),
-        altar_final_damage_ratio=_signed_ratio(raw.get("altar_final_damage_ratio", raw.get("final_damage_ratio", 0.15))),
-        altar_final_damage_turns=max(1, _safe_int(raw.get("altar_final_damage_turns", raw.get("final_damage_turns", 1)), 1)),
-    )
-
-
 def _boss_stack_effect(raw: dict[str, Any]) -> BossStackEffectTemplate:
     stack_effect_id = str(raw.get("stack_effect_id", raw.get("id", raw.get("effect_id", ""))) or "")
     return BossStackEffectTemplate(
@@ -1953,7 +1977,6 @@ def _boss(raw: dict[str, Any]) -> BossTemplate:
             reverse=True,
         ),
         ct_warnings=ct_warnings,
-        skull_system=_boss_skull_system(raw.get("skull_system")),
         stack_effects=[
             _boss_stack_effect(effect)
             for effect in raw.get("stack_effects", [])
@@ -2181,10 +2204,20 @@ def _validate_content() -> None:
                         f"boss {boss.id} warning {warning.id} activation condition {index} "
                         f"kind not found: {condition.kind}"
                     )
-                if condition.kind == "stack" and condition.stack_effect_id not in STACK_EFFECT_BY_ID:
+                if condition.kind in {"stack", "stack_compare"} and condition.stack_effect_id not in STACK_EFFECT_BY_ID:
                     errors.append(
                         f"boss {boss.id} warning {warning.id} activation condition {index} "
                         f"stack effect not found: {condition.stack_effect_id}"
+                    )
+                if condition.kind == "stack_compare" and condition.compare_stack_effect_id not in STACK_EFFECT_BY_ID:
+                    errors.append(
+                        f"boss {boss.id} warning {warning.id} activation condition {index} "
+                        f"compare stack effect not found: {condition.compare_stack_effect_id}"
+                    )
+                if condition.kind == "stack_compare" and condition.operator not in {"gt", "gte", "lt", "lte", "eq", "majority"}:
+                    errors.append(
+                        f"boss {boss.id} warning {warning.id} activation condition {index} "
+                        f"operator is invalid: {condition.operator}"
                     )
                 if condition.min_stacks < 0:
                     errors.append(
@@ -2262,12 +2295,6 @@ def _validate_content() -> None:
             for warning_id in warning_ids:
                 if warning_id not in boss.warning_by_id:
                     errors.append(f"boss {boss.id} ct warning not found: {warning_id}")
-        if boss.skull_system is not None:
-            if boss.skull_system.red_thread_warning_id not in boss.warning_by_id:
-                errors.append(
-                    f"boss {boss.id} skull system red thread warning not found: "
-                    f"{boss.skull_system.red_thread_warning_id}"
-                )
         for stack_effect in boss.stack_effects:
             if stack_effect.stack_effect_id not in STACK_EFFECT_BY_ID:
                 errors.append(f"boss {boss.id} stack effect not found: {stack_effect.stack_effect_id}")
@@ -2298,6 +2325,16 @@ def _validate_effect_actions(actions: list[EffectAction], label: str) -> list[st
     for action in actions:
         if action.action in STACK_EFFECT_ACTIONS and action.stack_effect_id not in STACK_EFFECT_BY_ID:
             errors.append(f"{label} stack effect not found: {action.stack_effect_id}")
+        if (
+            action.action in STACK_EFFECT_ACTIONS
+            and action.value_from_stack_effect_id
+            and action.value_from_stack_effect_id not in STACK_EFFECT_BY_ID
+        ):
+            errors.append(f"{label} value source stack effect not found: {action.value_from_stack_effect_id}")
+        if action.action in STACK_EFFECT_ACTIONS and action.value_from_stack_effect_id:
+            value_from_target = action.value_from_target or action.target
+            if value_from_target not in {"self", "enemy", "allies", "opponents", "boss", "player", "me", "ally", "opponent", "enemies"}:
+                errors.append(f"{label} value source target is invalid: {value_from_target}")
         for index, condition in enumerate(action.conditions, start=1):
             if condition.stack_effect_id not in STACK_EFFECT_BY_ID:
                 errors.append(
