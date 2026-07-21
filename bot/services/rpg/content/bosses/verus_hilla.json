@@ -3,10 +3,10 @@
   "name": "진 힐라",
   "level_req": 15,
   "stats": {
-    "base_atk": 30,
-    "max_hp": 20000,
-    "defense": 0.25,
-    "dmg_mitigation": 5
+    "base_atk": 36,
+    "max_hp": 24000,
+    "defense": 0.5,
+    "dmg_mitigation": 15
   },
   "gold": 4500,
   "exp": 1,
@@ -37,7 +37,7 @@
       "objectives": [
         {
           "objective": "hits",
-          "required": 2,
+          "required": 3,
           "min_damage": 0
         }
       ],
@@ -56,7 +56,7 @@
       "pattern": {
         "id": "fragment",
         "name": "영혼 파편",
-        "damage_multiplier": 1,
+        "damage_multiplier": 2.7,
         "hits": 3,
         "player_mods": {},
         "boss_mods": {},
@@ -66,7 +66,7 @@
       "objectives": [
         {
           "objective": "damage",
-          "required": 900,
+          "required": 1200,
           "min_damage": 0
         }
       ],
@@ -93,7 +93,7 @@
       "objectives": [
         {
           "objective": "ability_damage",
-          "required": 700,
+          "required": 750,
           "min_damage": 0
         }
       ],
@@ -139,7 +139,7 @@
       "objectives": [
         {
           "objective": "ability",
-          "required": 1,
+          "required": 2,
           "min_damage": 0
         }
       ],
@@ -223,7 +223,7 @@
         "id": "bone_wave_a",
         "name": "뼈 파동",
         "damage_multiplier": 1.6,
-        "hits": 8,
+        "hits": 9,
         "player_mods": {},
         "boss_mods": {},
         "duration": 0,
@@ -246,7 +246,7 @@
         "id": "bone_wave_b",
         "name": "뼈 파동",
         "damage_multiplier": 1.6,
-        "hits": 8,
+        "hits": 9,
         "player_mods": {},
         "boss_mods": {},
         "duration": 0,
@@ -314,20 +314,13 @@
       {
         "above": 1,
         "warning_ids": [
-          "fragment"
-        ],
-        "warning_id": "fragment"
-      },
-      {
-        "above": 0.75,
-        "warning_ids": [
           "fragment",
           "manifestation_of_desire"
         ],
         "warning_id": "fragment"
       },
       {
-        "above": 0.5,
+        "above": 0.75,
         "warning_ids": [
           "fragment",
           "manifestation_of_desire",

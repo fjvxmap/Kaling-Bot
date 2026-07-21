@@ -580,6 +580,31 @@ class RPGCog(commands.Cog):
             return "무제한"
         return f"{remaining}/1"
 
+    def _boss_reward_summary(self, boss: BossTemplate) -> str:
+        parts: list[str] = []
+        if boss.gold:
+            parts.append(f"{boss.gold}G")
+        if boss.exp:
+            parts.append(f"{boss.exp}EXP")
+        item_names = [self._boss_reward_item_text(drop) for drop in boss.rewards.item_drops]
+        if item_names:
+            parts.append(f"장비 {', '.join(item_names)}")
+        if boss.rewards.material_drops:
+            material_names = ", ".join(
+                self.service.material_name(drop.id) for drop in boss.rewards.material_drops
+            )
+            parts.append(f"재료 {material_names}")
+        return " · ".join(parts) if parts else "보상 없음"
+
+    def _boss_reward_item_text(self, drop) -> str:
+        if drop.template_id:
+            template = ITEM_BY_ID.get(drop.template_id)
+            name = template.name if template is not None else drop.template_id
+            return f"{name} +{drop.stars}" if drop.stars > 0 else name
+        if drop.rarity:
+            return f"{RARITY_LABELS.get(drop.rarity, drop.rarity)} 장비"
+        return "장비"
+
     async def _send_boss_panel(self, interaction: discord.Interaction) -> None:
         profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
         await interaction.response.send_message(
@@ -605,7 +630,7 @@ class RPGCog(commands.Cog):
                 name="선택한 보스",
                 value=(
                     f"**{selected.name}** · Lv.{selected.level_req} · 자발 {self._boss_start_limit_text(profile, selected.id)}\n"
-                    f"보상 {self.service.reward_summary(selected.rewards, base_gold=selected.gold, base_exp=selected.exp)}\n"
+                    f"보상 {self._boss_reward_summary(selected)}\n"
                     f"{selected.description or '설명 없음'}"
                 ),
                 inline=False,

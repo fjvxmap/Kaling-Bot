@@ -325,23 +325,38 @@
     "warnings_by_hp": [
       {
         "above": 100,
-        "warning_id": "phosphorus"
+        "warning_id": "phosphorus",
+        "warning_ids": [
+          "phosphorus"
+        ]
       },
       {
         "above": 90,
-        "warning_id": "iblis"
+        "warning_id": "iblis",
+        "warning_ids": [
+          "iblis"
+        ]
       },
       {
         "above": 75,
-        "warning_id": "axion"
+        "warning_id": "axion",
+        "warning_ids": [
+          "axion"
+        ]
       },
       {
         "above": 50,
-        "warning_id": "orbital_blackness"
+        "warning_id": "orbital_blackness",
+        "warning_ids": [
+          "orbital_blackness"
+        ]
       },
       {
         "above": 25,
-        "warning_id": "paradise_lost"
+        "warning_id": "paradise_lost",
+        "warning_ids": [
+          "paradise_lost"
+        ]
       }
     ]
   },
