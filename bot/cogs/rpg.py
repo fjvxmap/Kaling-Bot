@@ -2903,29 +2903,24 @@ class RPGCog(commands.Cog):
         parts.append(warning)
         return " · ".join(parts)
 
-    def _participant_status_text(
-        self,
-        participant: BossParticipant,
-        *,
-        include_cooldowns: bool = True,
-    ) -> str:
+    def _participant_status_line(self, participant: BossParticipant) -> str:
         state = "전투 불능" if not participant.alive else f"HP {participant.hp}/{participant.max_hp}"
-        lines = [f"상태: Lv.{participant.level} · {participant.turn}턴째 · {state}"]
-        if include_cooldowns:
-            cooldowns = self._participant_ability_cooldown_text(participant, multiline=True)
-            lines.append(f"어빌리티 쿨\n{cooldowns}")
+        return f"{participant.display_name} Lv.{participant.level} · {participant.turn}턴째 · {state}"
+
+    def _participant_extra_status_text(self, participant: BossParticipant) -> str:
+        lines = []
         if self._has_visible_effects(participant.player_effects):
             lines.append(
-                "버프/디버프\n"
-                + self._effects_text(participant.player_effects, limit=520, compact=False)
+                "내 버프/디버프: "
+                + self._effects_text(participant.player_effects, limit=520, compact=True)
             )
         player_stacks = self._stack_effects_text(participant.player_stack_effects)
         if player_stacks:
-            lines.append("스택\n" + player_stacks)
-        return self._trim("\n\n".join(lines), 1000)
+            lines.append("내 스택: " + player_stacks)
+        return self._trim("\n".join(lines), 700)
 
     def _participant_boss_state_text(self, session: BossSession, participant: BossParticipant, ct_max: int) -> str:
-        lines = [f"{participant.turn}턴째"]
+        lines = []
         if ct_max > 0:
             lines.append(f"CT: {min(participant.ct, ct_max)}/{ct_max}")
         if participant.pending_warning is not None:
@@ -2936,8 +2931,8 @@ class RPGCog(commands.Cog):
             lines.append(f"대기 전조: {len(participant.queued_warnings)}개")
         boss_stacks = self._stack_effects_text(participant.boss_stack_effects)
         if boss_stacks:
-            lines.append("보스 스택\n" + boss_stacks)
-        return "\n\n".join(lines)
+            lines.append("보스 스택: " + boss_stacks)
+        return "\n".join(lines)
 
     def _stack_effects_text(self, stacks: list[ActiveStackEffect]) -> str:
         parts = []
@@ -2996,51 +2991,32 @@ class RPGCog(commands.Cog):
         message: str | None = None,
     ) -> discord.Embed:
         embed = discord.Embed(
-            title=f"{session.boss.name} 개인 전투 패널",
+            title=f"{session.boss.name} Lv.{session.boss.level_req}",
             color=0xB56BFF,
         )
-        if message:
-            embed.description = message
         ct_max = self._current_ct_max(session)
         hp_lock_text = self._boss_hp_lock_text(session, participant)
-        embed.add_field(
-            name="보스",
-            value=self._trim(
-                "\n\n".join(
-                    [
-                        f"{self._hp_bar(session.boss_hp, session.boss_max_hp)}\n"
-                        f"**{session.boss_hp}/{session.boss_max_hp}**"
-                        + (f"\n{hp_lock_text}" if hp_lock_text else ""),
-                        self._participant_boss_state_text(session, participant, ct_max),
-                        "버프/디버프\n"
-                        + (
-                            self._effects_text(participant.boss_effects, limit=520, compact=False)
-                            if self._has_visible_effects(participant.boss_effects)
-                            else "없음"
-                        ),
-                    ]
-                ),
-                1000,
-            ),
-            inline=False,
-        )
-        embed.add_field(
-            name="내 상태",
-            value=self._participant_status_text(
-                participant,
-                include_cooldowns=False,
-            ),
-            inline=False,
-        )
+        sections = []
+        if message:
+            sections.append(message)
+        hp_line = f"{self._hp_bar(session.boss_hp, session.boss_max_hp)}  {session.boss_hp}/{session.boss_max_hp}"
+        if hp_lock_text:
+            hp_line += f"\n{hp_lock_text}"
+        sections.append(hp_line)
+        sections.append(self._participant_boss_state_text(session, participant, ct_max))
+        boss_effects = self._effects_text(participant.boss_effects, limit=520, compact=True)
+        sections.append(f"버프/디버프: {boss_effects}")
+        participant_status = self._participant_status_line(participant)
+        participant_extra = self._participant_extra_status_text(participant)
+        if participant_extra:
+            participant_status += "\n" + participant_extra
+        sections.append(participant_status)
         lines = []
         for skill in skills:
             state = self._ability_state_text(participant, skill, cooldown_prefix=True)
-            lines.append(f"**{skill.name}** · {state}\n{self.service.skill_summary(skill)}")
-        embed.add_field(
-            name="장착 어빌리티",
-            value=self._trim("\n\n".join(lines), 1200) if lines else "없음",
-            inline=False,
-        )
+            lines.append(f"{skill.name} · {state}\n{self.service.skill_summary(skill)}")
+        sections.append("\n\n".join(lines) if lines else "어빌리티 없음")
+        embed.description = self._trim("\n\n".join(section for section in sections if section), 4000)
         return embed
 
     def _boss_damage_detail_embed(
