@@ -10,8 +10,13 @@ ROOT_DIR = BASE_DIR.parent
 
 load_dotenv(ROOT_DIR / ".env")
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-insecure-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "false").lower() in {"1", "true", "yes"}
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "").strip()
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "dev-insecure-change-me"
+    else:
+        raise RuntimeError("DJANGO_SECRET_KEY is not set. Check your .env file.")
 
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 CSRF_TRUSTED_ORIGINS = [
