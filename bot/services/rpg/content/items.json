@@ -2111,8 +2111,8 @@
     "name": "고통의 근원",
     "rarity": "unique",
     "stats": {
-      "base_atk": 115,
-      "max_hp": 250,
+      "base_atk": 15,
+      "max_hp": 25,
       "life_steal": 0.02,
       "life_steal_cap": 0.02
     },
@@ -2130,8 +2130,6 @@
     },
     "description": ".",
     "fixed_stats": [
-      "base_atk",
-      "max_hp",
       "life_steal",
       "life_steal_cap"
     ]

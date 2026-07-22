@@ -4,7 +4,7 @@
   "level_req": 15,
   "stats": {
     "base_atk": 36,
-    "max_hp": 24000,
+    "max_hp": 25000,
     "defense": 0.5,
     "dmg_mitigation": 15
   },
@@ -134,7 +134,17 @@
             "value": 1,
             "count": 1
           }
-        ]
+        ],
+        "player_effects": {
+          "final_damage": [
+            {
+              "ratio": 0.08,
+              "target": "self",
+              "duration": 2,
+              "undispellable": true
+            }
+          ]
+        }
       },
       "objectives": [
         {
@@ -157,7 +167,7 @@
         },
         {
           "kind": "turn_multiple",
-          "multiple": 5
+          "multiple": 7
         }
       ],
       "activation_priority": 2
@@ -204,7 +214,7 @@
       "activation_conditions": [
         {
           "kind": "turn_multiple",
-          "multiple": 12
+          "multiple": 16
         },
         {
           "kind": "stack",
