@@ -68,6 +68,7 @@ class PlayerProfile:
     daily_explore_credits: int = 0
     weekly_boss_clears: dict[str, str] = field(default_factory=dict)
     cleared_boss_ids: list[str] = field(default_factory=list)
+    solo_cleared_boss_ids: list[str] = field(default_factory=list)
     boss_clear_count: int = 0
     dungeon_clear_count: int = 0
     equipment_initialized: bool = True
@@ -116,6 +117,12 @@ class PlayerProfile:
                     for boss_id in value
                     if str(boss_id)
                 ]
+            elif key == "solo_cleared_boss_ids" and isinstance(value, list):
+                profile.solo_cleared_boss_ids = [
+                    str(boss_id)
+                    for boss_id in value
+                    if str(boss_id)
+                ]
             elif key == "equipped_item_uids" and isinstance(value, list):
                 profile.equipped_item_uids = [
                     int(uid)
@@ -154,6 +161,9 @@ class PlayerProfile:
             profile.daily_explore_credits = max(0, DAILY_EXPLORES - profile.daily_explores_used)
         profile.cleared_boss_ids = list(dict.fromkeys(
             boss_id for boss_id in profile.cleared_boss_ids if boss_id
+        ))
+        profile.solo_cleared_boss_ids = list(dict.fromkeys(
+            boss_id for boss_id in profile.solo_cleared_boss_ids if boss_id
         ))
         if not has_boss_clear_history:
             profile.cleared_boss_ids = list(dict.fromkeys(

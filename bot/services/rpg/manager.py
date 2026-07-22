@@ -372,7 +372,12 @@ class RPGService:
         return 0 if profile.weekly_boss_clears.get(boss_id) == weekly_key else 1
 
     def has_boss_clear_history(self, profile: PlayerProfile, boss_id: str) -> bool:
-        return str(boss_id) in set(profile.cleared_boss_ids)
+        return str(boss_id) in set(profile.solo_cleared_boss_ids)
+
+    def mark_boss_solo_clear_history(self, user_id: int, display_name: str, boss_id: str) -> None:
+        profile = self.get_profile(user_id, display_name)
+        self._mark_boss_solo_clear_history_for_profile(profile, boss_id)
+        self._save()
 
     def daily_remaining(self, profile: PlayerProfile) -> int:
         if not EXPLORE_LIMIT_ENABLED:
@@ -753,6 +758,7 @@ class RPGService:
         *,
         victory: bool = True,
         reward_role: str | None = None,
+        record_clear_history: bool = True,
     ) -> RewardReport:
         profile = self.get_profile(user_id, display_name)
         boss = BOSS_BY_ID[boss_id]
@@ -763,6 +769,7 @@ class RPGService:
             victory=victory,
             weekly_key=weekly_key,
             reward_role=reward_role,
+            record_clear_history=record_clear_history,
         )
         self._save()
         return reward
@@ -799,6 +806,7 @@ class RPGService:
         victory: bool,
         weekly_key: str,
         reward_role: str | None = None,
+        record_clear_history: bool = True,
     ) -> RewardReport:
         if not victory:
             return RewardReport()
@@ -813,13 +821,16 @@ class RPGService:
         )
         if victory:
             profile.boss_clear_count += 1
-            self._mark_boss_clear_history_for_profile(profile, boss.id)
+            if boss.id and boss.id not in profile.cleared_boss_ids:
+                profile.cleared_boss_ids.append(boss.id)
+            if record_clear_history:
+                self._mark_boss_solo_clear_history_for_profile(profile, boss.id)
         return reward
 
-    def _mark_boss_clear_history_for_profile(self, profile: PlayerProfile, boss_id: str) -> None:
+    def _mark_boss_solo_clear_history_for_profile(self, profile: PlayerProfile, boss_id: str) -> None:
         boss_id = str(boss_id)
-        if boss_id and boss_id not in profile.cleared_boss_ids:
-            profile.cleared_boss_ids.append(boss_id)
+        if boss_id and boss_id not in profile.solo_cleared_boss_ids:
+            profile.solo_cleared_boss_ids.append(boss_id)
 
     def _enhancement_costs(
         self,
@@ -3930,6 +3941,11 @@ class RPGService:
         }
         profile.cleared_boss_ids = [
             boss_id for boss_id in dict.fromkeys(str(boss_id) for boss_id in profile.cleared_boss_ids)
+            if boss_id in BOSS_BY_ID
+        ]
+        profile.solo_cleared_boss_ids = [
+            boss_id
+            for boss_id in dict.fromkeys(str(boss_id) for boss_id in profile.solo_cleared_boss_ids)
             if boss_id in BOSS_BY_ID
         ]
         profile.inventory = [

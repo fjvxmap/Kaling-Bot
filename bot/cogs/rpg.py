@@ -2516,7 +2516,15 @@ class RPGCog(commands.Cog):
     def _grant_boss_session_rewards(self, session: BossSession) -> None:
         if session.rewards:
             return
+        solo_clear = len(session.participants) == 1
         if session.practice:
+            if solo_clear:
+                participant = next(iter(session.participants.values()))
+                self.service.mark_boss_solo_clear_history(
+                    participant.user_id,
+                    participant.display_name,
+                    session.boss.id,
+                )
             for participant in session.participants.values():
                 session.rewards[participant.user_id] = "보상 없음"
             session.log.append("보스전 종료")
@@ -2539,6 +2547,7 @@ class RPGCog(commands.Cog):
                 session.boss.id,
                 victory=True,
                 reward_role=reward_role,
+                record_clear_history=solo_clear,
             )
             self._add_session_reward_materials(session, reward.materials)
             session.rewards[participant.user_id] = self._reward_text(reward).replace("\n", ", ")
