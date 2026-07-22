@@ -3049,7 +3049,8 @@ class RPGCog(commands.Cog):
         sections = []
         if message:
             sections.append(message)
-        hp_line = f"{self._hp_bar(session.boss_hp, session.boss_max_hp)}  {session.boss_hp}/{session.boss_max_hp}"
+        boss_hp_percent = max(0.0, min(100.0, self._boss_hp_ratio(session) * 100))
+        hp_line = f"{self._hp_bar(session.boss_hp, session.boss_max_hp)}  {boss_hp_percent:.1f}%"
         if hp_lock_text:
             hp_line += f"\n{hp_lock_text}"
         sections.append(hp_line)
