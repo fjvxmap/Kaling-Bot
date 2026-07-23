@@ -18,17 +18,17 @@
         {
           "type": "item",
           "target_id": "clockwork_blade_kumogakure",
-          "chance": 0.5
+          "chance": 1.0
         },
         {
           "type": "item",
           "target_id": "murgleis",
-          "chance": 0.5
+          "chance": 1.0
         },
         {
           "type": "item",
           "target_id": "skeletal_eclipse",
-          "chance": 0.5
+          "chance": 1.0
         }
       ]
     }
