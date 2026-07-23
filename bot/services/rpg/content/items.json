@@ -2133,5 +2133,22 @@
       "life_steal",
       "life_steal_cap"
     ]
+  },
+  {
+    "id": "murgleis",
+    "name": "뮤르글레이스",
+    "rarity": "unique",
+    "stats": {
+      "atk": 0.28,
+      "triple_attack_rate": 0.06,
+      "double_attack_rate": 0.06
+    },
+    "base_price": 1,
+    "excluded_from_gacha": false,
+    "description": "진실된 마음은 이 사브르의 짙푸른 광휘를 더욱 깊게 물들인다.\n칼자루를 장식한 백금의 문양은, 이 검에 걸린 모든 맹세를 백금처럼 굳건하고 깨지지 않는 서약으로 만든다.",
+    "fixed_stats": [
+      "triple_attack_rate",
+      "double_attack_rate"
+    ]
   }
 ]

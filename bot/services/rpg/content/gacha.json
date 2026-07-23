@@ -1,10 +1,38 @@
 {
   "default_pool_id": "default",
-  "active_festival_id": "",
+  "active_festival_id": "festival",
   "material_id": "crystal",
   "cost": 3000,
   "draws": 10,
-  "festivals": [],
+  "festivals": [
+    {
+      "id": "festival",
+      "name": "페스",
+      "description": "",
+      "overrides": [
+        {
+          "type": "item_rarity",
+          "target_id": "unique",
+          "chance": 6.0
+        },
+        {
+          "type": "item",
+          "target_id": "clockwork_blade_kumogakure",
+          "chance": 0.5
+        },
+        {
+          "type": "item",
+          "target_id": "murgleis",
+          "chance": 0.5
+        },
+        {
+          "type": "item",
+          "target_id": "skeletal_eclipse",
+          "chance": 0.5
+        }
+      ]
+    }
+  ],
   "pools": [
     {
       "id": "default",

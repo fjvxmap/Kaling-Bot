@@ -1079,7 +1079,7 @@ function gachaFestivalOverridesEditor(festival) {
         },
       }),
       selectField("대상", override, "target_id", gachaFestivalTargetOptions(override.type)),
-      numberField("목표 확률/가중치", override, "chance", { step: 0.01 }),
+      numberField("목표 확률(%)", override, "chance", { step: 0.01 }),
       deleteButton(() => {
         festival.overrides.splice(index, 1);
         markDirty();
