@@ -40,6 +40,13 @@ const GACHA_ENTRY_TYPES = [
   ["material_rarity", "재료 등급"],
 ];
 
+const GACHA_FESTIVAL_OVERRIDE_TYPES = [
+  ["item_rarity", "장비 등급"],
+  ["material_rarity", "재료 등급"],
+  ["item", "지정 장비"],
+  ["material", "지정 재료"],
+];
+
 const OBJECTIVES = [
   ["damage", "이번 턴 피해량"],
   ["hits", "타수"],
@@ -852,6 +859,16 @@ function renderGacha() {
           render();
         },
       }, "풀 추가"),
+      el("button", {
+        type: "button",
+        onclick: () => {
+          const festival = blankGachaFestival(gacha);
+          gacha.festivals.push(festival);
+          gacha.active_festival_id ||= festival.id;
+          markDirty();
+          render();
+        },
+      }, "페스 추가"),
     ]),
     el("div", { className: "panel-body" }, [
       el("div", { className: "form-grid three" }, [
@@ -859,11 +876,13 @@ function renderGacha() {
         numberField("소모 수량", gacha, "cost", { step: 1 }),
         numberField("뽑기 횟수", gacha, "draws", { step: 1 }),
         selectField("기본 풀", gacha, "default_pool_id", gachaPoolOptions(gacha), { rerender: true }),
+        selectField("활성 페스", gacha, "active_festival_id", [["", "없음"], ...gachaFestivalOptions(gacha)], { rerender: true }),
       ]),
     ]),
   ]);
   const poolPanels = gacha.pools.map((pool, index) => gachaPoolEditor(gacha, pool, index));
-  main.replaceChildren(el("div", { className: "rows" }, [globalPanel, ...poolPanels]));
+  const festivalPanels = gacha.festivals.map((festival, index) => gachaFestivalEditor(gacha, festival, index));
+  main.replaceChildren(el("div", { className: "rows" }, [globalPanel, ...festivalPanels, ...poolPanels]));
 }
 
 function gachaPoolEditor(gacha, pool, index) {
@@ -994,17 +1013,103 @@ function gachaTargetListEditor(entry, key, optionsFn, label) {
   ]);
 }
 
+function gachaFestivalEditor(gacha, festival, index) {
+  festival.overrides ||= [];
+  return el("section", { className: "panel subtle-panel" }, [
+    el("div", { className: "panel-header" }, [
+      el("h2", {}, `${festival.name || festival.id}${gacha.active_festival_id === festival.id ? " · 활성" : ""}`),
+      el("div", { className: "actions" }, [
+        el("button", {
+          type: "button",
+          onclick: () => {
+            festival.overrides.push(blankGachaFestivalOverride());
+            markDirty();
+            render();
+          },
+        }, "확률 변경 추가"),
+        el("button", {
+          type: "button",
+          onclick: () => {
+            gacha.active_festival_id = gacha.active_festival_id === festival.id ? "" : festival.id;
+            markDirty();
+            render();
+          },
+        }, gacha.active_festival_id === festival.id ? "비활성화" : "활성화"),
+        el("button", {
+          type: "button",
+          className: "danger",
+          onclick: () => {
+            if (!confirm(`${festival.name || festival.id} 삭제?`)) {
+              return;
+            }
+            gacha.festivals.splice(index, 1);
+            if (gacha.active_festival_id === festival.id) {
+              gacha.active_festival_id = "";
+            }
+            markDirty();
+            render();
+          },
+        }, "삭제"),
+      ]),
+    ]),
+    el("div", { className: "panel-body" }, [
+      el("div", { className: "form-grid three" }, [
+        nestedIdField("페스 ID", festival, gacha.festivals, (oldId, newId) => {
+          if (gacha.active_festival_id === oldId) {
+            gacha.active_festival_id = newId;
+          }
+        }),
+        textField("이름", festival, "name"),
+        textAreaField("설명", festival, "description", { full: true }),
+      ]),
+      gachaFestivalOverridesEditor(festival),
+    ]),
+  ]);
+}
+
+function gachaFestivalOverridesEditor(festival) {
+  festival.overrides ||= [];
+  const rows = festival.overrides.map((override, index) => {
+    normalizeGachaFestivalOverride(override);
+    return el("div", { className: "row four" }, [
+      selectField("타입", override, "type", GACHA_FESTIVAL_OVERRIDE_TYPES, {
+        rerender: true,
+        onChange: () => {
+          override.target_id = defaultGachaFestivalTarget(override.type);
+        },
+      }),
+      selectField("대상", override, "target_id", gachaFestivalTargetOptions(override.type)),
+      numberField("목표 확률/가중치", override, "chance", { step: 0.01 }),
+      deleteButton(() => {
+        festival.overrides.splice(index, 1);
+        markDirty();
+        render();
+      }),
+    ]);
+  });
+  return el("section", { className: "section" }, [
+    el("div", { className: "section-head" }, [
+      el("h3", {}, "페스 확률 변경"),
+    ]),
+    el("div", { className: "rows" }, rows.length ? rows : [el("div", { className: "empty" }, "확률 변경 없음")]),
+  ]);
+}
+
 function normalizeGachaConfig() {
   const gacha = state.content.gacha ||= blankGacha();
   gacha.material_id ||= "crystal";
   gacha.cost = Number(gacha.cost || 3000);
   gacha.draws = Number(gacha.draws || 10);
   gacha.pools = Array.isArray(gacha.pools) ? gacha.pools : [];
+  gacha.festivals = Array.isArray(gacha.festivals) ? gacha.festivals : [];
   if (!gacha.pools.length) {
     gacha.pools.push(blankGachaPool(gacha, "default"));
   }
   if (!gacha.default_pool_id || !gacha.pools.some((pool) => pool.id === gacha.default_pool_id)) {
     gacha.default_pool_id = gacha.pools[0]?.id || "";
+  }
+  if (gacha.active_festival_id && !gacha.festivals.some((festival) => festival.id === gacha.active_festival_id)) {
+    gacha.active_festival_id = "";
   }
   for (const pool of gacha.pools) {
     pool.id ||= nextId("pool", gacha.pools);
@@ -1013,6 +1118,15 @@ function normalizeGachaConfig() {
     pool.entries = Array.isArray(pool.entries) ? pool.entries : [];
     for (const entry of pool.entries) {
       normalizeGachaEntry(entry);
+    }
+  }
+  for (const festival of gacha.festivals) {
+    festival.id ||= nextId("festival", gacha.festivals);
+    festival.name ||= festival.id;
+    festival.description ||= "";
+    festival.overrides = Array.isArray(festival.overrides) ? festival.overrides : [];
+    for (const override of festival.overrides) {
+      normalizeGachaFestivalOverride(override);
     }
   }
   return gacha;
@@ -1065,13 +1179,38 @@ function normalizeGachaTarget(target) {
   };
 }
 
+function normalizeGachaFestivalOverride(override) {
+  override.type ||= "item_rarity";
+  override.target_id = String(override.target_id || override.id || override.rarity || override.item_id || override.material_id || "");
+  if (!gachaFestivalTargetOptions(override.type).some(([id]) => id === override.target_id)) {
+    override.target_id = defaultGachaFestivalTarget(override.type);
+  }
+  override.chance = Number(override.chance || 0);
+}
+
+function gachaFestivalTargetOptions(type) {
+  if (type === "item") {
+    return gachaItemOptions();
+  }
+  if (type === "material") {
+    return materialOptions();
+  }
+  return rarityOptions();
+}
+
+function defaultGachaFestivalTarget(type) {
+  return gachaFestivalTargetOptions(type)[0]?.[0] || "";
+}
+
 function blankGacha() {
   return {
     default_pool_id: "default",
+    active_festival_id: "",
     material_id: "crystal",
     cost: 3000,
     draws: 10,
     pools: [],
+    festivals: [],
   };
 }
 
@@ -1097,6 +1236,27 @@ function blankGachaEntry() {
 
 function gachaPoolOptions(gacha) {
   return (gacha.pools || []).map((pool) => [pool.id, `${pool.name || pool.id} (${pool.id})`]);
+}
+
+function blankGachaFestival(gacha) {
+  return {
+    id: nextId("festival", gacha.festivals || []),
+    name: "새 가챠 페스",
+    description: "",
+    overrides: [blankGachaFestivalOverride()],
+  };
+}
+
+function blankGachaFestivalOverride() {
+  return {
+    type: "item_rarity",
+    target_id: firstRarity(),
+    chance: 1,
+  };
+}
+
+function gachaFestivalOptions(gacha) {
+  return (gacha.festivals || []).map((festival) => [festival.id, `${festival.name || festival.id} (${festival.id})`]);
 }
 
 function renderDungeons() {
@@ -4890,6 +5050,20 @@ function deleteItemReferences(removedId) {
     ));
     changed += before - reward.items.length;
   }
+  for (const pool of state.content.gacha?.pools || []) {
+    for (const entry of pool.entries || []) {
+      const before = entry.item_ids?.length || 0;
+      entry.item_ids = (entry.item_ids || []).filter((target) => normalizeGachaTarget(target).id !== removedId);
+      changed += before - entry.item_ids.length;
+    }
+  }
+  for (const festival of state.content.gacha?.festivals || []) {
+    const before = festival.overrides?.length || 0;
+    festival.overrides = (festival.overrides || []).filter((override) => (
+      override.type !== "item" || override.target_id !== removedId
+    ));
+    changed += before - festival.overrides.length;
+  }
   return changed;
 }
 
@@ -4906,6 +5080,20 @@ function deleteMaterialReferences(removedId) {
     const before = reward.materials?.length || 0;
     reward.materials = (reward.materials || []).filter((drop) => drop.id !== removedId);
     changed += before - reward.materials.length;
+  }
+  for (const pool of state.content.gacha?.pools || []) {
+    for (const entry of pool.entries || []) {
+      const before = entry.material_ids?.length || 0;
+      entry.material_ids = (entry.material_ids || []).filter((target) => normalizeGachaTarget(target).id !== removedId);
+      changed += before - entry.material_ids.length;
+    }
+  }
+  for (const festival of state.content.gacha?.festivals || []) {
+    const before = festival.overrides?.length || 0;
+    festival.overrides = (festival.overrides || []).filter((override) => (
+      override.type !== "material" || override.target_id !== removedId
+    ));
+    changed += before - festival.overrides.length;
   }
   return changed;
 }
@@ -4953,6 +5141,25 @@ function renameItemReferences(oldId, newId) {
       }
     }
   }
+  for (const pool of state.content.gacha?.pools || []) {
+    for (const entry of pool.entries || []) {
+      entry.item_ids = (entry.item_ids || []).map((target) => normalizeGachaTarget(target));
+      for (const target of entry.item_ids || []) {
+        if (target.id === oldId) {
+          target.id = newId;
+          changed += 1;
+        }
+      }
+    }
+  }
+  for (const festival of state.content.gacha?.festivals || []) {
+    for (const override of festival.overrides || []) {
+      if (override.type === "item" && override.target_id === oldId) {
+        override.target_id = newId;
+        changed += 1;
+      }
+    }
+  }
   return changed;
 }
 
@@ -4983,6 +5190,25 @@ function renameMaterialReferences(oldId, newId) {
       delete method.materials[oldId];
       method.materials[newId] = oldAmount + newAmount;
       changed += 1;
+    }
+  }
+  for (const pool of state.content.gacha?.pools || []) {
+    for (const entry of pool.entries || []) {
+      entry.material_ids = (entry.material_ids || []).map((target) => normalizeGachaTarget(target));
+      for (const target of entry.material_ids || []) {
+        if (target.id === oldId) {
+          target.id = newId;
+          changed += 1;
+        }
+      }
+    }
+  }
+  for (const festival of state.content.gacha?.festivals || []) {
+    for (const override of festival.overrides || []) {
+      if (override.type === "material" && override.target_id === oldId) {
+        override.target_id = newId;
+        changed += 1;
+      }
     }
   }
   return changed;

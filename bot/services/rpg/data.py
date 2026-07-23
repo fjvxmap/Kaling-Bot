@@ -533,6 +533,21 @@ class GachaPool:
 
 
 @dataclass(frozen=True)
+class GachaFestivalOverride:
+    type: str
+    target_id: str
+    chance: float
+
+
+@dataclass(frozen=True)
+class GachaFestival:
+    id: str
+    name: str
+    description: str = ""
+    overrides: list[GachaFestivalOverride] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class EnhancementMethod:
     id: str
     name: str
@@ -1363,6 +1378,34 @@ def _gacha_pool(raw: dict[str, Any], defaults: dict[str, Any]) -> GachaPool:
     )
 
 
+def _gacha_festival_override(raw: dict[str, Any]) -> GachaFestivalOverride:
+    override_type = str(raw.get("type", "item_rarity"))
+    target_id = str(
+        raw.get(
+            "target_id",
+            raw.get("id", raw.get("rarity", raw.get("item_id", raw.get("material_id", "")))),
+        )
+    )
+    return GachaFestivalOverride(
+        type=override_type,
+        target_id=target_id,
+        chance=max(0.0, _safe_float(raw.get("chance"), 0.0)),
+    )
+
+
+def _gacha_festival(raw: dict[str, Any]) -> GachaFestival:
+    return GachaFestival(
+        id=str(raw.get("id", "festival")),
+        name=str(raw.get("name", raw.get("id", "가챠 페스"))),
+        description=str(raw.get("description", "")),
+        overrides=[
+            _gacha_festival_override(override)
+            for override in raw.get("overrides", [])
+            if isinstance(override, dict)
+        ],
+    )
+
+
 def _cost_materials(raw: Any) -> dict[str, int]:
     if isinstance(raw, dict):
         return {
@@ -2104,6 +2147,14 @@ GACHA_POOLS = [
 ]
 GACHA_POOL_BY_ID = {pool.id: pool for pool in GACHA_POOLS}
 GACHA_DEFAULT_POOL_ID = str(_GACHA_DATA.get("default_pool_id", GACHA_POOLS[0].id if GACHA_POOLS else ""))
+GACHA_FESTIVALS = [
+    _gacha_festival(festival)
+    for festival in _GACHA_DATA.get("festivals", [])
+    if isinstance(festival, dict)
+]
+GACHA_FESTIVAL_BY_ID = {festival.id: festival for festival in GACHA_FESTIVALS}
+GACHA_ACTIVE_FESTIVAL_ID = str(_GACHA_DATA.get("active_festival_id", ""))
+GACHA_ACTIVE_FESTIVAL = GACHA_FESTIVAL_BY_ID.get(GACHA_ACTIVE_FESTIVAL_ID)
 
 CRAFTING_RECIPES = sorted(
     [_crafting_recipe(recipe) for recipe in CONTENT.get("crafting_recipes", [])],
@@ -2321,6 +2372,16 @@ def _validate_content() -> None:
             errors.append(f"gacha pool {pool.id} has no entries")
         for index, entry in enumerate(pool.entries, start=1):
             errors.extend(_validate_gacha_entry(entry, f"gacha pool {pool.id} entry {index}"))
+    festival_ids = [festival.id for festival in GACHA_FESTIVALS]
+    if len(festival_ids) != len(set(festival_ids)):
+        errors.append("gacha has duplicate festival ids")
+    if GACHA_ACTIVE_FESTIVAL_ID and GACHA_ACTIVE_FESTIVAL_ID not in GACHA_FESTIVAL_BY_ID:
+        errors.append(f"gacha active festival not found: {GACHA_ACTIVE_FESTIVAL_ID}")
+    for festival in GACHA_FESTIVALS:
+        if not festival.overrides:
+            errors.append(f"gacha festival {festival.id} has no overrides")
+        for index, override in enumerate(festival.overrides, start=1):
+            errors.extend(_validate_gacha_festival_override(override, f"gacha festival {festival.id} override {index}"))
     if errors:
         raise ValueError("Invalid RPG content:\n" + "\n".join(f"- {error}" for error in errors))
 
@@ -2389,6 +2450,22 @@ def _validate_gacha_entry(entry: GachaEntry, label: str) -> list[str]:
                 errors.append(f"{label} material not found: {material_id}")
     if entry.type == "material_rarity" and entry.rarity not in RARITIES:
         errors.append(f"{label} rarity not found: {entry.rarity}")
+    return errors
+
+
+def _validate_gacha_festival_override(override: GachaFestivalOverride, label: str) -> list[str]:
+    errors: list[str] = []
+    if override.type not in {"item", "item_rarity", "material", "material_rarity"}:
+        errors.append(f"{label} type not found: {override.type}")
+        return errors
+    if override.chance < 0:
+        errors.append(f"{label} chance must be non-negative")
+    if override.type == "item" and override.target_id not in ITEM_BY_ID:
+        errors.append(f"{label} item not found: {override.target_id}")
+    if override.type == "material" and override.target_id not in MATERIAL_BY_ID:
+        errors.append(f"{label} material not found: {override.target_id}")
+    if override.type in {"item_rarity", "material_rarity"} and override.target_id not in RARITIES:
+        errors.append(f"{label} rarity not found: {override.target_id}")
     return errors
 
 

@@ -605,6 +605,63 @@ class RPGCog(commands.Cog):
             return f"{RARITY_LABELS.get(drop.rarity, drop.rarity)} 장비"
         return "장비"
 
+    def _boss_batch_skip_candidates(self, profile: PlayerProfile) -> list[BossTemplate]:
+        return [
+            boss
+            for boss in self.service.bosses()
+            if self.service.has_boss_clear_history(profile, boss.id)
+            and self.service.boss_start_remaining(profile, boss.id) != 0
+        ]
+
+    def _boss_batch_skip_embed(
+        self,
+        user_id: int,
+        display_name: str,
+    ) -> tuple[bool, discord.Embed]:
+        active_session = self._active_boss_session_for_user(user_id)
+        if active_session is not None:
+            return False, discord.Embed(
+                title="보스 일괄 스킵",
+                description=f"이미 {active_session.boss.name} 보스전에 참가 중입니다.",
+                color=0xED4245,
+            )
+        profile = self.service.get_profile(user_id, display_name)
+        candidates = self._boss_batch_skip_candidates(profile)
+        if not candidates:
+            return False, discord.Embed(
+                title="보스 일괄 스킵",
+                description="스킵 가능한 보스가 없습니다.",
+                color=0xED4245,
+            )
+
+        lines: list[str] = []
+        skipped = 0
+        for boss in candidates:
+            ok, message = self.service.consume_boss_start(user_id, display_name, boss.id)
+            if not ok:
+                lines.append(f"**{boss.name}**: {message}")
+                continue
+            reward = self.service.grant_boss_reward(
+                user_id,
+                display_name,
+                boss.id,
+                victory=True,
+                reward_role="owner",
+                record_clear_history=True,
+            )
+            skipped += 1
+            lines.append(f"**{boss.name}**: {self._reward_text(reward).replace(chr(10), ', ')}")
+
+        profile = self.service.get_profile(user_id, display_name)
+        embed = discord.Embed(
+            title="보스 일괄 스킵",
+            description=f"{skipped}개 보스를 스킵했습니다.",
+            color=0x57F287 if skipped else 0xED4245,
+        )
+        embed.add_field(name="결과", value=self._trim("\n".join(lines), 1800), inline=False)
+        embed.add_field(name="보유 골드", value=f"{profile.gold}G", inline=True)
+        return skipped > 0, embed
+
     async def _send_boss_panel(self, interaction: discord.Interaction) -> None:
         profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
         await interaction.response.send_message(
@@ -3614,6 +3671,8 @@ class RPGCog(commands.Cog):
             color = self._items_embed_color(result.items)
         title = result.pool.name if result.pool is not None else "가챠"
         embed = discord.Embed(title=title, description=result.message, color=color)
+        if result.pool is not None:
+            self._add_gacha_festival_field(embed, result.pool)
         if result.spent_material_id:
             remaining = result.profile.materials.get(result.spent_material_id, 0)
             embed.add_field(
@@ -3682,11 +3741,62 @@ class RPGCog(commands.Cog):
             for count in self._gacha_draw_options(pool)
         ]
         embed.add_field(name="버튼별 소모", value=" · ".join(costs), inline=False)
+        self._add_gacha_festival_field(embed, pool)
         if not affordable:
             embed.set_footer(text="재료가 부족하면 버튼이 비활성화됩니다.")
         else:
             embed.set_footer(text="버튼을 누르면 같은 패널에서 결과가 갱신됩니다.")
         return embed
+
+    def _add_gacha_festival_field(self, embed: discord.Embed, pool) -> None:
+        festival = self.service.active_gacha_festival()
+        if festival is None:
+            return
+        lines = [
+            self._gacha_festival_override_text(override, pool)
+            for override in festival.overrides
+            if self._gacha_festival_override_applies(override, pool)
+        ]
+        lines = [line for line in lines if line]
+        if not lines:
+            return
+        embed.add_field(
+            name=f"진행 중인 페스: {festival.name}",
+            value=self._trim("\n".join(lines), 900),
+            inline=False,
+        )
+
+    def _gacha_festival_override_text(self, override, pool) -> str:
+        label = self._gacha_festival_target_label(override.type, override.target_id)
+        if not label:
+            return ""
+        total = sum(max(0.0, entry.chance) for entry in pool.entries)
+        chance = (override.chance / total * 100) if total > 0 else override.chance
+        return f"{label} {chance:.2f}%"
+
+    def _gacha_festival_target_label(self, override_type: str, target_id: str) -> str:
+        if override_type == "item":
+            template = ITEM_BY_ID.get(target_id)
+            return template.name if template is not None else target_id
+        if override_type == "material":
+            return self.service.material_name(target_id)
+        if override_type == "item_rarity":
+            return f"{RARITY_LABELS.get(target_id, target_id)} 장비"
+        if override_type == "material_rarity":
+            return f"{RARITY_LABELS.get(target_id, target_id)} 재료"
+        return target_id
+
+    def _gacha_festival_override_applies(self, override, pool) -> bool:
+        for entry in pool.entries:
+            candidates = self.service._gacha_candidates(entry)
+            if override.type in {"item_rarity", "material_rarity"}:
+                if entry.type == override.type and entry.rarity == override.target_id and candidates:
+                    return True
+                continue
+            candidate_kind = "item" if entry.type in {"item", "item_rarity"} else "material"
+            if override.type == candidate_kind and override.target_id in candidates:
+                return True
+        return False
 
     def _gacha_draw_options(self, pool) -> list[int]:
         return list(dict.fromkeys([1, int(pool.draws), 50, 100]))
@@ -4612,9 +4722,12 @@ class BossPanelView(discord.ui.View):
         self.user_id = user_id
         self.display_name = display_name
         self.selected_boss_id = selected_boss_id
+        profile = self.cog.service.get_profile(user_id, display_name)
+        has_batch_skips = bool(self.cog._boss_batch_skip_candidates(profile))
         self.add_item(BossPanelSelect())
         self.add_item(BossPanelOpenButton(practice=False, disabled=selected_boss_id is None))
         self.add_item(BossPanelOpenButton(practice=True, disabled=selected_boss_id is None))
+        self.add_item(BossPanelBatchSkipButton(disabled=not has_batch_skips))
 
     async def _reject_other_user(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id == self.user_id:
@@ -4680,6 +4793,29 @@ class BossPanelOpenButton(discord.ui.Button):
         )
         if interaction.message is not None:
             session.message = interaction.message
+
+
+class BossPanelBatchSkipButton(discord.ui.Button):
+    def __init__(self, *, disabled: bool = False) -> None:
+        super().__init__(label="일괄 스킵", style=discord.ButtonStyle.success, disabled=disabled)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, BossPanelView)
+        if await self.view._reject_other_user(interaction):
+            return
+        ok, embed = self.view.cog._boss_batch_skip_embed(self.view.user_id, self.view.display_name)
+        if not ok:
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        await interaction.response.edit_message(
+            embed=embed,
+            view=BossPanelView(
+                self.view.cog,
+                self.view.user_id,
+                self.view.display_name,
+                self.view.selected_boss_id,
+            ),
+        )
 
 
 class BossSessionView(discord.ui.View):

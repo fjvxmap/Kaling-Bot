@@ -1,8 +1,10 @@
 {
   "default_pool_id": "default",
+  "active_festival_id": "",
   "material_id": "crystal",
   "cost": 3000,
   "draws": 10,
+  "festivals": [],
   "pools": [
     {
       "id": "default",

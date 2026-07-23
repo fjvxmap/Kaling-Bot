@@ -682,6 +682,7 @@ def normalize_gacha(gacha: Any) -> None:
     if not isinstance(gacha, dict):
         return
     gacha.setdefault("default_pool_id", "default")
+    gacha.setdefault("active_festival_id", "")
     gacha.setdefault("material_id", "crystal")
     gacha["cost"] = max(1, safe_int(gacha.get("cost"), 3000))
     gacha["draws"] = max(1, safe_int(gacha.get("draws"), 10))
@@ -713,6 +714,27 @@ def normalize_gacha(gacha: Any) -> None:
             if entry["type"] == "material_rarity":
                 entry["min"] = max(1, safe_int(entry.get("min", entry.get("amount")), 1))
                 entry["max"] = max(entry["min"], safe_int(entry.get("max"), entry["min"]))
+    festivals = gacha.get("festivals")
+    if not isinstance(festivals, list):
+        festivals = []
+    gacha["festivals"] = [festival for festival in festivals if isinstance(festival, dict)]
+    for index, festival in enumerate(gacha["festivals"], start=1):
+        festival.setdefault("id", f"festival_{index}")
+        festival.setdefault("name", festival["id"])
+        festival.setdefault("description", "")
+        overrides = festival.get("overrides")
+        if not isinstance(overrides, list):
+            overrides = []
+        festival["overrides"] = [override for override in overrides if isinstance(override, dict)]
+        for override in festival["overrides"]:
+            override.setdefault("type", "item_rarity")
+            override["target_id"] = str(
+                override.get(
+                    "target_id",
+                    override.get("id", override.get("rarity", override.get("item_id", override.get("material_id", "")))),
+                )
+            )
+            override["chance"] = max(0.0, safe_float(override.get("chance"), 0.0) or 0.0)
 
 
 def normalize_gacha_targets(
@@ -2285,6 +2307,14 @@ def validate_gacha(
     default_pool_id = str(gacha.get("default_pool_id", ""))
     if pools and default_pool_id and default_pool_id not in pool_ids:
         errors.append(f"gacha default pool not found: {default_pool_id}")
+    festivals = gacha.get("festivals", [])
+    if not isinstance(festivals, list):
+        errors.append("gacha festivals is not an array")
+        festivals = []
+    festival_ids = ensure_unique_ids(festivals, "gacha festival", errors)
+    active_festival_id = str(gacha.get("active_festival_id", ""))
+    if active_festival_id and active_festival_id not in festival_ids:
+        errors.append(f"gacha active festival not found: {active_festival_id}")
     if safe_int(gacha.get("cost"), None) is None:
         errors.append("gacha cost is not a number")
     if safe_int(gacha.get("draws"), None) is None:
@@ -2300,6 +2330,26 @@ def validate_gacha(
             errors.append(f"gacha pool {pool.get('id')} has no entries")
         for index, entry in enumerate(entries, start=1):
             validate_gacha_entry(entry, items, materials, rarities, f"gacha pool {pool.get('id')} entry {index}", errors)
+    for festival in festivals:
+        if not isinstance(festival, dict):
+            continue
+        overrides = festival.get("overrides", [])
+        if not isinstance(overrides, list):
+            errors.append(f"gacha festival {festival.get('id')} overrides is not an array")
+            continue
+        if not overrides:
+            errors.append(f"gacha festival {festival.get('id')} has no overrides")
+        seen_overrides: set[tuple[str, str]] = set()
+        for index, override in enumerate(overrides, start=1):
+            validate_gacha_festival_override(
+                override,
+                items,
+                materials,
+                rarities,
+                seen_overrides,
+                f"gacha festival {festival.get('id')} override {index}",
+                errors,
+            )
 
 
 def validate_gacha_entry(
@@ -2328,6 +2378,41 @@ def validate_gacha_entry(
         validate_gacha_targets(material_ids, materials, "material", f"{label} material_ids", errors)
     if entry_type == "material_rarity" and str(entry.get("rarity", "")) not in rarities:
         errors.append(f"{label} rarity not found: {entry.get('rarity')}")
+
+
+def validate_gacha_festival_override(
+    override: Any,
+    items: set[str],
+    materials: set[str],
+    rarities: set[str],
+    seen_overrides: set[tuple[str, str]],
+    label: str,
+    errors: list[str],
+) -> None:
+    if not isinstance(override, dict):
+        errors.append(f"{label} is not an object")
+        return
+    override_type = str(override.get("type", ""))
+    target_id = str(
+        override.get(
+            "target_id",
+            override.get("id", override.get("rarity", override.get("item_id", override.get("material_id", "")))),
+        )
+    )
+    if override_type not in {"item", "item_rarity", "material", "material_rarity"}:
+        errors.append(f"{label} type not found: {override_type}")
+    if safe_float(override.get("chance"), None) is None:
+        errors.append(f"{label} chance is not a number")
+    key = (override_type, target_id)
+    if key in seen_overrides:
+        errors.append(f"{label} duplicate override: {override_type} {target_id}")
+    seen_overrides.add(key)
+    if override_type == "item" and target_id not in items:
+        errors.append(f"{label} item not found: {target_id}")
+    if override_type == "material" and target_id not in materials:
+        errors.append(f"{label} material not found: {target_id}")
+    if override_type in {"item_rarity", "material_rarity"} and target_id not in rarities:
+        errors.append(f"{label} rarity not found: {target_id}")
 
 
 def validate_gacha_targets(

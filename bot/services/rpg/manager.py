@@ -22,6 +22,7 @@ from .data import (
     EXPLORE_LIMIT_ENABLED,
     EXPLORE_PLAYER_DEFENSE_BONUS,
     EXPLORE_SKILL_DAMAGE_MULTIPLIER,
+    GACHA_ACTIVE_FESTIVAL,
     GACHA_DEFAULT_POOL_ID,
     GACHA_POOL_BY_ID,
     GACHA_POOLS,
@@ -61,6 +62,7 @@ from .data import (
     DungeonTemplate,
     EnemyTemplate,
     GachaEntry,
+    GachaFestival,
     GachaPool,
     HealCap,
     EnhancementMethod,
@@ -320,6 +322,13 @@ class GachaGrant:
     materials: dict[str, int] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class GachaOption:
+    entry: GachaEntry
+    chance: float
+    candidate_ids: tuple[str, ...]
+
+
 class RPGService:
     def __init__(self, store: RPGStore | None = None, rng: Random | None = None) -> None:
         self.store = store or RPGStore()
@@ -408,6 +417,9 @@ class RPGService:
 
     def gacha_pools(self) -> list[GachaPool]:
         return list(GACHA_POOLS)
+
+    def active_gacha_festival(self) -> GachaFestival | None:
+        return GACHA_ACTIVE_FESTIVAL
 
     def current_job(self, profile: PlayerProfile) -> JobTemplate:
         return JOB_BY_ID.get(profile.job_id, JOB_BY_ID["novice"])
@@ -580,11 +592,8 @@ class RPGService:
                 cost,
             )
 
-        entries = [
-            entry for entry in pool.entries
-            if entry.chance > 0 and self._gacha_candidates(entry)
-        ]
-        if not entries:
+        options = self._effective_gacha_options(pool)
+        if not options:
             return GachaResult(False, "가챠 보상 풀이 비어 있습니다.", profile, pool)
 
         profile.materials[pool.cost_material_id] = owned - cost
@@ -600,8 +609,8 @@ class RPGService:
             cost,
         )
         for _ in range(draw_count):
-            entry = self._choose_gacha_entry(entries)
-            grant = self._grant_gacha_entry(profile, entry)
+            option = self._choose_gacha_option(options)
+            grant = self._grant_gacha_option(profile, option)
             if grant is None:
                 continue
             result.items.extend(grant.items)
@@ -3706,17 +3715,92 @@ class RPGService:
             return max(0.0, low)
         return max(0.0, self.rng.uniform(low, high))
 
-    def _choose_gacha_entry(self, entries: list[GachaEntry]) -> GachaEntry:
-        total = sum(max(0.0, entry.chance) for entry in entries)
+    def _effective_gacha_options(self, pool: GachaPool) -> list[GachaOption]:
+        base_options: list[tuple[GachaEntry, tuple[str, ...]]] = []
+        for entry in pool.entries:
+            if entry.chance <= 0:
+                continue
+            candidates = tuple(self._gacha_candidates(entry))
+            if candidates:
+                base_options.append((entry, candidates))
+        if not base_options:
+            return []
+
+        festival = self.active_gacha_festival()
+        if festival is None:
+            return [
+                GachaOption(entry, max(0.0, entry.chance), candidates)
+                for entry, candidates in base_options
+            ]
+
+        rarity_overrides: dict[tuple[str, str], float] = {}
+        target_overrides: dict[tuple[str, str], float] = {}
+        for override in festival.overrides:
+            key = (override.type, override.target_id)
+            if override.type in {"item_rarity", "material_rarity"}:
+                rarity_overrides[key] = max(0.0, override.chance)
+            else:
+                target_overrides[key] = max(0.0, override.chance)
+
+        fixed_options: list[GachaOption] = []
+        flexible_options: list[GachaOption] = []
+        base_total = sum(max(0.0, entry.chance) for entry, _ in base_options)
+
+        for entry, candidates in base_options:
+            candidate_kind = "item" if entry.type in {"item", "item_rarity"} else "material"
+            exact_chances = {
+                candidate_id: target_overrides[(candidate_kind, candidate_id)]
+                for candidate_id in candidates
+                if (candidate_kind, candidate_id) in target_overrides
+            }
+            for candidate_id, chance in exact_chances.items():
+                fixed_options.append(GachaOption(entry, chance, (candidate_id,)))
+
+            remaining_candidates = tuple(
+                candidate_id for candidate_id in candidates
+                if candidate_id not in exact_chances
+            )
+            if not remaining_candidates:
+                continue
+
+            rarity_key = (entry.type, entry.rarity) if entry.type in {"item_rarity", "material_rarity"} else None
+            if rarity_key is not None and rarity_key in rarity_overrides:
+                remaining_chance = max(0.0, rarity_overrides[rarity_key] - sum(exact_chances.values()))
+                fixed_options.append(GachaOption(entry, remaining_chance, remaining_candidates))
+                continue
+
+            base_chance = max(0.0, entry.chance)
+            if exact_chances:
+                base_chance *= len(remaining_candidates) / max(1, len(candidates))
+            flexible_options.append(GachaOption(entry, base_chance, remaining_candidates))
+
+        fixed_total = sum(option.chance for option in fixed_options)
+        flexible_total = sum(option.chance for option in flexible_options)
+        remaining_total = max(0.0, base_total - fixed_total)
+        scale = remaining_total / flexible_total if flexible_total > 0 else 0.0
+        options = [
+            option
+            for option in fixed_options
+            if option.chance > 0 and option.candidate_ids
+        ]
+        options.extend(
+            replace(option, chance=option.chance * scale)
+            for option in flexible_options
+            if option.chance > 0 and option.candidate_ids and scale > 0
+        )
+        return options
+
+    def _choose_gacha_option(self, options: list[GachaOption]) -> GachaOption:
+        total = sum(max(0.0, option.chance) for option in options)
         if total <= 0:
-            return entries[0]
+            return options[0]
         roll = self.rng.uniform(0.0, total)
         running = 0.0
-        for entry in entries:
-            running += max(0.0, entry.chance)
+        for option in options:
+            running += max(0.0, option.chance)
             if roll <= running:
-                return entry
-        return entries[-1]
+                return option
+        return options[-1]
 
     def _gacha_candidates(self, entry: GachaEntry) -> list[str]:
         if entry.type == "item":
@@ -3737,8 +3821,9 @@ class RPGService:
             return [material.id for material in MATERIALS_BY_RARITY.get(entry.rarity, [])]
         return []
 
-    def _grant_gacha_entry(self, profile: PlayerProfile, entry: GachaEntry) -> GachaGrant | None:
-        candidates = self._gacha_candidates(entry)
+    def _grant_gacha_option(self, profile: PlayerProfile, option: GachaOption) -> GachaGrant | None:
+        entry = option.entry
+        candidates = list(option.candidate_ids)
         if not candidates:
             return None
         selected_id = self.rng.choice(candidates)

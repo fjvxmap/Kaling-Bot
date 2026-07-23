@@ -195,6 +195,11 @@ textarea {
   box-shadow: var(--shadow);
 }
 
+.panel.subtle-panel {
+  background: #f8fbff;
+  border-color: #c7d8f2;
+}
+
 .panel-header {
   display: flex;
   align-items: center;
@@ -500,6 +505,10 @@ textarea {
   grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
 }
 
+.row.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+}
+
 .row.five {
   grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
 }
@@ -686,6 +695,7 @@ details.subpanel > summary.subpanel-head {
   .row,
   .row.two,
   .row.three,
+  .row.four,
   .row.five,
   .row.six,
   .row.seven {
