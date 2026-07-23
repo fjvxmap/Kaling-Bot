@@ -443,7 +443,7 @@
     ]
   },
   "description": ".",
-  "sort_order": 15,
+  "sort_order": 25,
   "stack_effects": [
     {
       "stack_effect_id": "trance",

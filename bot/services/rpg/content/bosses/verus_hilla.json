@@ -5,7 +5,7 @@
   "stats": {
     "base_atk": 36,
     "max_hp": 25000,
-    "defense": 0.5,
+    "defense": 0.25,
     "dmg_mitigation": 15
   },
   "gold": 4500,

@@ -43,19 +43,22 @@
           "type": "item_rarity",
           "rarity": "rare",
           "chance": 69.0,
-          "stars": 0
+          "stars": 0,
+          "item_ids": []
         },
         {
           "type": "item_rarity",
           "rarity": "epic",
           "chance": 27.0,
-          "stars": 0
+          "stars": 0,
+          "item_ids": []
         },
         {
           "type": "item_rarity",
           "rarity": "unique",
           "chance": 3.0,
-          "stars": 0
+          "stars": 0,
+          "item_ids": []
         },
         {
           "type": "material",
@@ -78,7 +81,8 @@
               "id": "crystal",
               "amount": 3000
             }
-          ]
+          ],
+          "item_ids": []
         }
       ]
     }

@@ -391,7 +391,7 @@
     ]
   },
   "description": ".",
-  "sort_order": 20,
+  "sort_order": 30,
   "stack_effects": [
     {
       "stack_effect_id": "evangelists_blade",

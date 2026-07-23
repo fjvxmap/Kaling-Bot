@@ -2150,5 +2150,17 @@
       "triple_attack_rate",
       "double_attack_rate"
     ]
+  },
+  {
+    "id": "commanding_force_earring",
+    "name": "커맨더 포스 이어링",
+    "rarity": "unique",
+    "stats": {
+      "atk": 0.25,
+      "defense": 0.5
+    },
+    "base_price": 1,
+    "excluded_from_gacha": true,
+    "description": "."
   }
 ]
