@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from math import ceil
 
 import discord
@@ -45,6 +46,7 @@ from bot.services.rpg.manager import (
     GachaResult,
     JobResult,
     RPGService,
+    RPG_TIMEZONE,
     SellResult,
 )
 from bot.services.rpg.models import PlayerProfile
@@ -3752,11 +3754,13 @@ class RPGCog(commands.Cog):
         festival = self.service.active_gacha_festival()
         if festival is None:
             return
-        lines = [
+        period_text = self._gacha_festival_period_text(festival)
+        lines = [period_text] if period_text else []
+        lines.extend(
             self._gacha_festival_override_text(override, pool)
             for override in festival.overrides
             if self._gacha_festival_override_applies(override, pool)
-        ]
+        )
         lines = [line for line in lines if line]
         if not lines:
             return
@@ -3765,6 +3769,31 @@ class RPGCog(commands.Cog):
             value=self._trim("\n".join(lines), 900),
             inline=False,
         )
+
+    def _gacha_festival_period_text(self, festival) -> str:
+        start = self._format_gacha_festival_time(getattr(festival, "starts_at", ""))
+        end = self._format_gacha_festival_time(getattr(festival, "ends_at", ""))
+        if start and end:
+            return f"기간: {start} ~ {end} KST"
+        if start:
+            return f"기간: {start} KST부터"
+        if end:
+            return f"기간: {end} KST까지"
+        return ""
+
+    def _format_gacha_festival_time(self, value: str) -> str:
+        text = str(value or "").strip()
+        if not text:
+            return ""
+        try:
+            parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except ValueError:
+            return text
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=RPG_TIMEZONE)
+        else:
+            parsed = parsed.astimezone(RPG_TIMEZONE)
+        return parsed.strftime("%Y-%m-%d %H:%M")
 
     def _gacha_festival_override_text(self, override, pool) -> str:
         label = self._gacha_festival_target_label(override.type, override.target_id)
