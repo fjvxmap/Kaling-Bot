@@ -4,7 +4,7 @@ import argparse
 import json
 import re
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -722,6 +722,8 @@ def normalize_gacha(gacha: Any) -> None:
         festival.setdefault("id", f"festival_{index}")
         festival.setdefault("name", festival["id"])
         festival.setdefault("description", "")
+        festival["starts_at"] = str(festival.get("starts_at", festival.get("start_at", "")) or "")
+        festival["ends_at"] = str(festival.get("ends_at", festival.get("end_at", "")) or "")
         overrides = festival.get("overrides")
         if not isinstance(overrides, list):
             overrides = []
@@ -1905,6 +1907,19 @@ def safe_float(value: Any, default: float | None = 0.0) -> float | None:
         return default
 
 
+def parse_optional_datetime(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is not None:
+        return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed
+
+
 def safe_bool(value: Any, default: bool = False) -> bool:
     if value is None:
         return default
@@ -2333,6 +2348,16 @@ def validate_gacha(
     for festival in festivals:
         if not isinstance(festival, dict):
             continue
+        starts_at = str(festival.get("starts_at", "") or "")
+        ends_at = str(festival.get("ends_at", "") or "")
+        start_time = parse_optional_datetime(starts_at)
+        end_time = parse_optional_datetime(ends_at)
+        if starts_at and start_time is None:
+            errors.append(f"gacha festival {festival.get('id')} starts_at is invalid: {starts_at}")
+        if ends_at and end_time is None:
+            errors.append(f"gacha festival {festival.get('id')} ends_at is invalid: {ends_at}")
+        if start_time is not None and end_time is not None and end_time <= start_time:
+            errors.append(f"gacha festival {festival.get('id')} ends_at must be after starts_at")
         overrides = festival.get("overrides", [])
         if not isinstance(overrides, list):
             errors.append(f"gacha festival {festival.get('id')} overrides is not an array")

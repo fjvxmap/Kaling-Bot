@@ -653,5 +653,88 @@
     "tiers": [],
     "conditions": [],
     "stats": {}
+  },
+  {
+    "id": "adversary_determination",
+    "name": "대적의 의지",
+    "max_stacks": 5,
+    "description": ".",
+    "tiers": [
+      {
+        "stack": 1,
+        "stat_effects": [
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": 0.4,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 2,
+        "stat_effects": [
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": 0.2,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 3,
+        "stats": {}
+      },
+      {
+        "stack": 4,
+        "stat_effects": [
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": -0.1,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 5,
+        "stat_effects": [
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": -0.2,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      }
+    ],
+    "conditions": [
+      {
+        "objective": "warning_success",
+        "target": "none",
+        "operation": "increase",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "objective": "warning_failure",
+        "target": "none",
+        "operation": "decrease",
+        "value": 2,
+        "required": 1,
+        "min_damage": 0
+      }
+    ],
+    "stats": {}
   }
 ]

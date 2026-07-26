@@ -22,8 +22,10 @@ from .data import (
     EXPLORE_LIMIT_ENABLED,
     EXPLORE_PLAYER_DEFENSE_BONUS,
     EXPLORE_SKILL_DAMAGE_MULTIPLIER,
-    GACHA_ACTIVE_FESTIVAL,
+    GACHA_ACTIVE_FESTIVAL_ID,
     GACHA_DEFAULT_POOL_ID,
+    GACHA_FESTIVAL_BY_ID,
+    GACHA_FESTIVALS,
     GACHA_POOL_BY_ID,
     GACHA_POOLS,
     INFINITE_EFFECT_TURNS,
@@ -419,7 +421,45 @@ class RPGService:
         return list(GACHA_POOLS)
 
     def active_gacha_festival(self) -> GachaFestival | None:
-        return GACHA_ACTIVE_FESTIVAL
+        now = datetime.now(RPG_TIMEZONE)
+        scheduled = [
+            festival
+            for festival in GACHA_FESTIVALS
+            if self._gacha_festival_has_period(festival)
+            and self._gacha_festival_in_period(festival, now)
+        ]
+        selected = GACHA_FESTIVAL_BY_ID.get(GACHA_ACTIVE_FESTIVAL_ID)
+        if selected is not None and selected in scheduled:
+            return selected
+        if scheduled:
+            return scheduled[0]
+        if selected is not None and not self._gacha_festival_has_period(selected):
+            return selected
+        return None
+
+    def _gacha_festival_has_period(self, festival: GachaFestival) -> bool:
+        return bool(str(festival.starts_at or "").strip() or str(festival.ends_at or "").strip())
+
+    def _gacha_festival_in_period(self, festival: GachaFestival, now: datetime) -> bool:
+        start = self._parse_gacha_festival_time(festival.starts_at)
+        end = self._parse_gacha_festival_time(festival.ends_at)
+        if start is not None and now < start:
+            return False
+        if end is not None and now >= end:
+            return False
+        return True
+
+    def _parse_gacha_festival_time(self, value: str) -> datetime | None:
+        text = str(value or "").strip()
+        if not text:
+            return None
+        try:
+            parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=RPG_TIMEZONE)
+        return parsed.astimezone(RPG_TIMEZONE)
 
     def current_job(self, profile: PlayerProfile) -> JobTemplate:
         return JOB_BY_ID.get(profile.job_id, JOB_BY_ID["novice"])

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -544,6 +545,8 @@ class GachaFestival:
     id: str
     name: str
     description: str = ""
+    starts_at: str = ""
+    ends_at: str = ""
     overrides: list[GachaFestivalOverride] = field(default_factory=list)
 
 
@@ -1398,6 +1401,8 @@ def _gacha_festival(raw: dict[str, Any]) -> GachaFestival:
         id=str(raw.get("id", "festival")),
         name=str(raw.get("name", raw.get("id", "가챠 페스"))),
         description=str(raw.get("description", "")),
+        starts_at=str(raw.get("starts_at", raw.get("start_at", "")) or ""),
+        ends_at=str(raw.get("ends_at", raw.get("end_at", "")) or ""),
         overrides=[
             _gacha_festival_override(override)
             for override in raw.get("overrides", [])
@@ -2154,7 +2159,6 @@ GACHA_FESTIVALS = [
 ]
 GACHA_FESTIVAL_BY_ID = {festival.id: festival for festival in GACHA_FESTIVALS}
 GACHA_ACTIVE_FESTIVAL_ID = str(_GACHA_DATA.get("active_festival_id", ""))
-GACHA_ACTIVE_FESTIVAL = GACHA_FESTIVAL_BY_ID.get(GACHA_ACTIVE_FESTIVAL_ID)
 
 CRAFTING_RECIPES = sorted(
     [_crafting_recipe(recipe) for recipe in CONTENT.get("crafting_recipes", [])],
@@ -2380,6 +2384,14 @@ def _validate_content() -> None:
     for festival in GACHA_FESTIVALS:
         if not festival.overrides:
             errors.append(f"gacha festival {festival.id} has no overrides")
+        start_time = _parse_optional_datetime(festival.starts_at)
+        end_time = _parse_optional_datetime(festival.ends_at)
+        if festival.starts_at and start_time is None:
+            errors.append(f"gacha festival {festival.id} starts_at is invalid: {festival.starts_at}")
+        if festival.ends_at and end_time is None:
+            errors.append(f"gacha festival {festival.id} ends_at is invalid: {festival.ends_at}")
+        if start_time is not None and end_time is not None and end_time <= start_time:
+            errors.append(f"gacha festival {festival.id} ends_at must be after starts_at")
         for index, override in enumerate(festival.overrides, start=1):
             errors.extend(_validate_gacha_festival_override(override, f"gacha festival {festival.id} override {index}"))
     if errors:
@@ -2467,6 +2479,19 @@ def _validate_gacha_festival_override(override: GachaFestivalOverride, label: st
     if override.type in {"item_rarity", "material_rarity"} and override.target_id not in RARITIES:
         errors.append(f"{label} rarity not found: {override.target_id}")
     return errors
+
+
+def _parse_optional_datetime(value: str) -> datetime | None:
+    value = str(value or "").strip()
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is not None:
+        return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed
 
 
 _validate_content()

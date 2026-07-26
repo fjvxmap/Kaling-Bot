@@ -876,7 +876,7 @@ function renderGacha() {
         numberField("소모 수량", gacha, "cost", { step: 1 }),
         numberField("뽑기 횟수", gacha, "draws", { step: 1 }),
         selectField("기본 풀", gacha, "default_pool_id", gachaPoolOptions(gacha), { rerender: true }),
-        selectField("활성 페스", gacha, "active_festival_id", [["", "없음"], ...gachaFestivalOptions(gacha)], { rerender: true }),
+        selectField("수동 활성 페스", gacha, "active_festival_id", [["", "없음"], ...gachaFestivalOptions(gacha)], { rerender: true }),
       ]),
     ]),
   ]);
@@ -1060,6 +1060,8 @@ function gachaFestivalEditor(gacha, festival, index) {
           }
         }),
         textField("이름", festival, "name"),
+        datetimeField("시작(KST)", festival, "starts_at"),
+        datetimeField("종료(KST)", festival, "ends_at"),
         textAreaField("설명", festival, "description", { full: true }),
       ]),
       gachaFestivalOverridesEditor(festival),
@@ -1124,6 +1126,8 @@ function normalizeGachaConfig() {
     festival.id ||= nextId("festival", gacha.festivals);
     festival.name ||= festival.id;
     festival.description ||= "";
+    festival.starts_at = String(festival.starts_at || festival.start_at || "");
+    festival.ends_at = String(festival.ends_at || festival.end_at || "");
     festival.overrides = Array.isArray(festival.overrides) ? festival.overrides : [];
     for (const override of festival.overrides) {
       normalizeGachaFestivalOverride(override);
@@ -1243,6 +1247,8 @@ function blankGachaFestival(gacha) {
     id: nextId("festival", gacha.festivals || []),
     name: "새 가챠 페스",
     description: "",
+    starts_at: "",
+    ends_at: "",
     overrides: [blankGachaFestivalOverride()],
   };
 }
@@ -5331,6 +5337,23 @@ function textAreaField(label, obj, key, options = {}) {
     },
   }, obj[key] ?? "");
   return fieldWrap(label, input, options.full);
+}
+
+function datetimeField(label, obj, key, options = {}) {
+  const input = el("input", {
+    type: "datetime-local",
+    value: datetimeLocalValue(obj[key]),
+    oninput: (event) => {
+      obj[key] = event.target.value;
+      markDirty();
+      options.onChange?.(obj[key]);
+    },
+  });
+  return fieldWrap(label, input, options.full);
+}
+
+function datetimeLocalValue(value) {
+  return String(value || "").replace(" ", "T").slice(0, 16);
 }
 
 function numberField(label, obj, key, options = {}) {

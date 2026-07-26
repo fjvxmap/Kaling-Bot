@@ -1,0 +1,576 @@
+{
+  "id": "first_adversary",
+  "name": "최초의 대적자",
+  "level_req": 30,
+  "stats": {
+    "base_atk": 75,
+    "max_hp": 100000,
+    "triple_attack_rate": 0.8
+  },
+  "gold": 18000,
+  "exp": 1,
+  "patterns": [],
+  "warnings": [
+    {
+      "id": "thousand_sword",
+      "name": "성률의 소나기",
+      "activation_priority": 10,
+      "pattern": {
+        "id": "thousand_sword",
+        "name": "성률의 소나기",
+        "damage_multiplier": 36,
+        "hits": 1,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 5000,
+          "min_damage": 0
+        },
+        {
+          "objective": "hits",
+          "required": 12,
+          "min_damage": 0
+        }
+      ],
+      "turns": 2
+    },
+    {
+      "id": "spatial_slash",
+      "name": "공간참",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "spatial_slash",
+        "name": "공간참",
+        "damage_multiplier": 1.5,
+        "hits": 12,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 3,
+          "min_damage": 500
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "double_swing",
+      "name": "거인 사냥",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "double_swing",
+        "name": "거인 사냥",
+        "damage_multiplier": 7.7,
+        "hits": 2,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 1800,
+          "min_damage": 0
+        },
+        {
+          "objective": "hits",
+          "required": 5,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "cycle_of_power_phase_1",
+      "name": "힘의 순환",
+      "activation_priority": 20,
+      "pattern": {
+        "id": "cycle_of_power_phase_1",
+        "name": "힘의 순환",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 9999,
+          "min_damage": 0
+        }
+      ],
+      "failure_variants": [
+        {
+          "name": "힘의 순환 (대적의 의지 Lv 1)",
+          "conditions": [
+            {
+              "stack_effect_id": "adversary_determination",
+              "target": "boss",
+              "min_stacks": 1,
+              "max_stacks": 1
+            }
+          ],
+          "pattern": {
+            "id": "cycle_of_power_failure_variant",
+            "name": "힘의 순환 (대적의 의지 Lv 1)",
+            "damage_multiplier": 0,
+            "hits": 0,
+            "player_mods": {},
+            "boss_mods": {},
+            "effect_actions": [
+              {
+                "action": "stack_set",
+                "target": "self",
+                "count": 1,
+                "stack_effect_id": "adversary_determination",
+                "value": 3
+              }
+            ],
+            "duration": 0,
+            "plain_damage": {
+              "mode": "target_max_hp_ratio",
+              "value": 0.8
+            },
+            "stats": {}
+          }
+        },
+        {
+          "name": "힘의 순환 (대적의 의지 Lv 2)",
+          "conditions": [
+            {
+              "stack_effect_id": "adversary_determination",
+              "target": "boss",
+              "min_stacks": 2,
+              "max_stacks": 2
+            }
+          ],
+          "pattern": {
+            "id": "cycle_of_power_failure_variant_2",
+            "name": "힘의 순환 (대적의 의지 Lv 2)",
+            "damage_multiplier": 0,
+            "hits": 0,
+            "player_mods": {},
+            "boss_mods": {},
+            "effect_actions": [
+              {
+                "action": "stack_set",
+                "target": "self",
+                "count": 1,
+                "stack_effect_id": "adversary_determination",
+                "value": 3
+              }
+            ],
+            "duration": 0,
+            "plain_damage": {
+              "mode": "target_max_hp_ratio",
+              "value": 0.6
+            },
+            "stats": {}
+          }
+        }
+      ],
+      "turns": 1,
+      "activation_conditions": [
+        {
+          "kind": "turn_multiple",
+          "multiple": 12
+        },
+        {
+          "kind": "boss_hp_ratio",
+          "min_ratio": 0.667,
+          "max_ratio": 1.0
+        }
+      ],
+      "success_warning_id": "thousand_sword",
+      "failure_warning_id": "thousand_sword"
+    },
+    {
+      "id": "stream_of_blade",
+      "name": "스트림 오브 블레이드",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "stream_of_blade",
+        "name": "스트림 오브 블레이드",
+        "damage_multiplier": 0.7,
+        "hits": 16,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 2400,
+          "min_damage": 0
+        }
+      ],
+      "turns": 1,
+      "activation_conditions": [
+        {
+          "kind": "stack",
+          "stack_effect_id": "adversary_determination",
+          "target": "boss",
+          "min_stacks": 5,
+          "max_stacks": -1
+        }
+      ]
+    },
+    {
+      "id": "element_of_chaos",
+      "name": "혼돈의 원소",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "element_of_chaos",
+        "name": "혼돈의 원소",
+        "damage_multiplier": 16,
+        "hits": 3,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 36,
+          "min_damage": 0
+        },
+        {
+          "objective": "triple_attack",
+          "required": 1,
+          "min_damage": 0
+        },
+        {
+          "objective": "debuff",
+          "required": 2,
+          "min_damage": 0
+        }
+      ],
+      "turns": 3
+    },
+    {
+      "id": "cycle_of_power_phase_2_3",
+      "name": "힘의 순환",
+      "activation_priority": 30,
+      "pattern": {
+        "id": "cycle_of_power_phase_2_3",
+        "name": "힘의 순환",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 9999,
+          "min_damage": 0
+        }
+      ],
+      "failure_variants": [
+        {
+          "name": "힘의 순환 (대적의 의지 Lv 1)",
+          "conditions": [
+            {
+              "stack_effect_id": "adversary_determination",
+              "target": "boss",
+              "min_stacks": 1,
+              "max_stacks": 1
+            }
+          ],
+          "pattern": {
+            "id": "cycle_of_power_phase_2_3_failure_variant",
+            "name": "힘의 순환 (대적의 의지 Lv 1)",
+            "damage_multiplier": 0,
+            "hits": 0,
+            "player_mods": {},
+            "boss_mods": {},
+            "effect_actions": [
+              {
+                "action": "stack_set",
+                "target": "self",
+                "count": 1,
+                "stack_effect_id": "adversary_determination",
+                "value": 3
+              }
+            ],
+            "duration": 0,
+            "plain_damage": {
+              "mode": "target_max_hp_ratio",
+              "value": 0.8
+            },
+            "stats": {}
+          }
+        },
+        {
+          "name": "힘의 순환 (대적의 의지 Lv 2)",
+          "conditions": [
+            {
+              "stack_effect_id": "adversary_determination",
+              "target": "boss",
+              "min_stacks": 2,
+              "max_stacks": 2
+            }
+          ],
+          "pattern": {
+            "id": "cycle_of_power_phase_2_3_failure_variant_2",
+            "name": "힘의 순환 (대적의 의지 Lv 2)",
+            "damage_multiplier": 0,
+            "hits": 0,
+            "player_mods": {},
+            "boss_mods": {},
+            "effect_actions": [
+              {
+                "action": "stack_set",
+                "target": "self",
+                "count": 1,
+                "stack_effect_id": "adversary_determination",
+                "value": 3
+              }
+            ],
+            "duration": 0,
+            "plain_damage": {
+              "mode": "target_max_hp_ratio",
+              "value": 0.6
+            },
+            "stats": {}
+          }
+        }
+      ],
+      "turns": 1,
+      "success_warning_id": "element_of_chaos",
+      "failure_warning_id": "element_of_chaos",
+      "activation_conditions": [
+        {
+          "kind": "turn_multiple",
+          "multiple": 12
+        },
+        {
+          "kind": "boss_hp_ratio",
+          "min_ratio": 0.0,
+          "max_ratio": 0.666
+        }
+      ]
+    },
+    {
+      "id": "scattering_arrows",
+      "name": "연발 화살",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "scattering_arrows",
+        "name": "연발 화살",
+        "damage_multiplier": 2.4,
+        "hits": 5,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 12,
+          "min_damage": 0
+        }
+      ],
+      "failure_variants": [
+        {
+          "name": "연발 화살 (대적의 의지 Lv ~2)",
+          "conditions": [
+            {
+              "stack_effect_id": "adversary_determination",
+              "target": "boss",
+              "min_stacks": 1,
+              "max_stacks": 2
+            }
+          ],
+          "pattern": {
+            "id": "scattering_arrows_failure_variant",
+            "name": "연발 화살 (대적의 의지 Lv ~2)",
+            "damage_multiplier": 2.4,
+            "hits": 3,
+            "player_mods": {},
+            "boss_mods": {},
+            "duration": 0,
+            "stats": {}
+          }
+        },
+        {
+          "name": "연발 화살 (대적의 의지 Lv 4~)",
+          "conditions": [
+            {
+              "stack_effect_id": "adversary_determination",
+              "target": "boss",
+              "min_stacks": 4,
+              "max_stacks": 5
+            }
+          ],
+          "pattern": {
+            "id": "scattering_arrows_failure_variant_2",
+            "name": "연발 화살 (대적의 의지 Lv 4~)",
+            "damage_multiplier": 2.4,
+            "hits": 7,
+            "player_mods": {},
+            "boss_mods": {},
+            "duration": 0,
+            "stats": {}
+          }
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "evolve",
+      "name": "최초의 이볼브",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "evolve",
+        "name": "최초의 이볼브",
+        "damage_multiplier": 4.2,
+        "hits": 3,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "hits",
+          "required": 7,
+          "min_damage": 300
+        }
+      ],
+      "turns": 1
+    },
+    {
+      "id": "pincer_phantom",
+      "name": "협공하는 환영",
+      "activation_priority": 20,
+      "pattern": {
+        "id": "pincer_phantom",
+        "name": "협공하는 환영",
+        "damage_multiplier": 9.9,
+        "hits": 3,
+        "player_mods": {},
+        "boss_mods": {},
+        "duration": 0,
+        "stats": {}
+      },
+      "objectives": [
+        {
+          "objective": "damage",
+          "required": 5000,
+          "min_damage": 0
+        },
+        {
+          "objective": "hits",
+          "required": 24,
+          "min_damage": 0
+        },
+        {
+          "objective": "debuff",
+          "required": 2,
+          "min_damage": 0
+        }
+      ],
+      "turns": 3,
+      "activation_conditions": [
+        {
+          "kind": "boss_hp_ratio",
+          "min_ratio": 0.0,
+          "max_ratio": 0.333
+        },
+        {
+          "kind": "turn_multiple",
+          "multiple": 6
+        }
+      ]
+    }
+  ],
+  "hp_warnings": [
+    {
+      "threshold": 1,
+      "warning_id": "thousand_sword"
+    }
+  ],
+  "ct": {
+    "gauge_by_hp": [
+      {
+        "above": 0,
+        "max": 2
+      }
+    ],
+    "warnings_by_hp": [
+      {
+        "above": 1,
+        "warning_id": "spatial_slash",
+        "warning_ids": [
+          "spatial_slash",
+          "double_swing",
+          "stream_of_blade"
+        ]
+      },
+      {
+        "above": 0.666,
+        "warning_id": "scattering_arrows",
+        "warning_ids": [
+          "scattering_arrows",
+          "evolve"
+        ]
+      },
+      {
+        "above": 0.333,
+        "warning_id": "stream_of_blade",
+        "warning_ids": [
+          "stream_of_blade",
+          "spatial_slash",
+          "double_swing"
+        ]
+      }
+    ]
+  },
+  "rewards": {
+    "items": [
+      {
+        "chance": 0.008,
+        "min": 1,
+        "max": 1,
+        "template_id": "immortal_legacy",
+        "owner_chance": 0.02,
+        "stars": 0
+      }
+    ],
+    "materials": [
+      {
+        "id": "boss_power_crystal",
+        "chance": 1.0,
+        "min": 1,
+        "max": 1,
+        "participant_chance": 0.0
+      }
+    ]
+  },
+  "description": ".",
+  "sort_order": 50,
+  "stack_effects": [
+    {
+      "stack_effect_id": "adversary_determination",
+      "initial_stacks": 3
+    }
+  ]
+}

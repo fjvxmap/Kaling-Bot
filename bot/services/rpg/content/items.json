@@ -2162,5 +2162,30 @@
     "base_price": 1,
     "excluded_from_gacha": true,
     "description": "."
+  },
+  {
+    "id": "immortal_legacy",
+    "name": "불멸의 유산",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 30,
+      "atk": 0.1,
+      "defense": 0.25,
+      "triple_attack_rate": 0.1,
+      "double_attack_rate": 0.2
+    },
+    "base_price": 1,
+    "excluded_from_gacha": true,
+    "description": ".",
+    "effects": {
+      "bonus_damage": [
+        {
+          "ratio": 0.06,
+          "target": "self",
+          "duration": -1,
+          "undispellable": true
+        }
+      ]
+    }
   }
 ]

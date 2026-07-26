@@ -9,6 +9,8 @@
       "id": "festival",
       "name": "페스",
       "description": "",
+      "starts_at": "",
+      "ends_at": "",
       "overrides": [
         {
           "type": "item_rarity",
