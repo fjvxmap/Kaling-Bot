@@ -1697,6 +1697,7 @@ function renderSkills() {
         uses: 0,
         cooldown: 3,
         role: "attack",
+        special: Boolean(context.special),
         damage_multiplier: 0,
         hits: 0,
         player_mods: {},
@@ -1711,7 +1712,7 @@ function renderSkills() {
         note: "",
       };
     },
-    summary: (skill) => `${skill.role ?? ""} · Lv.${skill.unlock_level ?? 1}`,
+    summary: (skill) => `${skill.special ? "특수 · " : ""}${skill.role ?? ""} · Lv.${skill.unlock_level ?? 1}`,
     listContent: renderSkillTreeList,
     detail: renderSkillDetail,
   });
@@ -1735,6 +1736,7 @@ function renderSkillDetail(skill) {
       idField("skills", skill),
       textField("이름", skill, "name"),
       selectField("역할", skill, "role", SKILL_ROLES.map((role) => [role, role])),
+      checkboxField("특수 어빌리티", skill, "special"),
       numberField("해금 레벨", skill, "unlock_level", { step: 1 }),
       numberField("사용 횟수 제한", skill, "uses", { step: 1 }),
       numberField("쿨다운", skill, "cooldown", { step: 1 }),
@@ -1946,7 +1948,10 @@ function renderJobTreeList(rows, config, addRow) {
 function renderSkillTreeList(rows, config, addRow) {
   const query = state.query.trim().toLowerCase();
   const publicSkills = rows
-    .filter((skill) => skillDisplayJobIds(skill).length === 0)
+    .filter((skill) => !skill.special && skillDisplayJobIds(skill).length === 0)
+    .filter((skill) => entityMatchesQuery(skill, query));
+  const publicSpecialSkills = rows
+    .filter((skill) => skill.special && skillDisplayJobIds(skill).length === 0)
     .filter((skill) => entityMatchesQuery(skill, query));
   const nodes = [];
   const publicChildren = [
@@ -1955,6 +1960,13 @@ function renderSkillTreeList(rows, config, addRow) {
   ];
   if (!query || publicSkills.length) {
     nodes.push(treeGroup("skills:public", "공용 스킬", `${publicSkills.length}개`, publicChildren));
+  }
+  const publicSpecialChildren = [
+    treeAddButton("공용 특수 어빌리티 추가", () => addRow({ special: true })),
+    ...publicSpecialSkills.map((skill) => entityButton(config, skill)),
+  ];
+  if (!query || publicSpecialSkills.length) {
+    nodes.push(treeGroup("skills:special:public", "공용 특수 어빌리티", `${publicSpecialSkills.length}개`, publicSpecialChildren));
   }
   const jobs = jobTreeRows();
   for (const job of jobTreeRoots(jobs)) {
@@ -2044,21 +2056,29 @@ function jobTreeNode(job, jobs, config, addRow, query, depth) {
 
 function skillJobTreeNode(job, jobs, skills, config, addRow, query, depth) {
   const directSkills = skills
-    .filter((skill) => skillDisplayJobIds(skill).includes(job.id))
+    .filter((skill) => !skill.special && skillDisplayJobIds(skill).includes(job.id))
+    .filter((skill) => entityMatchesQuery(skill, query));
+  const directSpecialSkills = skills
+    .filter((skill) => skill.special && skillDisplayJobIds(skill).includes(job.id))
     .filter((skill) => entityMatchesQuery(skill, query));
   const childNodes = jobTreeChildren(job, jobs)
     .map((child) => skillJobTreeNode(child, jobs, skills, config, addRow, query, depth + 1))
     .filter(Boolean);
   const selfMatches = entityMatchesQuery(job, query);
-  if (query && !selfMatches && !directSkills.length && !childNodes.length) {
+  if (query && !selfMatches && !directSkills.length && !directSpecialSkills.length && !childNodes.length) {
     return null;
   }
   const body = [
     treeAddButton("스킬 추가", () => addRow({ job_id: job.id })),
+    treeAddButton("특수 어빌리티 추가", () => addRow({ job_id: job.id, special: true })),
     ...directSkills.map((skill) => entityButton(config, skill)),
+    ...directSpecialSkills.map((skill) => entityButton(config, skill)),
     ...childNodes,
   ];
-  return treeGroup(`skills:${job.id}`, job.name || job.id, `${directSkills.length}개`, body, false, depth);
+  const badge = directSpecialSkills.length
+    ? `${directSkills.length}개 · 특수 ${directSpecialSkills.length}개`
+    : `${directSkills.length}개`;
+  return treeGroup(`skills:${job.id}`, job.name || job.id, badge, body, false, depth);
 }
 
 function treeGroup(key, title, badge, children, active = false, depth = 0) {
@@ -3809,6 +3829,8 @@ function normalizeContentForUi(content) {
     sortStatsTree(job);
   }
   for (const skill of content.skills || []) {
+    skill.special = Boolean(skill.special || skill.is_special);
+    delete skill.is_special;
     sortStatsTree(skill);
   }
   for (const dungeon of content.dungeons || []) {

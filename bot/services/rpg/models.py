@@ -75,6 +75,7 @@ class PlayerProfile:
     equipped_item_uids: list[int] = field(default_factory=list)
     auto_sell_rarities: list[str] = field(default_factory=list)
     equipped_skill_ids: list[str] = field(default_factory=list)
+    equipped_special_skill_id: str = ""
     materials: dict[str, int] = field(default_factory=dict)
     inventory: list[ItemInstance] = field(default_factory=list)
     next_item_uid: int = 1
@@ -133,6 +134,8 @@ class PlayerProfile:
                 profile.auto_sell_rarities = [str(rarity) for rarity in value]
             elif key == "equipped_skill_ids" and isinstance(value, list):
                 profile.equipped_skill_ids = [str(skill_id) for skill_id in value]
+            elif key == "equipped_special_skill_id":
+                profile.equipped_special_skill_id = str(value or "")
             elif key == "materials" and isinstance(value, dict):
                 profile.materials = {
                     str(material_id): max(0, int(amount))
@@ -176,6 +179,7 @@ class PlayerProfile:
         ))
         profile.auto_sell_rarities = list(dict.fromkeys(str(rarity) for rarity in profile.auto_sell_rarities))
         profile.equipped_skill_ids = list(dict.fromkeys(str(skill_id) for skill_id in profile.equipped_skill_ids))
+        profile.equipped_special_skill_id = str(profile.equipped_special_skill_id or "")
         profile.materials = {
             material_id: amount
             for material_id, amount in profile.materials.items()

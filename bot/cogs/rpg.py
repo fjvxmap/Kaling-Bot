@@ -482,7 +482,8 @@ class RPGCog(commands.Cog):
             )
             return
         skills = self.service.unlocked_skills(profile)
-        if not skills:
+        special_skills = self.service.unlocked_special_skills(profile)
+        if not skills and not special_skills:
             embed = discord.Embed(
                 title="어빌리티",
                 description="아직 사용할 수 있는 어빌리티가 없습니다.",
@@ -917,7 +918,7 @@ class RPGCog(commands.Cog):
         participant.ability_cooldowns = {}
         participant.ability_uses_left = {
             skill.id: skill.uses
-            for skill in self.service.equipped_skills(profile)
+            for skill in self.service.combat_skills(profile)
             if skill.uses > 0
         }
 
@@ -949,7 +950,7 @@ class RPGCog(commands.Cog):
         if cooldown > 0:
             return False, f"아직 쿨타임이 {cooldown}턴 남았습니다."
         profile = self.service.get_profile(user_id, display_name)
-        skill = next((owned for owned in self.service.equipped_skills(profile) if owned.id == skill_id), None)
+        skill = next((owned for owned in self.service.combat_skills(profile) if owned.id == skill_id), None)
         if skill is None:
             return False, "장착 중인 어빌리티가 아닙니다."
         if self._ability_used_out(participant, skill):
@@ -2834,6 +2835,12 @@ class RPGCog(commands.Cog):
             value=self._trim("\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in skills), 1000) if skills else "없음",
             inline=False,
         )
+        special_skill = self.service.equipped_special_skill(profile)
+        embed.add_field(
+            name="특수 어빌리티",
+            value=f"**{special_skill.name}** · {self.service.skill_summary(special_skill)}" if special_skill is not None else "없음",
+            inline=False,
+        )
         equipped = self.service.equipped_items(profile)
         embed.add_field(
             name="장착 장비",
@@ -3086,11 +3093,11 @@ class RPGCog(commands.Cog):
 
     def _participant_ability_cooldown_text(self, participant: BossParticipant, *, multiline: bool = False) -> str:
         profile = self.service.get_profile(participant.user_id, participant.display_name)
-        skills = self.service.equipped_skills(profile)
+        skills = self.service.combat_skills(profile)
         if not skills:
             return "없음"
         parts = []
-        for skill in skills[:MAX_EQUIPPED_SKILLS]:
+        for skill in skills:
             state = self._ability_state_text(participant, skill)
             prefix = "- " if multiline else ""
             parts.append(f"{prefix}{skill.name}: {state}")
@@ -3548,6 +3555,13 @@ class RPGCog(commands.Cog):
                 value=self._trim("\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in skills), 1000),
                 inline=False,
             )
+        special_skills = self.service.unlocked_special_skills(profile)
+        if special_skills:
+            embed.add_field(
+                name="사용 가능한 특수 어빌리티",
+                value=self._trim("\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in special_skills), 1000),
+                inline=False,
+            )
         return embed
 
     def _ability_embed(
@@ -3557,15 +3571,17 @@ class RPGCog(commands.Cog):
         selected_skill_ids: list[str] | None = None,
     ) -> discord.Embed:
         available = self.service.unlocked_skills(profile)
+        special_available = self.service.unlocked_special_skills(profile)
         by_id = {skill.id: skill for skill in available}
         equipped = (
             [by_id[skill_id] for skill_id in selected_skill_ids if skill_id in by_id]
             if selected_skill_ids is not None
             else self.service.equipped_skills(profile)
         )
+        special_skill = self.service.equipped_special_skill(profile)
         embed = discord.Embed(
             title="어빌리티 장착",
-            description=result.message if result is not None else "사용할 어빌리티를 선택하면 바로 저장됩니다.",
+            description=result.message if result is not None else "사용할 어빌리티와 특수 어빌리티를 선택하면 바로 저장됩니다.",
             color=0xB56BFF,
         )
         embed.add_field(
@@ -3574,8 +3590,18 @@ class RPGCog(commands.Cog):
             inline=False,
         )
         embed.add_field(
+            name="특수 어빌리티 0/1" if special_skill is None else "특수 어빌리티 1/1",
+            value=f"**{special_skill.name}** · {self.service.skill_summary(special_skill)}" if special_skill is not None else "없음",
+            inline=False,
+        )
+        embed.add_field(
             name="사용 가능",
-            value=self._trim("\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in available), 1400),
+            value=self._trim("\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in available), 1400) if available else "없음",
+            inline=False,
+        )
+        embed.add_field(
+            name="사용 가능한 특수 어빌리티",
+            value=self._trim("\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in special_available), 1000) if special_available else "없음",
             inline=False,
         )
         return embed
@@ -4911,7 +4937,7 @@ class BossStartButton(discord.ui.Button):
         participant = self.view.session.participants.get(interaction.user.id)
         if participant is not None:
             profile = self.view.cog.service.get_profile(interaction.user.id, interaction.user.display_name)
-            skills = self.view.cog.service.equipped_skills(profile)
+            skills = self.view.cog.service.combat_skills(profile)
             await interaction.followup.send(
                 embed=self.view.cog._boss_ability_embed(self.view.session, participant, skills),
                 view=BossAbilityView(
@@ -5067,7 +5093,7 @@ class BossAbilityMenuButton(discord.ui.Button):
             return
         self.view.session.message = interaction.message
         profile = self.view.cog.service.get_profile(interaction.user.id, interaction.user.display_name)
-        skills = self.view.cog.service.equipped_skills(profile)
+        skills = self.view.cog.service.combat_skills(profile)
         await interaction.message.edit(
             embed=self.view.cog._boss_session_embed(self.view.session),
             view=BossSessionView(self.view.cog, self.view.session),
@@ -5125,10 +5151,16 @@ class BossAbilityView(discord.ui.View):
         self.add_item(BossAttackButton(disabled=controls_disabled, row=0))
         self.add_item(BossGuardButton(disabled=controls_disabled, row=0))
         self.add_item(BossDamageDetailButton(disabled=participant is None, row=0))
-        for skill in skills[:MAX_EQUIPPED_SKILLS]:
+        for index, skill in enumerate(skills[:20]):
             cooldown = participant.ability_cooldowns.get(skill.id, 0) if participant is not None else 0
             used_out = participant is not None and self.cog._ability_used_out(participant, skill)
-            self.add_item(BossAbilityButton(skill, disabled=controls_disabled or cooldown > 0 or used_out, row=1))
+            self.add_item(
+                BossAbilityButton(
+                    skill,
+                    disabled=controls_disabled or cooldown > 0 or used_out,
+                    row=1 + index // 5,
+                )
+            )
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id == self.user_id:
@@ -5149,7 +5181,7 @@ class BossAbilityView(discord.ui.View):
             )
             return
         profile = self.cog.service.get_profile(self.user_id, self.display_name)
-        skills = self.cog.service.equipped_skills(profile)
+        skills = self.cog.service.combat_skills(profile)
         view = None
         if (
             self.session.started
@@ -5441,6 +5473,29 @@ class AbilityEquipView(discord.ui.View):
         ]
         if options:
             self.add_item(AbilityEquipSelect(options))
+        special_equipped = self.cog.service.equipped_special_skill(profile)
+        special_options = [
+            discord.SelectOption(
+                label="장착 안 함",
+                value="__none__",
+                description="특수 어빌리티 슬롯을 비웁니다.",
+                default=special_equipped is None,
+            )
+        ]
+        special_candidates = self.cog.service.unlocked_special_skills(profile)
+        if special_equipped is not None:
+            special_candidates.sort(key=lambda skill: skill.id != special_equipped.id)
+        special_options.extend(
+            discord.SelectOption(
+                label=skill.name,
+                value=skill.id,
+                description=self.cog.service.skill_summary(skill)[:100],
+                default=special_equipped is not None and skill.id == special_equipped.id,
+            )
+            for skill in special_candidates[:24]
+        )
+        if len(special_options) > 1 or special_equipped is not None:
+            self.add_item(SpecialAbilityEquipSelect(special_options))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id == self.user_id:
@@ -5469,6 +5524,36 @@ class AbilityEquipSelect(discord.ui.Select):
             return
         selected = list(self.values)
         result = self.view.cog.service.set_equipped_skills(
+            self.view.user_id,
+            self.view.display_name,
+            selected,
+        )
+        await interaction.response.edit_message(
+            embed=self.view.cog._ability_embed(result.profile, result),
+            view=AbilityEquipView(self.view.cog, self.view.user_id, self.view.display_name),
+        )
+
+
+class SpecialAbilityEquipSelect(discord.ui.Select):
+    def __init__(self, options: list[discord.SelectOption]) -> None:
+        super().__init__(
+            placeholder="특수 어빌리티 선택",
+            min_values=1,
+            max_values=1,
+            options=options,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, AbilityEquipView)
+        active_session = self.view.cog._active_boss_session_for_user(self.view.user_id, started_only=True)
+        if active_session is not None:
+            await interaction.response.send_message(
+                f"{active_session.boss.name} 보스전 진행 중에는 어빌리티 장착을 바꿀 수 없습니다.",
+                ephemeral=True,
+            )
+            return
+        selected = "" if self.values[0] == "__none__" else self.values[0]
+        result = self.view.cog.service.set_equipped_special_skill(
             self.view.user_id,
             self.view.display_name,
             selected,

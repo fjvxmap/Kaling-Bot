@@ -539,9 +539,17 @@ class RPGService:
         return "으로"
 
     def unlocked_skills(self, profile: PlayerProfile) -> list[SkillTemplate]:
+        return self._unlocked_skills(profile, special=False)
+
+    def unlocked_special_skills(self, profile: PlayerProfile) -> list[SkillTemplate]:
+        return self._unlocked_skills(profile, special=True)
+
+    def _unlocked_skills(self, profile: PlayerProfile, *, special: bool) -> list[SkillTemplate]:
         chain_ids = {job.id for job in self.job_chain(profile)}
         skills: list[SkillTemplate] = []
         for skill in SKILLS:
+            if skill.special != special:
+                continue
             if profile.level < skill.unlock_level:
                 continue
             if skill.job_ids and not chain_ids.intersection(skill.job_ids):
@@ -556,6 +564,19 @@ class RPGService:
             for skill_id in profile.equipped_skill_ids
             if skill_id in available
         ][:MAX_EQUIPPED_SKILLS]
+        return skills
+
+    def equipped_special_skill(self, profile: PlayerProfile) -> SkillTemplate | None:
+        if not profile.equipped_special_skill_id:
+            return None
+        available = {skill.id: skill for skill in self.unlocked_special_skills(profile)}
+        return available.get(profile.equipped_special_skill_id)
+
+    def combat_skills(self, profile: PlayerProfile) -> list[SkillTemplate]:
+        skills = self.equipped_skills(profile)
+        special_skill = self.equipped_special_skill(profile)
+        if special_skill is not None:
+            skills.append(special_skill)
         return skills
 
     def set_equipped_skills(self, user_id: int, display_name: str, skill_ids: list[str]) -> AbilityResult:
@@ -574,6 +595,22 @@ class RPGService:
             "어빌리티 장착을 저장했습니다.",
             profile,
             [available[skill_id] for skill_id in selected],
+        )
+
+    def set_equipped_special_skill(self, user_id: int, display_name: str, skill_id: str) -> AbilityResult:
+        profile = self.get_profile(user_id, display_name)
+        available = {skill.id: skill for skill in self.unlocked_special_skills(profile)}
+        selected = str(skill_id or "")
+        if selected and selected not in available:
+            selected = ""
+        profile.equipped_special_skill_id = selected
+        self._save()
+        equipped = [available[selected]] if selected else []
+        return AbilityResult(
+            True,
+            "특수 어빌리티 장착을 저장했습니다.",
+            profile,
+            equipped,
         )
 
     def craft_item(self, user_id: int, display_name: str, recipe_id: str) -> CraftResult:
@@ -4120,11 +4157,20 @@ class RPGService:
         profile.equipped_item_uids = cleaned
 
     def _cleanup_equipped_skills(self, profile: PlayerProfile) -> None:
+        previous_skill_ids = list(profile.equipped_skill_ids)
         available = {skill.id for skill in self.unlocked_skills(profile)}
         profile.equipped_skill_ids = [
             skill_id for skill_id in profile.equipped_skill_ids
             if skill_id in available
         ][:MAX_EQUIPPED_SKILLS]
+        special_available = {skill.id for skill in self.unlocked_special_skills(profile)}
+        if profile.equipped_special_skill_id not in special_available:
+            profile.equipped_special_skill_id = ""
+        if not profile.equipped_special_skill_id:
+            for skill_id in previous_skill_ids:
+                if skill_id in special_available:
+                    profile.equipped_special_skill_id = skill_id
+                    break
 
     def _save(self) -> None:
         self.store.save_profiles(self._profiles)

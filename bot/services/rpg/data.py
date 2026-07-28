@@ -316,6 +316,7 @@ class SkillTemplate:
     uses: int = 0
     cooldown: int = 0
     role: str = "attack"
+    special: bool = False
     damage_multiplier: float = 0.0
     hits: int = 0
     player_mods: dict[str, float] = field(default_factory=dict)
@@ -1242,6 +1243,7 @@ def _skill(raw: dict[str, Any]) -> SkillTemplate:
         uses=int(raw.get("uses", 0)),
         cooldown=int(raw.get("cooldown", 0)),
         role=str(raw.get("role", "attack")),
+        special=bool(raw.get("special", raw.get("is_special", False))),
         damage_multiplier=float(raw.get("damage_multiplier", 0.0)),
         hits=int(raw.get("hits", 0)),
         player_mods=_stat_effect_totals(player_stat_effects),

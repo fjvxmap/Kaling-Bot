@@ -128,6 +128,8 @@ def normalize_content(content: dict[str, Any]) -> None:
             normalize_stack_effect(effect, stat_order_index)
     for skill in content.get("skills", []):
         if isinstance(skill, dict):
+            skill["special"] = bool(skill.get("special", skill.get("is_special", False)))
+            skill.pop("is_special", None)
             duration = safe_int(skill.get("duration"), 1)
             player_undispellable = bool(skill.get("player_undispellable", skill.get("undispellable", False)))
             enemy_undispellable = bool(skill.get("enemy_undispellable", False))
