@@ -17,7 +17,8 @@
     ],
     "note": "적을 향해 화살을 연속 발사한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "critical_shot",
@@ -46,7 +47,8 @@
     ],
     "note": "1턴 간 크리티컬 확률이 증가한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "wind_arrow",
@@ -66,7 +68,8 @@
     ],
     "note": "수 발의 화살을 바람처럼 빠르게 난사한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "covering_fire",
@@ -96,7 +99,8 @@
       }
     ],
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "bow_acceleration",
@@ -132,7 +136,8 @@
     ],
     "note": "일시적으로 민첩성이 증가한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "pheonix",
@@ -168,7 +173,8 @@
     ],
     "note": "일정 시간 동안 불 속성을 지닌 피닉스를 소환한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "speed_mirage",
@@ -198,7 +204,8 @@
           "undispellable": true
         }
       ]
-    }
+    },
+    "special": false
   },
   {
     "id": "arrow_blaster",
@@ -228,7 +235,8 @@
       ]
     },
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "hurricane",
@@ -248,7 +256,8 @@
     ],
     "note": "폭풍우가 몰아치듯 빠른 속도로 화살을 발사한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "sharp_eyes",
@@ -285,7 +294,8 @@
     ],
     "note": "일정 시간 동안 자신에게 적의 약점을 찾아 치명상을 입힐 수 있는 능력을 부여한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "bow_expert",
@@ -321,7 +331,8 @@
     ],
     "note": "일시적으로 공격력, 크리티컬 데미지를 증가시킨다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "miserable_mist",
@@ -355,7 +366,8 @@
     "job_ids": [],
     "note": "",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "piercing_arrow",
@@ -375,7 +387,8 @@
     ],
     "note": "적을 꿰뚫을 때마다 데미지가 증폭되는 관통 화살을 발사한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "crossbow_acceleration",
@@ -411,7 +424,8 @@
     ],
     "note": "일시적으로 민첩성이 증가한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "enhance_piercing",
@@ -431,7 +445,8 @@
     ],
     "note": "\t\n강화된 관통 화살을 발사해 적을 꿰뚫어 공격한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "frostprey",
@@ -469,7 +484,8 @@
     ],
     "note": "일정 시간 동안 냉기 속성을 지닌 프리져를 소환한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "bolt_burst",
@@ -489,7 +505,8 @@
     ],
     "note": "화살을 사방으로 발사해 주변에 있는 다수의 적을 공격한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "piercing_arrow_ii",
@@ -518,7 +535,8 @@
     ],
     "note": "피어싱이 강화된다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "snipe",
@@ -556,7 +574,8 @@
     ],
     "note": "몬스터의 급소를 정확히 노려 치명적인 공격을 가한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "slash_blast",
@@ -576,7 +595,8 @@
     ],
     "note": "주위의 적을 공격한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "iron_body",
@@ -619,7 +639,8 @@
     ],
     "note": "자신의 방어력과 최대 HP를 일정 비율 증가시키고, 적에게 피격 시 받는 데미지가 감소한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "brandish",
@@ -639,7 +660,8 @@
     ],
     "note": "눈 앞의 적을 두 번 연속 공격한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "combo_attack",
@@ -668,7 +690,8 @@
     ],
     "note": "콤보 카운트를 누적시켜 공격력을 증가시킨다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "spirit_blade",
@@ -704,7 +727,8 @@
         "undispellable": false
       }
     ],
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "intrepid_slash",
@@ -724,7 +748,8 @@
     ],
     "note": "전방의 적을 세 번 연속 공격한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "scarring_sword",
@@ -777,7 +802,8 @@
       ]
     },
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "combo_synergy",
@@ -816,7 +842,8 @@
         }
       ]
     },
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "raging_blow",
@@ -845,7 +872,8 @@
     ],
     "note": "전방의 적을 순식간에 여러 번 베어낸다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "magic_crash",
@@ -889,7 +917,8 @@
     ],
     "note": "주변 적들에게 적용된 버프를 2개 해제하고, 공격력과 방어력을 감소시킨다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "rising_rage",
@@ -928,7 +957,8 @@
         }
       ]
     },
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "divine_swing",
@@ -948,7 +978,8 @@
     ],
     "note": "신성한 망치를 크게 휘둘러 주변의 적을 공격한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "holy_charge",
@@ -998,7 +1029,8 @@
     ],
     "note": "신성한 빛의 힘을 충전하여 자신을 강화한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "page_order",
@@ -1027,7 +1059,8 @@
     ],
     "note": "좌우의 적들을 성스러운 망치로 당겨 나를 향해 오게 하며 데미지를 입히며 약화시킨다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "divine_charge",
@@ -1063,7 +1096,8 @@
     ],
     "note": "순간적으로 신성한 망치를 소환하여 적들에게 내리찍어 데미지를 입히고 약화시킨다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "hp_recovery",
@@ -1087,7 +1121,8 @@
       "value": 0.5
     },
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "parashock_guard",
@@ -1123,7 +1158,8 @@
     ],
     "note": "주위 파티원들의 피격 시 데미지를 감소시키고 자신의 공격력을 증가시킨다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "blast",
@@ -1143,7 +1179,8 @@
     ],
     "note": "성스러운 빛의 기사와 하나가 되어 적들을 강력하게 공격한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "divine_blessing",
@@ -1173,7 +1210,8 @@
         }
       ]
     },
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "energy_bolt",
@@ -1193,7 +1231,8 @@
     ],
     "note": "적에게 닿으면 폭발하는 에너지 응집체를 발사한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "magic_guard",
@@ -1222,7 +1261,8 @@
     ],
     "note": "마법의 힘으로 받는 데미지를 감소시킨다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "flame_orb",
@@ -1242,7 +1282,8 @@
     ],
     "note": "마법의 힘으로 불타는 오브를 만들어 다수의 적을 향해 발사한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "poison_breath",
@@ -1262,7 +1303,8 @@
     ],
     "note": "주변의 대기를 맹독성으로 바꿔 적에게 치명적인 피해를 입힌다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "cold_beam",
@@ -1298,7 +1340,8 @@
     ],
     "note": "전방에 날카로운 얼음 수정을 자라나게 한다. 명중한 적은 빙결 상태가 되어 연속 공격 확률이 감소한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "thunderbolt",
@@ -1318,7 +1361,8 @@
     ],
     "note": "자신의 주변에 강력한 자기장을 생성하여 적에게 번개를 떨어뜨린다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "meditation",
@@ -1348,7 +1392,8 @@
     ],
     "note": "잠시 동안의 명상을 통해 내면의 집중력을 활성화시켜 모든 파티원의 공격력을 일시적으로 증가시킨다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "ice_strike",
@@ -1384,7 +1429,8 @@
     ],
     "note": "자신의 주변에 얼음 폭풍을 일으켜 공격한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "thunder_sphere",
@@ -1421,7 +1467,8 @@
       ]
     },
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "elemental_adaptation",
@@ -1458,7 +1505,8 @@
     ],
     "note": "얼음과 번개의 보호막을 펼친다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "chain_lightning",
@@ -1487,7 +1535,8 @@
     ],
     "note": "대상에게 고압의 전류를 발사한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "freezing_breath",
@@ -1539,7 +1588,8 @@
     ],
     "note": "강력한 냉기로 적들과 자신을 얼려 연속 공격 확률과 방어력을 감소시킨다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "blizzard",
@@ -1593,7 +1643,8 @@
       ]
     },
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "explosion",
@@ -1613,7 +1664,8 @@
     ],
     "note": "자신의 주변에 화염 폭발을 일으켜 다수의 적을 동시에 공격한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "poison_mist",
@@ -1649,7 +1701,8 @@
     ],
     "note": "자신의 주변에 치명적인 독 안개를 생성하여 모든 적들을 중독시켜 독 속성으로 공격한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "flame_sweep",
@@ -1669,7 +1722,8 @@
     ],
     "note": "전방을 강력한 화염으로 휩쓴다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "mist_eruption",
@@ -1698,7 +1752,8 @@
     ],
     "note": "주변에 설치된 포이즌 미스트들을 폭발시켜 적에게 치명적인 독 속성 데미지를 준다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "meteor_shower",
@@ -1738,7 +1793,8 @@
       ]
     },
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "holy_arrow",
@@ -1758,7 +1814,8 @@
     ],
     "note": "성스러운 화살을 소환하여 적에게 발사한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "heal_bishop",
@@ -1792,7 +1849,8 @@
       ]
     },
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "angelic_touch",
@@ -1821,7 +1879,8 @@
     ],
     "note": "천사를 강림시켜 적에게 천사의 손길을 선물한다. 천사에게 피격된 적은 약화되어 일정 시간 동안 방어율이 감소한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "shining_ray",
@@ -1841,7 +1900,8 @@
     ],
     "note": "성스러운 빛으로 적에게 데미지를 준다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "dispel",
@@ -1873,7 +1933,8 @@
     ],
     "note": "적의 마법효과를 무효화함과 동시에 자신을 포함한 주변 파티원들의 일부 상태 이상을 치료한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "holy_magic_shell",
@@ -1926,7 +1987,8 @@
           "undispellable": false
         }
       ]
-    }
+    },
+    "special": false
   },
   {
     "id": "angel_ray",
@@ -1950,7 +2012,8 @@
       "value": 0.1
     },
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "genesis",
@@ -1970,7 +2033,8 @@
     ],
     "note": "하늘로부터 신성한 빛의 기둥을 떨어뜨려 강력한 성속성 공격을 가한다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "advanced_bless",
@@ -2020,7 +2084,8 @@
     ],
     "note": "일정 시간 동안 주변 파티원들의 공격력, 방어력, 최대 HP를 크게 높여준다.",
     "stats": {},
-    "heal_target": "self"
+    "heal_target": "self",
+    "special": false
   },
   {
     "id": "len_1",
@@ -2040,7 +2105,8 @@
       "len_1"
     ],
     "note": "적을 벤다.",
-    "stats": {}
+    "stats": {},
+    "special": false
   },
   {
     "id": "len_2",
@@ -2083,7 +2149,8 @@
       "len_1"
     ],
     "note": "심법을 수련하여 정순한 내공을 쌓는다.",
-    "stats": {}
+    "stats": {},
+    "special": false
   },
   {
     "id": "len_3",
@@ -2103,7 +2170,8 @@
       "len_2"
     ],
     "note": "적을 찌른다.",
-    "stats": {}
+    "stats": {},
+    "special": false
   },
   {
     "id": "len_4",
@@ -2133,7 +2201,8 @@
           "undispellable": true
         }
       ]
-    }
+    },
+    "special": false
   },
   {
     "id": "len_5",
@@ -2172,7 +2241,8 @@
           "undispellable": true
         }
       ]
-    }
+    },
+    "special": false
   },
   {
     "id": "len_6",
@@ -2192,7 +2262,8 @@
       "len_3"
     ],
     "note": "날카로운 검격이 적을 관통한다.",
-    "stats": {}
+    "stats": {},
+    "special": false
   },
   {
     "id": "len_7",
@@ -2223,7 +2294,8 @@
         }
       ]
     },
-    "stats": {}
+    "stats": {},
+    "special": false
   },
   {
     "id": "len_8",
@@ -2243,7 +2315,8 @@
       "len_3"
     ],
     "note": "이무기의 내공을 직접 실은 검법을 펼친다.",
-    "stats": {}
+    "stats": {},
+    "special": false
   },
   {
     "id": "len_9",
@@ -2263,7 +2336,8 @@
       "len_4"
     ],
     "note": "검을 매우 빠르게 휘둘러 전방의 적을 크게 베어낸다.",
-    "stats": {}
+    "stats": {},
+    "special": false
   },
   {
     "id": "len_10",
@@ -2293,7 +2367,8 @@
         }
       ]
     },
-    "stats": {}
+    "stats": {},
+    "special": false
   },
   {
     "id": "len_11",
@@ -2338,7 +2413,8 @@
       "len_4"
     ],
     "note": "가장 완벽한 검로를 꿰뚫어 보는 통찰력을 얻는다.",
-    "stats": {}
+    "stats": {},
+    "special": false
   },
   {
     "id": "skill",
@@ -2363,7 +2439,8 @@
     ],
     "job_ids": [],
     "note": "",
-    "stats": {}
+    "stats": {},
+    "special": false
   },
   {
     "id": "decimate",
@@ -2381,7 +2458,8 @@
     "damage_cut": 0,
     "job_ids": [],
     "note": ".",
-    "stats": {}
+    "stats": {},
+    "special": false
   },
   {
     "id": "clarity",
@@ -2406,7 +2484,8 @@
     ],
     "job_ids": [],
     "note": "파티원 전체의 디버프를 1개 제거한다.",
-    "stats": {}
+    "stats": {},
+    "special": false
   },
   {
     "id": "heal",
@@ -2428,6 +2507,254 @@
       "mode": "max_hp_ratio",
       "value": 0.1
     },
+    "stats": {},
+    "special": false
+  },
+  {
+    "id": "banahogg",
+    "name": "바나호그",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "attack",
+    "special": true,
+    "damage_multiplier": 0.7,
+    "hits": 6,
+    "player_mods": {},
+    "enemy_mods": {},
+    "enemy_stat_effects": [
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.25,
+        "duration": 12,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "swordman"
+    ],
+    "note": "",
+    "stats": {}
+  },
+  {
+    "id": "norden_harr",
+    "name": "노어든 할",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 6,
+    "role": "buff",
+    "special": true,
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "dmg_amplification",
+        "target": "self",
+        "value": 0.2,
+        "duration": 3,
+        "undispellable": false
+      },
+      {
+        "stat": "triple_attack_rate",
+        "target": "self",
+        "value": 1.0,
+        "duration": 3,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "swordman"
+    ],
+    "note": "",
+    "player_effects": {
+      "bonus_damage": [
+        {
+          "ratio": 0.3,
+          "target": "self",
+          "duration": 1,
+          "undispellable": false
+        }
+      ]
+    },
+    "stats": {}
+  },
+  {
+    "id": "high_chaser",
+    "name": "하이 체이서",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 12,
+    "role": "buff",
+    "special": true,
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "dmg_amplification",
+        "target": "self",
+        "value": 0.1,
+        "duration": 5,
+        "undispellable": false
+      },
+      {
+        "stat": "critical_rate",
+        "target": "self",
+        "value": 1.0,
+        "duration": 5,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "magician"
+    ],
+    "note": "",
+    "player_effects": {
+      "bonus_damage": [
+        {
+          "ratio": 0.2,
+          "target": "self",
+          "duration": 5,
+          "undispellable": false
+        }
+      ],
+      "double_strike": {
+        "count": 2,
+        "target": "self",
+        "duration": 1,
+        "undispellable": false
+      }
+    },
+    "stats": {}
+  },
+  {
+    "id": "laser_focus",
+    "name": "레이저 포커스",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "buff",
+    "special": true,
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.25,
+        "duration": 2,
+        "undispellable": true
+      },
+      {
+        "stat": "skill_damage",
+        "target": "self",
+        "value": 0.8,
+        "duration": 2,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "magician"
+    ],
+    "note": "",
+    "stats": {}
+  },
+  {
+    "id": "quick_step",
+    "name": "퀵 스텝",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "buff",
+    "special": true,
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "atk",
+        "target": "self",
+        "value": 0.8,
+        "duration": 2,
+        "undispellable": false
+      },
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": 0.5,
+        "duration": 2,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "archer"
+    ],
+    "note": ""
+  },
+  {
+    "id": "sei_colpi",
+    "name": "세이스 헤이븐",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 6,
+    "role": "debuff",
+    "special": true,
+    "damage_multiplier": 0.2,
+    "hits": 6,
+    "player_mods": {},
+    "enemy_mods": {},
+    "enemy_stat_effects": [
+      {
+        "stat": "atk",
+        "target": "self",
+        "value": -0.25,
+        "duration": 12,
+        "undispellable": false
+      },
+      {
+        "stat": "defense",
+        "target": "self",
+        "value": -0.25,
+        "duration": 12,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "effect_actions": [
+      {
+        "action": "dispel",
+        "target": "enemy",
+        "count": 1
+      }
+    ],
+    "job_ids": [
+      "archer"
+    ],
+    "note": "",
     "stats": {}
   }
 ]
