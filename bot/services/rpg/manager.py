@@ -1664,23 +1664,38 @@ class RPGService:
                 item.potential_grade = ""
                 item.potential_lines = []
                 return
-            if item.potential_grade not in POTENTIAL_GRADES or len(item.potential_lines) != 3:
+            if item.potential_grade not in POTENTIAL_GRADES:
                 item.potential_grade = "unique"
-                item.potential_lines = self._roll_potential_lines("unique")
+            self._migrate_lowest_potential_lines(item)
+            if not self._potential_lines_valid(item):
+                item.potential_lines = self._roll_potential_lines(item.potential_grade)
             return
 
         item.potential_locked = False
-        grade_valid = item.potential_grade in POTENTIAL_GRADES
-        grade_index = POTENTIAL_LINE_GRADES.index(item.potential_grade) if grade_valid else -1
-        allowed_line_grades = {
-            POTENTIAL_LINE_GRADES[index]
-            for index in (grade_index, grade_index - 1)
-            if index >= 0
-        }
-        lines_valid = (
-            grade_valid
-            and len(item.potential_lines) == 3
-            and item.potential_lines[0].grade == item.potential_grade
+        if item.potential_grade not in POTENTIAL_GRADES:
+            item.potential_grade = self._roll_initial_potential_grade()
+        self._migrate_lowest_potential_lines(item)
+        if not self._potential_lines_valid(item):
+            item.potential_lines = self._roll_potential_lines(item.potential_grade)
+
+    def _migrate_lowest_potential_lines(self, item: ItemInstance) -> None:
+        if not POTENTIAL_GRADES or item.potential_grade != POTENTIAL_GRADES[0]:
+            return
+        for line in item.potential_lines:
+            option = POTENTIAL_OPTION_BY_ID.get(line.option_id)
+            if option is not None and option.values.get(item.potential_grade, 0.0) != 0:
+                line.grade = item.potential_grade
+
+    def _potential_lines_valid(self, item: ItemInstance) -> bool:
+        if item.potential_grade not in POTENTIAL_GRADES or len(item.potential_lines) != 3:
+            return False
+        grade_index = POTENTIAL_LINE_GRADES.index(item.potential_grade)
+        allowed_line_grades = {item.potential_grade}
+        # Rare is the project-specific floor: all three lines remain Rare.
+        if item.potential_grade != POTENTIAL_GRADES[0] and grade_index > 0:
+            allowed_line_grades.add(POTENTIAL_LINE_GRADES[grade_index - 1])
+        return (
+            item.potential_lines[0].grade == item.potential_grade
             and all(
                 line.grade in allowed_line_grades
                 and line.option_id in POTENTIAL_OPTION_BY_ID
@@ -1688,10 +1703,6 @@ class RPGService:
                 for line in item.potential_lines
             )
         )
-        if not grade_valid:
-            item.potential_grade = self._roll_initial_potential_grade()
-        if not lines_valid:
-            item.potential_lines = self._roll_potential_lines(item.potential_grade)
 
     def _roll_initial_potential_grade(self) -> str:
         grades = list(POTENTIAL_GRADES)
@@ -1704,10 +1715,15 @@ class RPGService:
         grade_index = POTENTIAL_LINE_GRADES.index(grade)
         lines: list[PotentialLine] = []
         for line_index in range(3):
-            same_rate = POTENTIAL_LINE_SAME_GRADE_RATES[line_index] if line_index < len(POTENTIAL_LINE_SAME_GRADE_RATES) else 0.0
             line_grade = grade
-            if grade_index > 0 and self.rng.random() >= same_rate:
-                line_grade = POTENTIAL_LINE_GRADES[grade_index - 1]
+            if line_index > 0 and grade != POTENTIAL_GRADES[0] and grade_index > 0:
+                same_rate = (
+                    POTENTIAL_LINE_SAME_GRADE_RATES[line_index]
+                    if line_index < len(POTENTIAL_LINE_SAME_GRADE_RATES)
+                    else 0.0
+                )
+                if self.rng.random() >= same_rate:
+                    line_grade = POTENTIAL_LINE_GRADES[grade_index - 1]
             options = [
                 option for option in POTENTIAL_OPTIONS
                 if option.values.get(line_grade, 0.0) != 0 and option.weights.get(line_grade, 0.0) > 0
@@ -2606,12 +2622,14 @@ class RPGService:
         for item in self.equipped_items(profile):
             for key, value in scaled_item_stats(item.template_id, item.stars).items():
                 self._apply_stat(stats, key, value)
+            # Potential is an instance bonus and deliberately ignores Starforce scaling.
             for key, value in self.potential_stats(item).items():
                 self._apply_stat(stats, key, value)
         stats.base_atk = max(1, int(stats.base_atk))
         stats.max_hp = max(1, int(stats.max_hp))
         stats.defense = self._capped_defense(stats.defense)
         stats.defense_ignore = max(0.0, min(0.4, float(stats.defense_ignore)))
+        stats.dmg_supplement = max(0.0, min(100.0, float(stats.dmg_supplement)))
         stats.skill_dmg_supplement = max(0.0, min(200.0, float(stats.skill_dmg_supplement)))
         stats.life_steal_cap = max(0.0, float(stats.life_steal_cap))
         stats.healing_bonus = max(-1.0, float(stats.healing_bonus))

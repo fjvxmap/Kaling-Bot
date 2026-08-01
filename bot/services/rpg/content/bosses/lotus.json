@@ -265,11 +265,17 @@
     "warnings_by_hp": [
       {
         "above": 1,
-        "warning_id": "tracking_lasers"
+        "warning_id": "tracking_lasers",
+        "warning_ids": [
+          "tracking_lasers"
+        ]
       },
       {
         "above": 0.3,
-        "warning_id": "laser_web"
+        "warning_id": "laser_web",
+        "warning_ids": [
+          "laser_web"
+        ]
       }
     ]
   },
@@ -330,7 +336,8 @@
             "target": "self",
             "count": 1,
             "stack_effect_id": "annihilation",
-            "value": 1
+            "value": 1,
+            "duration": -1
           }
         ],
         "duration": 0,

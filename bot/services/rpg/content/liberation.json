@@ -3,31 +3,67 @@
   "weapons": [
     {
       "template_id": "genesis_two_handed_sword",
-      "job_ids": ["swordman", "fighter", "crusader", "hero"]
+      "job_ids": [
+        "swordman",
+        "fighter",
+        "crusader",
+        "hero"
+      ]
     },
     {
       "template_id": "genesis_one_handed_sword",
-      "job_ids": ["page", "white_knight", "paladin"]
+      "job_ids": [
+        "page",
+        "white_knight",
+        "paladin"
+      ]
     },
     {
       "template_id": "genesis_bow",
-      "job_ids": ["archer", "hunter", "ranger", "bowmaster"]
+      "job_ids": [
+        "archer",
+        "hunter",
+        "ranger",
+        "bowmaster"
+      ]
     },
     {
       "template_id": "genesis_crossbow",
-      "job_ids": ["crossbowman", "sniper", "marksman"]
+      "job_ids": [
+        "crossbowman",
+        "sniper",
+        "marksman"
+      ]
     },
     {
       "template_id": "genesis_staff",
-      "job_ids": ["magician", "wizard_fp", "mage_fp", "archmage_fp", "wizard_il", "mage_il", "archmage_il"]
+      "job_ids": [
+        "magician",
+        "wizard_fp",
+        "mage_fp",
+        "archmage_fp",
+        "wizard_il",
+        "mage_il",
+        "archmage_il"
+      ]
     },
     {
       "template_id": "genesis_wand",
-      "job_ids": ["cleric", "priest", "bishop"]
+      "job_ids": [
+        "cleric",
+        "priest",
+        "bishop"
+      ]
     },
     {
       "template_id": "genesis_creation_sword",
-      "job_ids": ["len_0", "len_1", "len_2", "len_3", "len_4"]
+      "job_ids": [
+        "len_0",
+        "len_1",
+        "len_2",
+        "len_3",
+        "len_4"
+      ]
     }
   ],
   "stages": [

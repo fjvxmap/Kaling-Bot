@@ -423,7 +423,8 @@
             "target": "self",
             "count": 1,
             "stack_effect_id": "evangelists_blade",
-            "value": 1
+            "value": 1,
+            "duration": -1
           }
         ]
       }

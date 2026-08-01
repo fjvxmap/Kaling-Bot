@@ -9,7 +9,10 @@
     },
     "base_price": 1,
     "description": "가디언 엔젤 슬라임이 왕관처럼 사용하던 반지이다. 씌우면 그대로 통과할 것 같은데 어떻게 쓴 것일까",
-    "excluded_from_gacha": true
+    "excluded_from_gacha": true,
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "hraesvelgr",
@@ -43,7 +46,10 @@
       "triple_attack_rate",
       "double_attack_rate"
     ],
-    "excluded_from_gacha": true
+    "excluded_from_gacha": true,
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "eden",
@@ -54,7 +60,10 @@
       "strength": 0.14
     },
     "base_price": 1,
-    "description": "샛별이자 빛의 인도자, 금단의 어둠으로 추락하노라.\n한때 새벽의 자식이었던 그는, 이제 금기를 범한 죄로 몸을 씻었다.\n그러나 더럽혀진 날개일지라도, 끝내 그는 어리석은 자의 심연을 밝히리라."
+    "description": "샛별이자 빛의 인도자, 금단의 어둠으로 추락하노라.\n한때 새벽의 자식이었던 그는, 이제 금기를 범한 죄로 몸을 씻었다.\n그러나 더럽혀진 날개일지라도, 끝내 그는 어리석은 자의 심연을 밝히리라.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "wooden_sword",
@@ -64,7 +73,10 @@
       "atk": 0.05
     },
     "base_price": 20,
-    "description": "적당한 굵기의 나뭇가지를 주워 급조한 목검이다."
+    "description": "적당한 굵기의 나뭇가지를 주워 급조한 목검이다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "hrunting",
@@ -95,7 +107,10 @@
     "fixed_stats": [
       "defense"
     ],
-    "excluded_from_gacha": true
+    "excluded_from_gacha": true,
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "bronze_sword",
@@ -105,7 +120,10 @@
       "atk": 0.04
     },
     "base_price": 18,
-    "description": "브론즈 소드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "브론즈 소드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "bronze_dagger",
@@ -116,7 +134,10 @@
       "double_attack_rate": 0.02
     },
     "base_price": 21,
-    "description": "브론즈 대거. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "브론즈 대거. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "bronze_spear",
@@ -126,7 +147,10 @@
       "base_atk": 6
     },
     "base_price": 24,
-    "description": "브론즈 스피어. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "브론즈 스피어. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "bronze_axe",
@@ -137,7 +161,10 @@
       "defense": -0.01
     },
     "base_price": 27,
-    "description": "브론즈 액스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "브론즈 액스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "bronze_knuckle",
@@ -147,7 +174,10 @@
       "critical_rate": 0.03
     },
     "base_price": 30,
-    "description": "브론즈 너클. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "브론즈 너클. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "bronze_bow",
@@ -158,7 +188,10 @@
       "critical_rate": 0.02
     },
     "base_price": 33,
-    "description": "브론즈 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "브론즈 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "bronze_wand",
@@ -168,7 +201,10 @@
       "max_hp": 11
     },
     "base_price": 36,
-    "description": "브론즈 완드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "브론즈 완드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "bronze_gun",
@@ -179,7 +215,10 @@
       "critical_rate": 0.02
     },
     "base_price": 39,
-    "description": "브론즈 건. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "브론즈 건. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "iron_sword",
@@ -189,7 +228,10 @@
       "atk": 0.06
     },
     "base_price": 42,
-    "description": "아이언 소드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "아이언 소드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "iron_dagger",
@@ -200,7 +242,10 @@
       "double_attack_rate": 0.01
     },
     "base_price": 45,
-    "description": "아이언 대거. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "아이언 대거. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "iron_spear",
@@ -210,7 +255,10 @@
       "base_atk": 4
     },
     "base_price": 48,
-    "description": "아이언 스피어. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "아이언 스피어. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "iron_axe",
@@ -221,7 +269,10 @@
       "defense": -0.01
     },
     "base_price": 51,
-    "description": "아이언 액스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "아이언 액스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "iron_knuckle",
@@ -231,7 +282,10 @@
       "critical_rate": 0.02
     },
     "base_price": 54,
-    "description": "아이언 너클. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "아이언 너클. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "iron_bow",
@@ -242,7 +296,10 @@
       "critical_rate": 0.02
     },
     "base_price": 57,
-    "description": "아이언 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "아이언 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "iron_staff",
@@ -252,7 +309,10 @@
       "critical_damage": 0.04
     },
     "base_price": 60,
-    "description": "아이언 스태프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "아이언 스태프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "iron_gun",
@@ -263,7 +323,10 @@
       "critical_rate": 0.02
     },
     "base_price": 63,
-    "description": "아이언 건. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "아이언 건. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "oak_staff",
@@ -273,7 +336,10 @@
       "defense": 0.03
     },
     "base_price": 66,
-    "description": "오크 스태프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "오크 스태프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "oak_bow",
@@ -284,7 +350,10 @@
       "critical_rate": 0.02
     },
     "base_price": 69,
-    "description": "오크 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "오크 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "cedar_wand",
@@ -294,7 +363,10 @@
       "max_hp": 17
     },
     "base_price": 72,
-    "description": "시더 완드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "시더 완드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "willow_rod",
@@ -304,7 +376,10 @@
       "defense": 0.03
     },
     "base_price": 75,
-    "description": "윌로우 로드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "윌로우 로드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "short_sword",
@@ -314,7 +389,10 @@
       "atk": 0.06
     },
     "base_price": 78,
-    "description": "숏 소드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "숏 소드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "long_knife",
@@ -325,7 +403,10 @@
       "double_attack_rate": 0.01
     },
     "base_price": 81,
-    "description": "롱 나이프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "롱 나이프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "training_spear",
@@ -335,7 +416,10 @@
       "base_atk": 6
     },
     "base_price": 84,
-    "description": "수련용 스피어. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "수련용 스피어. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "hand_axe",
@@ -346,7 +430,10 @@
       "defense": -0.01
     },
     "base_price": 87,
-    "description": "핸드 액스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "핸드 액스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "buckler_blade",
@@ -357,7 +444,10 @@
       "defense": 0.02
     },
     "base_price": 90,
-    "description": "버클러 블레이드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "버클러 블레이드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "hunter_bow",
@@ -368,7 +458,10 @@
       "critical_rate": 0.02
     },
     "base_price": 93,
-    "description": "헌터 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "헌터 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "apprentice_staff",
@@ -378,7 +471,10 @@
       "critical_damage": 0.04
     },
     "base_price": 96,
-    "description": "견습 스태프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "견습 스태프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "rusty_blade",
@@ -389,7 +485,10 @@
       "atk": 0.02
     },
     "base_price": 99,
-    "description": "녹슨 블레이드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "녹슨 블레이드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "rusty_knife",
@@ -399,7 +498,10 @@
       "critical_rate": 0.03
     },
     "base_price": 102,
-    "description": "녹슨 나이프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "녹슨 나이프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "rusty_halberd",
@@ -410,7 +512,10 @@
       "critical_rate": 0.03
     },
     "base_price": 105,
-    "description": "녹슨 할버드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "녹슨 할버드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "rusty_club",
@@ -420,7 +525,10 @@
       "base_atk": 5
     },
     "base_price": 108,
-    "description": "녹슨 클럽. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "녹슨 클럽. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "sailor_cutlass",
@@ -431,7 +539,10 @@
       "atk": 0.02
     },
     "base_price": 111,
-    "description": "세일러 커틀러스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "세일러 커틀러스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "dock_hook",
@@ -441,7 +552,10 @@
       "critical_rate": 0.04
     },
     "base_price": 114,
-    "description": "도크 후크. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "도크 후크. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "militia_pike",
@@ -452,7 +566,10 @@
       "critical_rate": 0.01
     },
     "base_price": 117,
-    "description": "민병대 파이크. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "민병대 파이크. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "peasant_hammer",
@@ -462,7 +579,10 @@
       "base_atk": 9
     },
     "base_price": 120,
-    "description": "농부 해머. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "농부 해머. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "street_mace",
@@ -473,7 +593,10 @@
       "defense": -0.01
     },
     "base_price": 123,
-    "description": "스트리트 메이스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "스트리트 메이스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "copper_rapier",
@@ -483,7 +606,10 @@
       "base_atk": 5
     },
     "base_price": 126,
-    "description": "카퍼 레이피어. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "카퍼 레이피어. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "copper_sabre",
@@ -494,7 +620,10 @@
       "atk": 0.02
     },
     "base_price": 129,
-    "description": "카퍼 세이버. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "카퍼 세이버. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "copper_lance",
@@ -504,7 +633,10 @@
       "base_atk": 7
     },
     "base_price": 132,
-    "description": "카퍼 랜스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "카퍼 랜스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "copper_tomahawk",
@@ -515,7 +647,10 @@
       "defense": -0.01
     },
     "base_price": 135,
-    "description": "카퍼 토마호크. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "카퍼 토마호크. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "bone_dagger",
@@ -525,7 +660,10 @@
       "critical_rate": 0.03
     },
     "base_price": 138,
-    "description": "본 대거. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "본 대거. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "bone_spear",
@@ -536,7 +674,10 @@
       "critical_rate": 0.03
     },
     "base_price": 141,
-    "description": "본 스피어. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "본 스피어. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "bone_club",
@@ -546,7 +687,10 @@
       "base_atk": 7
     },
     "base_price": 144,
-    "description": "본 클럽. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "본 클럽. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "stone_axe",
@@ -557,7 +701,10 @@
       "defense": -0.01
     },
     "base_price": 147,
-    "description": "스톤 액스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "스톤 액스. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "stone_sling",
@@ -567,7 +714,10 @@
       "double_attack_rate": 0.04
     },
     "base_price": 150,
-    "description": "스톤 슬링. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "스톤 슬링. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "plain_katana",
@@ -578,7 +728,10 @@
       "atk": 0.02
     },
     "base_price": 153,
-    "description": "무명 카타나. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "무명 카타나. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "plain_nodachi",
@@ -588,7 +741,10 @@
       "base_atk": 6
     },
     "base_price": 156,
-    "description": "무명 노다치. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "무명 노다치. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "field_bow",
@@ -599,7 +755,10 @@
       "critical_rate": 0.02
     },
     "base_price": 159,
-    "description": "필드 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "필드 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "field_crossbow",
@@ -609,7 +768,10 @@
       "double_attack_rate": 0.02
     },
     "base_price": 162,
-    "description": "필드 크로스보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "필드 크로스보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "novice_tome",
@@ -619,7 +781,10 @@
       "defense": 0.03
     },
     "base_price": 165,
-    "description": "초심자 마도서. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "초심자 마도서. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "novice_harp",
@@ -629,7 +794,10 @@
       "critical_damage": 0.04
     },
     "base_price": 168,
-    "description": "초심자 하프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "초심자 하프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "novice_orb",
@@ -639,7 +807,10 @@
       "max_hp": 11
     },
     "base_price": 171,
-    "description": "초심자 오브. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "초심자 오브. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "tin_rod",
@@ -649,7 +820,10 @@
       "defense": 0.03
     },
     "base_price": 174,
-    "description": "틴 로드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "틴 로드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "tin_blade",
@@ -660,7 +834,10 @@
       "atk": 0.02
     },
     "base_price": 177,
-    "description": "틴 블레이드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "틴 블레이드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "tin_claw",
@@ -670,7 +847,10 @@
       "critical_rate": 0.02
     },
     "base_price": 180,
-    "description": "틴 클로. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "틴 클로. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "traveler_sword",
@@ -681,7 +861,10 @@
       "atk": 0.02
     },
     "base_price": 183,
-    "description": "여행자 소드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "여행자 소드. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "traveler_dagger",
@@ -691,7 +874,10 @@
       "critical_rate": 0.04
     },
     "base_price": 186,
-    "description": "여행자 대거. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "여행자 대거. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "traveler_staff",
@@ -701,7 +887,10 @@
       "max_hp": 14
     },
     "base_price": 189,
-    "description": "여행자 스태프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "여행자 스태프. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "traveler_bow",
@@ -711,7 +900,10 @@
       "double_attack_rate": 0.03
     },
     "base_price": 192,
-    "description": "여행자 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "여행자 보우. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "traveler_gun",
@@ -722,7 +914,10 @@
       "critical_rate": 0.02
     },
     "base_price": 195,
-    "description": "여행자 건. 초보 모험가들이 부담 없이 쓰는 평범한 장비다."
+    "description": "여행자 건. 초보 모험가들이 부담 없이 쓰는 평범한 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "steel_sword",
@@ -733,7 +928,10 @@
       "atk": 0.09
     },
     "base_price": 95,
-    "description": "스틸 소드. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "스틸 소드. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "steel_dagger",
@@ -744,7 +942,10 @@
       "triple_attack_rate": 0.02
     },
     "base_price": 102,
-    "description": "스틸 대거. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "스틸 대거. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "steel_spear",
@@ -755,7 +956,10 @@
       "critical_rate": 0.05
     },
     "base_price": 109,
-    "description": "스틸 스피어. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "스틸 스피어. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "steel_axe",
@@ -766,7 +970,10 @@
       "enmity": 0.11
     },
     "base_price": 116,
-    "description": "스틸 액스. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "스틸 액스. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "steel_knuckle",
@@ -777,7 +984,10 @@
       "double_attack_rate": 0.04
     },
     "base_price": 123,
-    "description": "스틸 너클. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "스틸 너클. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "steel_bow",
@@ -788,7 +998,10 @@
       "triple_attack_rate": 0.02
     },
     "base_price": 130,
-    "description": "스틸 보우. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "스틸 보우. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "steel_staff",
@@ -799,7 +1012,10 @@
       "defense": 0.03
     },
     "base_price": 137,
-    "description": "스틸 스태프. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "스틸 스태프. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "steel_gun",
@@ -810,7 +1026,10 @@
       "triple_attack_rate": 0.02
     },
     "base_price": 144,
-    "description": "스틸 건. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "스틸 건. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "mythril_knife",
@@ -821,7 +1040,10 @@
       "double_attack_rate": 0.05
     },
     "base_price": 151,
-    "description": "미스릴 나이프. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "미스릴 나이프. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "mythril_spear",
@@ -832,7 +1054,10 @@
       "critical_damage": 0.04
     },
     "base_price": 158,
-    "description": "미스릴 스피어. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "미스릴 스피어. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "mythril_bow",
@@ -843,7 +1068,10 @@
       "double_attack_rate": 0.06
     },
     "base_price": 165,
-    "description": "미스릴 보우. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "미스릴 보우. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "mythril_wand",
@@ -854,7 +1082,10 @@
       "critical_damage": 0.08
     },
     "base_price": 172,
-    "description": "미스릴 완드. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "미스릴 완드. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "flame_sabre",
@@ -865,7 +1096,10 @@
       "atk": 0.09
     },
     "base_price": 179,
-    "description": "플레임 세이버. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "플레임 세이버. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "flame_rod",
@@ -876,7 +1110,10 @@
       "critical_damage": 0.06
     },
     "base_price": 186,
-    "description": "플레임 로드. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "플레임 로드. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "aqua_blade",
@@ -887,7 +1124,10 @@
       "atk": 0.11
     },
     "base_price": 193,
-    "description": "아쿠아 블레이드. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "아쿠아 블레이드. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "aqua_staff",
@@ -898,7 +1138,10 @@
       "critical_damage": 0.08
     },
     "base_price": 200,
-    "description": "아쿠아 스태프. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "아쿠아 스태프. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "wind_lance",
@@ -909,7 +1152,10 @@
       "critical_rate": 0.04
     },
     "base_price": 207,
-    "description": "윈드 랜스. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "윈드 랜스. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "wind_bow",
@@ -920,7 +1166,10 @@
       "triple_attack_rate": 0.02
     },
     "base_price": 214,
-    "description": "윈드 보우. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "윈드 보우. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "earth_axe",
@@ -932,7 +1181,10 @@
       "defense": -0.01
     },
     "base_price": 221,
-    "description": "어스 액스. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "어스 액스. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "earth_hammer",
@@ -943,7 +1195,10 @@
       "enmity": 0.11
     },
     "base_price": 228,
-    "description": "어스 해머. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "어스 해머. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "spark_dagger",
@@ -954,7 +1209,10 @@
       "double_attack_rate": 0.05
     },
     "base_price": 235,
-    "description": "스파크 대거. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "스파크 대거. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "spark_gun",
@@ -965,7 +1223,10 @@
       "triple_attack_rate": 0.02
     },
     "base_price": 242,
-    "description": "스파크 건. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "스파크 건. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "shadow_sickle",
@@ -976,7 +1237,10 @@
       "double_attack_rate": 0.04
     },
     "base_price": 249,
-    "description": "섀도 시클. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "섀도 시클. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "shadow_tome",
@@ -987,7 +1251,10 @@
       "critical_damage": 0.08
     },
     "base_price": 256,
-    "description": "섀도 톰. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "섀도 톰. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "light_rapier",
@@ -998,7 +1265,10 @@
       "critical_rate": 0.03
     },
     "base_price": 263,
-    "description": "라이트 레이피어. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "라이트 레이피어. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "light_harp",
@@ -1009,7 +1279,10 @@
       "critical_damage": 0.06
     },
     "base_price": 270,
-    "description": "라이트 하프. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "라이트 하프. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "knight_sword",
@@ -1020,7 +1293,10 @@
       "defense": 0.06
     },
     "base_price": 277,
-    "description": "나이트 소드. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "나이트 소드. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "knight_lance",
@@ -1031,7 +1307,10 @@
       "dmg_mitigation": 0.02
     },
     "base_price": 284,
-    "description": "나이트 랜스. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "나이트 랜스. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "mercenary_blade",
@@ -1042,7 +1321,10 @@
       "atk": 0.09
     },
     "base_price": 291,
-    "description": "용병 블레이드. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "용병 블레이드. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "mercenary_gun",
@@ -1053,7 +1335,10 @@
       "triple_attack_rate": 0.02
     },
     "base_price": 298,
-    "description": "용병 건. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "용병 건. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "duelist_sabre",
@@ -1064,7 +1349,10 @@
       "double_attack_rate": 0.03
     },
     "base_price": 305,
-    "description": "듀얼리스트 세이버. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "듀얼리스트 세이버. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "duelist_pistol",
@@ -1075,7 +1363,10 @@
       "triple_attack_rate": 0.02
     },
     "base_price": 312,
-    "description": "듀얼리스트 피스톨. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "듀얼리스트 피스톨. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "raider_axe",
@@ -1087,7 +1378,10 @@
       "defense": -0.01
     },
     "base_price": 319,
-    "description": "레이더 액스. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "레이더 액스. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "raider_claw",
@@ -1098,7 +1392,10 @@
       "triple_attack_rate": 0.02
     },
     "base_price": 326,
-    "description": "레이더 클로. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "레이더 클로. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "priest_staff",
@@ -1109,7 +1406,10 @@
       "defense": 0.04
     },
     "base_price": 333,
-    "description": "프리스트 스태프. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "프리스트 스태프. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "sage_wand",
@@ -1120,7 +1420,10 @@
       "critical_damage": 0.08
     },
     "base_price": 340,
-    "description": "세이지 완드. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "세이지 완드. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "ranger_bow",
@@ -1131,7 +1434,10 @@
       "double_attack_rate": 0.04
     },
     "base_price": 347,
-    "description": "레인저 보우. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "레인저 보우. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "ranger_crossbow",
@@ -1142,7 +1448,10 @@
       "triple_attack_rate": 0.02
     },
     "base_price": 354,
-    "description": "레인저 크로스보우. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "레인저 크로스보우. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "marine_cutlass",
@@ -1153,7 +1462,10 @@
       "atk": 0.11
     },
     "base_price": 361,
-    "description": "마린 커틀러스. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "마린 커틀러스. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "guardian_mace",
@@ -1164,7 +1476,10 @@
       "dmg_mitigation": 0.02
     },
     "base_price": 368,
-    "description": "가디언 메이스. 양산품보다는 한 단계 믿음직한 레어 장비다."
+    "description": "가디언 메이스. 양산품보다는 한 단계 믿음직한 레어 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "highlander",
@@ -1175,7 +1490,10 @@
       "atk": 0.18
     },
     "base_price": 820,
-    "description": "육중한 양손검. 빅토리아 아일랜드의 거친 산길을 지나온 전사들이 선호한다."
+    "description": "육중한 양손검. 빅토리아 아일랜드의 거친 산길을 지나온 전사들이 선호한다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "zard",
@@ -1189,7 +1507,10 @@
     "description": "길게 뻗은 창. 깊은 숲의 몬스터를 상대하기 좋다.",
     "fixed_stats": [
       "critical_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "gephart",
@@ -1201,7 +1522,10 @@
       "garrison": 0.08
     },
     "base_price": 880,
-    "description": "단단한 장갑으로 버티며 밀어붙이는 장병기. 방어가 두꺼운 적과 오래 맞서기 좋다."
+    "description": "단단한 장갑으로 버티며 밀어붙이는 장병기. 방어가 두꺼운 적과 오래 맞서기 좋다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "wangfu",
@@ -1212,7 +1536,10 @@
       "strength": 0.18
     },
     "base_price": 900,
-    "description": "묵직한 도끼창. 힘으로 밀어붙이는 전투에 어울린다."
+    "description": "묵직한 도끼창. 힘으로 밀어붙이는 전투에 어울린다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "cromi",
@@ -1223,7 +1550,10 @@
       "skill_damage": 0.18
     },
     "base_price": 920,
-    "description": "마력을 응축하는 완드. 어빌리티의 한 방 한 방을 조금 더 또렷하게 만든다."
+    "description": "마력을 응축하는 완드. 어빌리티의 한 방 한 방을 조금 더 또렷하게 만든다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "evil_wings",
@@ -1234,7 +1564,10 @@
       "skill_damage": 0.14
     },
     "base_price": 940,
-    "description": "날개처럼 휘어진 지팡이. 어쩐지 잡는 순간 손끝이 서늘해진다."
+    "description": "날개처럼 휘어진 지팡이. 어쩐지 잡는 순간 손끝이 서늘해진다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "maple_bow",
@@ -1250,7 +1583,10 @@
     "fixed_stats": [
       "triple_attack_rate",
       "double_attack_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "maple_crossbow",
@@ -1266,7 +1602,10 @@
     "fixed_stats": [
       "critical_rate",
       "double_attack_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "blood_snowboard",
@@ -1277,7 +1616,10 @@
       "atk": 0.16
     },
     "base_price": 1000,
-    "description": "무기인지 탈것인지 아직도 의견이 갈리는 붉은 보드. 맞으면 아픈 쪽으로 결론이 난 듯하다."
+    "description": "무기인지 탈것인지 아직도 의견이 갈리는 붉은 보드. 맞으면 아픈 쪽으로 결론이 난 듯하다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "dark_slayer",
@@ -1292,7 +1634,10 @@
     "fixed_stats": [
       "critical_rate",
       "double_attack_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "doombringer",
@@ -1303,7 +1648,10 @@
       "atk": 0.08
     },
     "base_price": 1040,
-    "description": "무겁게 내려치는 양손검. 한 방의 무게감은 확실하지만 세공은 아직 거칠다."
+    "description": "무겁게 내려치는 양손검. 한 방의 무게감은 확실하지만 세공은 아직 거칠다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "serpent_tongue",
@@ -1317,7 +1665,10 @@
     "description": "가늘고 날카로운 검. 빈틈을 찌르는 감각을 조금 더 또렷하게 만든다.",
     "fixed_stats": [
       "critical_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "ryden",
@@ -1331,7 +1682,10 @@
     "description": "짧은 순간을 파고드는 창. 연속 공격의 리듬을 익히는 전사에게 어울린다.",
     "fixed_stats": [
       "double_attack_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "kandayo",
@@ -1345,7 +1699,10 @@
     "description": "손에 착 감기는 단검. 빠른 손놀림을 요구하지만 보답은 분명하다.",
     "fixed_stats": [
       "triple_attack_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "shinkita",
@@ -1356,7 +1713,10 @@
       "atk": 0.17
     },
     "base_price": 1120,
-    "description": "예리한 날과 단단한 손잡이가 균형을 이룬 단검. 오래 싸워도 손목이 덜 흔들린다."
+    "description": "예리한 날과 단단한 손잡이가 균형을 이룬 단검. 오래 싸워도 손목이 덜 흔들린다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "gold_arund",
@@ -1372,7 +1732,10 @@
     "fixed_stats": [
       "critical_rate",
       "double_attack_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "golden_crow",
@@ -1386,7 +1749,10 @@
     "description": "묵직한 석궁. 신중히 겨눈 한 발의 안정감이 좋다.",
     "fixed_stats": [
       "critical_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "seraphis",
@@ -1397,7 +1763,10 @@
       "skill_damage": 0.2
     },
     "base_price": 1180,
-    "description": "맑은 마력으로 빛나는 스태프. 어빌리티 운용을 익히는 마법사에게 잘 맞는다."
+    "description": "맑은 마력으로 빛나는 스태프. 어빌리티 운용을 익히는 마법사에게 잘 맞는다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "arc_staff",
@@ -1409,7 +1778,10 @@
       "skill_damage": 0.12
     },
     "base_price": 1200,
-    "description": "곡선을 따라 마력이 흐르는 지팡이. 주문과 평타 사이의 균형이 좋다."
+    "description": "곡선을 따라 마력이 흐르는 지팡이. 주문과 평타 사이의 균형이 좋다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "dark_ritual",
@@ -1420,7 +1792,10 @@
       "skill_damage": 0.24
     },
     "base_price": 1220,
-    "description": "검은 의식에 쓰였다는 완드. 어빌리티 화력은 좋지만 몸이 조금 가벼워진다."
+    "description": "검은 의식에 쓰였다는 완드. 어빌리티 화력은 좋지만 몸이 조금 가벼워진다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "blue_screamer",
@@ -1431,7 +1806,10 @@
       "strength": 0.1
     },
     "base_price": 1240,
-    "description": "푸른빛이 감도는 양손검. 체력이 충분할 때 힘을 더 잘 받는다."
+    "description": "푸른빛이 감도는 양손검. 체력이 충분할 때 힘을 더 잘 받는다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "red_viper",
@@ -1442,7 +1820,10 @@
       "enmity": 0.16
     },
     "base_price": 1260,
-    "description": "붉은 칼날의 폴암. 몰릴수록 날끝이 더 매서워진다."
+    "description": "붉은 칼날의 폴암. 몰릴수록 날끝이 더 매서워진다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "blood_dagger",
@@ -1456,7 +1837,10 @@
     "description": "붉은 홈이 파인 단검. 빠르게 찌르고 빠지는 전투에 어울린다.",
     "fixed_stats": [
       "double_attack_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "dark_gigantic",
@@ -1470,7 +1854,10 @@
     "description": "거대한 둔기. 느리지만 맞히기만 하면 확실한 힘을 낸다.",
     "fixed_stats": [
       "double_attack_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "omega_spear",
@@ -1481,7 +1868,10 @@
       "defense": 0.08
     },
     "base_price": 1320,
-    "description": "공격과 방어의 간격을 좁히는 창. 전열을 지키는 데 안정적이다."
+    "description": "공격과 방어의 간격을 좁히는 창. 전열을 지키는 데 안정적이다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "green_dragon",
@@ -1492,7 +1882,10 @@
       "garrison": 0.1
     },
     "base_price": 1340,
-    "description": "비늘 장식이 달린 창. 버티는 전투에서 진가가 드러난다."
+    "description": "비늘 장식이 달린 창. 버티는 전투에서 진가가 드러난다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "silver_crow",
@@ -1508,7 +1901,10 @@
     "fixed_stats": [
       "triple_attack_rate",
       "double_attack_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "maple_lama_staff",
@@ -1523,7 +1919,10 @@
     "description": "단풍잎 문양이 새겨진 스태프. 주문의 흐름을 부드럽게 잡아준다.",
     "fixed_stats": [
       "critical_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "maple_havoc_hammer",
@@ -1534,7 +1933,10 @@
       "dmg_mitigation": 0.2
     },
     "base_price": 1400,
-    "description": "단풍 장식이 박힌 해머. 묵직한 타격과 약간의 안정감을 함께 준다."
+    "description": "단풍 장식이 박힌 해머. 묵직한 타격과 약간의 안정감을 함께 준다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "maple_soul_rohen",
@@ -1546,7 +1948,10 @@
       "atk": 0.11
     },
     "base_price": 1420,
-    "description": "단풍의 기운을 담은 검. 아직 전설은 아니지만 성장 구간에서는 든든하다."
+    "description": "단풍의 기운을 담은 검. 아직 전설은 아니지만 성장 구간에서는 든든하다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "ereshkigal",
@@ -1593,7 +1998,10 @@
     "fixed_stats": [
       "skill_damage"
     ],
-    "excluded_from_gacha": true
+    "excluded_from_gacha": true,
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "futsunomitama",
@@ -1616,7 +2024,10 @@
       ]
     },
     "description": "천상의 뜻을 품고 인간에게 전해진 신성한 단검.\n세상의 평화를 바라는 모든 이들의 염원을 힘으로 삼아, 세상을 어지럽히려는 모든 악을 멸한다.",
-    "excluded_from_gacha": true
+    "excluded_from_gacha": true,
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "blutgang",
@@ -1631,7 +2042,10 @@
     "description": "끝을 모르는 충의가 어둠을 부르고, 꺾이지 않는 맹세는 깊이 파고든다.\n기사는 홀로 그녀를 지킨다. 집념에 홀리기라도 한 듯이.\n그녀가 검을 휘두르는 이유는 오직 전하를 위해서. 오직, 그분만을 위해서.\n",
     "fixed_stats": [
       "critical_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "causality_driver",
@@ -1657,7 +2071,10 @@
     "fixed_stats": [
       "dmg_amplification",
       "critical_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "claiomh_solais_dion",
@@ -1673,7 +2090,10 @@
     "description": "푸른 칼날의 광휘에는 영원히 순결하고, 영원히 정의로우려는 의지가 깃들어 있다.\n그 빛은 루미엘 성기사단의 단장이 나아갈 길을 영원토록 비추는 이정표가 되리라.\n\n",
     "fixed_stats": [
       "dmg_amplification"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "clockwork_blade_kumogakure",
@@ -1699,7 +2119,10 @@
     "fixed_stats": [
       "critical_rate",
       "triple_attack_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "harmonia",
@@ -1715,7 +2138,10 @@
     "fixed_stats": [
       "atk",
       "dmg_amplification"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "mirror_blade_shard",
@@ -1732,7 +2158,10 @@
     "fixed_stats": [
       "critical_rate",
       "double_attack_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "skeletal_eclipse",
@@ -1748,7 +2177,10 @@
     "description": "자연의 섭리 너머에 존재하는 물질로 빚어진 창.\n은은한 온기와 숨결을 내뿜는 그 모습은 마치 스스로 살아 있는 듯하다.\n창에 매혹된 자는 자신도 모르는 새 의식을 조금씩 빼앗기고, 마침내 죽음에 이른다.",
     "fixed_stats": [
       "triple_attack_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "heldenhymne",
@@ -1776,7 +2208,10 @@
       "defense",
       "critical_rate",
       "critical_damage"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "aetherial_maverick",
@@ -1792,7 +2227,10 @@
     "description": "마법을 화살로 엮고, 화살로 춤을 수놓는다.\n쏘아진 화살마다 새벽빛에 반짝이는 꽃잎처럼 눈부시고 덧없이 흩날리나,\n그 끝에 꿰뚫린 자에게만큼은 더없이 선명한 현실이 된다.",
     "fixed_stats": [
       "defense_ignore"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "reunion",
@@ -1804,7 +2242,10 @@
       "atk": 0.28
     },
     "base_price": 1,
-    "description": "푸른 하늘의 정수와, 동료들과 다시 만나겠다는 한 소녀의 맹세가 깃든 아름다운 검.\n꺾이지 않는 의지는 바람을 타고 그녀를 이끌어, 그리운 벗들이 있는 곳으로 한 걸음씩 가까이 데려간다."
+    "description": "푸른 하늘의 정수와, 동료들과 다시 만나겠다는 한 소녀의 맹세가 깃든 아름다운 검.\n꺾이지 않는 의지는 바람을 타고 그녀를 이끌어, 그리운 벗들이 있는 곳으로 한 걸음씩 가까이 데려간다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "twilight_mark",
@@ -1816,7 +2257,10 @@
     },
     "base_price": 0,
     "excluded_from_gacha": true,
-    "description": "."
+    "description": ".",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "dreamy_belt",
@@ -1830,7 +2274,10 @@
     },
     "base_price": 0,
     "excluded_from_gacha": true,
-    "description": "."
+    "description": ".",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "magic_eyepatch",
@@ -1846,7 +2293,10 @@
     "description": ".",
     "fixed_stats": [
       "defense"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "leather_guard_sword",
@@ -1857,7 +2307,10 @@
       "hp_bonus": 0.025
     },
     "base_price": 198,
-    "description": "가죽 손잡이에 작은 수호 부적을 감은 검이다. 오래 버티는 법을 배우는 초보 모험가에게 어울린다."
+    "description": "가죽 손잡이에 작은 수호 부적을 감은 검이다. 오래 버티는 법을 배우는 초보 모험가에게 어울린다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "wicker_guard_bow",
@@ -1868,7 +2321,10 @@
       "defense": 0.02
     },
     "base_price": 201,
-    "description": "등나무를 덧대어 몸을 가릴 수 있게 만든 활이다. 공격보다는 생존에 조금 더 마음을 쓴 장비다."
+    "description": "등나무를 덧대어 몸을 가릴 수 있게 만든 활이다. 공격보다는 생존에 조금 더 마음을 쓴 장비다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "field_medic_wand",
@@ -1880,7 +2336,10 @@
       "heal_cap_bonus": 0.035
     },
     "base_price": 204,
-    "description": "응급 처치용 약초 냄새가 희미하게 배어 있는 완드다. 회복술의 기초를 안정적으로 보조한다."
+    "description": "응급 처치용 약초 냄새가 희미하게 배어 있는 완드다. 회복술의 기초를 안정적으로 보조한다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "pine_bulwark_staff",
@@ -1891,7 +2350,10 @@
       "garrison": 0.025
     },
     "base_price": 207,
-    "description": "소나무 심재로 만든 두꺼운 스태프다. 위급할수록 몸을 단단히 지탱하게 해준다."
+    "description": "소나무 심재로 만든 두꺼운 스태프다. 위급할수록 몸을 단단히 지탱하게 해준다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "cotton_charm_rod",
@@ -1903,7 +2365,10 @@
       "heal_cap_bonus": 0.03
     },
     "base_price": 210,
-    "description": "부드러운 천 장식이 감긴 로드다. 약한 치유 마력을 오래 머금도록 만들어졌다."
+    "description": "부드러운 천 장식이 감긴 로드다. 약한 치유 마력을 오래 머금도록 만들어졌다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "simple_sanctuary_mace",
@@ -1915,7 +2380,10 @@
       "heal_cap_bonus": 0.025
     },
     "base_price": 213,
-    "description": "작은 성소의 종 모양을 본뜬 메이스다. 방어 자세와 회복 기도를 함께 돕는다."
+    "description": "작은 성소의 종 모양을 본뜬 메이스다. 방어 자세와 회복 기도를 함께 돕는다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "mithril_guard_blade",
@@ -1926,7 +2394,10 @@
       "hp_bonus": 0.06
     },
     "base_price": 375,
-    "description": "가벼운 미스릴 장식이 박힌 검이다. 몸의 균형을 잡아 주어 더 오래 싸울 수 있다."
+    "description": "가벼운 미스릴 장식이 박힌 검이다. 몸의 균형을 잡아 주어 더 오래 싸울 수 있다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "blue_aegis_bow",
@@ -1937,7 +2408,10 @@
       "defense": 0.045
     },
     "base_price": 382,
-    "description": "청색 금속판으로 활대를 보강한 활이다. 숨을 고르며 버티는 전투에 강하다."
+    "description": "청색 금속판으로 활대를 보강한 활이다. 숨을 고르며 버티는 전투에 강하다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "holy_cedar_wand",
@@ -1949,7 +2423,10 @@
       "heal_cap_bonus": 0.065
     },
     "base_price": 389,
-    "description": "성목의 향이 남아 있는 완드다. 사용자의 생명력을 다독이며 회복 마법의 그릇을 넓힌다."
+    "description": "성목의 향이 남아 있는 완드다. 사용자의 생명력을 다독이며 회복 마법의 그릇을 넓힌다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "keeper_halberd",
@@ -1960,7 +2437,10 @@
       "garrison": 0.055
     },
     "base_price": 396,
-    "description": "방어 진형을 지키던 병사들이 쓰던 할버드다. 밀려날수록 더욱 단단하게 버티게 해준다."
+    "description": "방어 진형을 지키던 병사들이 쓰던 할버드다. 밀려날수록 더욱 단단하게 버티게 해준다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "merciful_staff",
@@ -1972,7 +2452,10 @@
       "heal_cap_bonus": 0.07
     },
     "base_price": 403,
-    "description": "치유사의 손에 오래 머물렀던 스태프다. 작은 회복도 더 넉넉하게 닿도록 도와준다."
+    "description": "치유사의 손에 오래 머물렀던 스태프다. 작은 회복도 더 넉넉하게 닿도록 도와준다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "sentinel_mace",
@@ -1984,7 +2467,10 @@
       "heal_cap_bonus": 0.06
     },
     "base_price": 410,
-    "description": "초소의 수호자들이 쓰던 메이스다. 맞서 버티며 동료를 추스를 때 진가를 드러낸다."
+    "description": "초소의 수호자들이 쓰던 메이스다. 맞서 버티며 동료를 추스를 때 진가를 드러낸다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "maple_guardian_blade",
@@ -1995,7 +2481,10 @@
       "hp_bonus": 0.1
     },
     "base_price": 1440,
-    "description": "단풍잎 문양의 보호 각인이 새겨진 검이다. 공격보다 생존을 중시하는 모험가에게 신뢰받는다."
+    "description": "단풍잎 문양의 보호 각인이 새겨진 검이다. 공격보다 생존을 중시하는 모험가에게 신뢰받는다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "pharaoh_guard_spear",
@@ -2006,7 +2495,10 @@
       "garrison": 0.09
     },
     "base_price": 1460,
-    "description": "고대 왕릉의 호위병이 들었다고 전해지는 창이다. 체력이 낮아질수록 묵직한 수호력이 깨어난다."
+    "description": "고대 왕릉의 호위병이 들었다고 전해지는 창이다. 체력이 낮아질수록 묵직한 수호력이 깨어난다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "blooming_lama_staff",
@@ -2018,7 +2510,10 @@
       "heal_cap_bonus": 0.12
     },
     "base_price": 1480,
-    "description": "꽃잎처럼 펼쳐진 마력 장식이 달린 스태프다. 회복 마법이 퍼져 나갈 공간을 크게 넓힌다."
+    "description": "꽃잎처럼 펼쳐진 마력 장식이 달린 스태프다. 회복 마법이 퍼져 나갈 공간을 크게 넓힌다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "lionheart_bulwark",
@@ -2029,7 +2524,10 @@
       "defense": 0.09
     },
     "base_price": 1500,
-    "description": "사자의 문장이 새겨진 대형 무기다. 묵직하지만, 그만큼 전열을 버티는 힘이 강하다."
+    "description": "사자의 문장이 새겨진 대형 무기다. 묵직하지만, 그만큼 전열을 버티는 힘이 강하다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "eligos_mercy_staff",
@@ -2041,7 +2539,10 @@
       "heal_cap_bonus": 0.13
     },
     "base_price": 1520,
-    "description": "차가운 보랏빛 결정이 박힌 스태프다. 위태로운 생명을 붙잡는 회복술에 특화되어 있다."
+    "description": "차가운 보랏빛 결정이 박힌 스태프다. 위태로운 생명을 붙잡는 회복술에 특화되어 있다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "sanctuary_rohen",
@@ -2053,7 +2554,10 @@
       "heal_cap_bonus": 0.115
     },
     "base_price": 1540,
-    "description": "성역을 지키던 검의 복제품이다. 오래 버티는 전투에서 회복과 방호가 함께 빛난다."
+    "description": "성역을 지키던 검의 복제품이다. 오래 버티는 전투에서 회복과 방호가 함께 빛난다.",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "vertrauen",
@@ -2070,7 +2574,10 @@
     "description": "제옌의 여사제가 긴 순례의 여정 내내 손에 쥐었던 지팡이.\n그 끝에 깃든 푸른 보석은 하늘 아래 살아가는 모든 이에게 차별 없는 축복이 내리기를 바라는 염원을 상징한다.",
     "fixed_stats": [
       "base_atk"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "loose_control_machine_mark",
@@ -2089,7 +2596,10 @@
       "dmg_mitigation",
       "triple_attack_rate",
       "double_attack_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "endless_terror",
@@ -2104,7 +2614,10 @@
     "excluded_from_gacha": true,
     "fixed_stats": [
       "atk"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "source_of_suffering",
@@ -2132,7 +2645,10 @@
     "fixed_stats": [
       "life_steal",
       "life_steal_cap"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "murgleis",
@@ -2149,7 +2665,10 @@
     "fixed_stats": [
       "triple_attack_rate",
       "double_attack_rate"
-    ]
+    ],
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "commanding_force_earring",
@@ -2161,7 +2680,10 @@
     },
     "base_price": 1,
     "excluded_from_gacha": true,
-    "description": "."
+    "description": ".",
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "immortal_legacy",
@@ -2186,7 +2708,10 @@
           "undispellable": true
         }
       ]
-    }
+    },
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false
   },
   {
     "id": "genesis_two_handed_sword",

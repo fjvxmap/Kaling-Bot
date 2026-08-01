@@ -875,8 +875,24 @@ function renderPotential() {
       el("span", {}, `${index + 1}번째 줄`),
       el("strong", {}, index === 0 ? "현재 등급 고정" : "현재 등급 등장 확률"),
     ]),
-    numberField("동일 등급 확률", potential.line_same_grade_rates, index, { step: 0.01 }),
+    index === 0
+      ? el("div", { className: "field static-field" }, [
+        el("span", {}, "동일 등급 확률"),
+        el("strong", {}, "100%"),
+      ])
+      : numberField("동일 등급 확률", potential.line_same_grade_rates, index, { step: 0.01 }),
   ]));
+  const lowestGrade = potential.grades[0] || "rare";
+  const lowestGradeRule = el("div", { className: "row two" }, [
+    el("div", { className: "field static-field" }, [
+      el("span", {}, "최저 잠재 등급"),
+      el("strong", {}, potential.labels[lowestGrade] || lowestGrade),
+    ]),
+    el("div", { className: "field static-field" }, [
+      el("span", {}, "줄 등급"),
+      el("strong", {}, "3줄 모두 동일 등급"),
+    ]),
+  ]);
   const configPanel = el("section", { className: "panel" }, [
     el("div", { className: "panel-header" }, [
       el("h2", {}, "잠재능력 설정"),
@@ -896,7 +912,7 @@ function renderPotential() {
       ]),
       el("section", { className: "section subtle" }, [
         el("div", { className: "section-head" }, [el("h3", {}, "줄별 현재 등급 확률")]),
-        el("div", { className: "rows" }, lineRows),
+        el("div", { className: "rows" }, [lowestGradeRule, ...lineRows]),
       ]),
     ]),
   ]);
@@ -930,6 +946,7 @@ function normalizePotentialConfig() {
   while (potential.line_same_grade_rates.length < 3) {
     potential.line_same_grade_rates.push([1, 0.2, 0.05][potential.line_same_grade_rates.length]);
   }
+  potential.line_same_grade_rates[0] = 1;
   potential.options = Array.isArray(potential.options) ? potential.options : [];
   for (const option of potential.options) {
     option.id ||= nextId("potential_option", potential.options);

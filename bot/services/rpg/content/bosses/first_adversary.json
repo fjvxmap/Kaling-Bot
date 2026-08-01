@@ -135,7 +135,8 @@
                 "target": "self",
                 "count": 1,
                 "stack_effect_id": "adversary_determination",
-                "value": 3
+                "value": 3,
+                "duration": -1
               }
             ],
             "duration": 0,
@@ -169,7 +170,8 @@
                 "target": "self",
                 "count": 1,
                 "stack_effect_id": "adversary_determination",
-                "value": 3
+                "value": 3,
+                "duration": -1
               }
             ],
             "duration": 0,
@@ -306,7 +308,8 @@
                 "target": "self",
                 "count": 1,
                 "stack_effect_id": "adversary_determination",
-                "value": 3
+                "value": 3,
+                "duration": -1
               }
             ],
             "duration": 0,
@@ -340,7 +343,8 @@
                 "target": "self",
                 "count": 1,
                 "stack_effect_id": "adversary_determination",
-                "value": 3
+                "value": 3,
+                "duration": -1
               }
             ],
             "duration": 0,

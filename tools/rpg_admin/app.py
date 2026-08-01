@@ -294,6 +294,7 @@ def normalize_potential(potential: dict[str, Any], stat_order_index: dict[str, i
     rates = [max(0.0, min(1.0, safe_float(value, 0.0))) for value in rates[:3]]
     while len(rates) < 3:
         rates.append((1.0, 0.2, 0.05)[len(rates)])
+    rates[0] = 1.0
     potential["line_same_grade_rates"] = rates
     options = potential.get("options")
     if not isinstance(options, list):

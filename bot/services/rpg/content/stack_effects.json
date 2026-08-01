@@ -120,7 +120,8 @@
         "min_damage": 0
       }
     ],
-    "stats": {}
+    "stats": {},
+    "reactions": []
   },
   {
     "id": "trance",
@@ -193,7 +194,8 @@
         "min_damage": 0
       }
     ],
-    "stats": {}
+    "stats": {},
+    "reactions": []
   },
   {
     "id": "phantasmal_waltz",
@@ -338,7 +340,8 @@
         "min_damage": 0
       }
     ],
-    "stats": {}
+    "stats": {},
+    "reactions": []
   },
   {
     "id": "demian_stigma",
@@ -505,7 +508,8 @@
         "min_damage": 0
       }
     ],
-    "stats": {}
+    "stats": {},
+    "reactions": []
   },
   {
     "id": "annihilation",
@@ -597,7 +601,8 @@
         "min_damage": 0
       }
     ],
-    "stats": {}
+    "stats": {},
+    "reactions": []
   },
   {
     "id": "opened_eyes",
@@ -634,7 +639,8 @@
       }
     ],
     "conditions": [],
-    "stats": {}
+    "stats": {},
+    "reactions": []
   },
   {
     "id": "verus_hilla_skulls",
@@ -643,7 +649,8 @@
     "description": ".",
     "tiers": [],
     "conditions": [],
-    "stats": {}
+    "stats": {},
+    "reactions": []
   },
   {
     "id": "verus_hilla_red_thread",
@@ -652,7 +659,8 @@
     "description": ".",
     "tiers": [],
     "conditions": [],
-    "stats": {}
+    "stats": {},
+    "reactions": []
   },
   {
     "id": "adversary_determination",
@@ -735,7 +743,8 @@
         "min_damage": 0
       }
     ],
-    "stats": {}
+    "stats": {},
+    "reactions": []
   },
   {
     "id": "black_mage_creation_curse",
@@ -799,6 +808,7 @@
         }
       }
     ],
-    "conditions": []
+    "conditions": [],
+    "reactions": []
   }
 ]

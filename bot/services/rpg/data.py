@@ -2253,10 +2253,16 @@ POTENTIAL_PITY_COUNTS = {
     str(key): max(0, _safe_int(value, 0))
     for key, value in _POTENTIAL_DATA.get("pity_counts", {}).items()
 }
-POTENTIAL_LINE_SAME_GRADE_RATES = tuple(
+_POTENTIAL_LINE_SAME_GRADE_RATES = [
     max(0.0, min(1.0, _safe_float(value, 0.0)))
     for value in _POTENTIAL_DATA.get("line_same_grade_rates", (1.0, 0.2, 0.05))
-)
+][:3]
+while len(_POTENTIAL_LINE_SAME_GRADE_RATES) < 3:
+    _POTENTIAL_LINE_SAME_GRADE_RATES.append(
+        (1.0, 0.2, 0.05)[len(_POTENTIAL_LINE_SAME_GRADE_RATES)]
+    )
+_POTENTIAL_LINE_SAME_GRADE_RATES[0] = 1.0
+POTENTIAL_LINE_SAME_GRADE_RATES = tuple(_POTENTIAL_LINE_SAME_GRADE_RATES)
 POTENTIAL_REROLL_COSTS = {
     str(key): max(0, _safe_int(value, 0))
     for key, value in _POTENTIAL_DATA.get("reroll_costs", {}).items()

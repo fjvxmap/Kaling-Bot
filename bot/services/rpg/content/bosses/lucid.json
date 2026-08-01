@@ -394,7 +394,8 @@
             "target": "self",
             "count": 1,
             "stack_effect_id": "phantasmal_waltz",
-            "value": 7
+            "value": 7,
+            "duration": -1
           }
         ],
         "duration": 0,

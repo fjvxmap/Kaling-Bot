@@ -34,7 +34,8 @@
   "pity_counts": {
     "rare": 10,
     "epic": 42,
-    "unique": 107
+    "unique": 107,
+    "legendary": 0
   },
   "line_same_grade_rates": [
     1.0,
@@ -52,113 +53,305 @@
       "id": "potential_base_atk",
       "name": "기본 공격력",
       "stat": "base_atk",
-      "values": {"normal": 1, "rare": 1, "epic": 2, "unique": 3, "legendary": 5},
-      "weights": {"normal": 14, "rare": 14, "epic": 14, "unique": 13, "legendary": 12}
+      "values": {
+        "normal": 1.0,
+        "rare": 1.0,
+        "epic": 2.0,
+        "unique": 6.0,
+        "legendary": 30.0
+      },
+      "weights": {
+        "normal": 14.0,
+        "rare": 14.0,
+        "epic": 14.0,
+        "unique": 13.0,
+        "legendary": 12.0
+      }
     },
     {
       "id": "potential_max_hp",
       "name": "최대 HP",
       "stat": "max_hp",
-      "values": {"normal": 8, "rare": 12, "epic": 22, "unique": 35, "legendary": 55},
-      "weights": {"normal": 14, "rare": 14, "epic": 14, "unique": 13, "legendary": 12}
+      "values": {
+        "normal": 8.0,
+        "rare": 12.0,
+        "epic": 22.0,
+        "unique": 70.0,
+        "legendary": 330.0
+      },
+      "weights": {
+        "normal": 14.0,
+        "rare": 14.0,
+        "epic": 14.0,
+        "unique": 13.0,
+        "legendary": 12.0
+      }
     },
     {
       "id": "potential_hp_bonus",
       "name": "HP 보너스",
       "stat": "hp_bonus",
-      "values": {"normal": 0.01, "rare": 0.02, "epic": 0.035, "unique": 0.05, "legendary": 0.075},
-      "weights": {"normal": 12, "rare": 12, "epic": 12, "unique": 11, "legendary": 10}
+      "values": {
+        "normal": 0.01,
+        "rare": 0.02,
+        "epic": 0.035,
+        "unique": 0.1,
+        "legendary": 0.45
+      },
+      "weights": {
+        "normal": 12.0,
+        "rare": 12.0,
+        "epic": 12.0,
+        "unique": 11.0,
+        "legendary": 10.0
+      }
     },
     {
       "id": "potential_atk",
       "name": "공격력 증가",
       "stat": "atk",
-      "values": {"normal": 0.01, "rare": 0.02, "epic": 0.035, "unique": 0.05, "legendary": 0.075},
-      "weights": {"normal": 12, "rare": 12, "epic": 12, "unique": 11, "legendary": 10}
+      "values": {
+        "normal": 0.01,
+        "rare": 0.02,
+        "epic": 0.035,
+        "unique": 0.1,
+        "legendary": 0.45
+      },
+      "weights": {
+        "normal": 12.0,
+        "rare": 12.0,
+        "epic": 12.0,
+        "unique": 11.0,
+        "legendary": 10.0
+      }
     },
     {
       "id": "potential_defense",
       "name": "방어",
       "stat": "defense",
-      "values": {"normal": 0.02, "rare": 0.03, "epic": 0.05, "unique": 0.07, "legendary": 0.1},
-      "weights": {"normal": 12, "rare": 12, "epic": 12, "unique": 11, "legendary": 10}
-    },
-    {
-      "id": "potential_critical_rate",
-      "name": "크리티컬 확률",
-      "stat": "critical_rate",
-      "values": {"normal": 0.01, "rare": 0.02, "epic": 0.035, "unique": 0.05, "legendary": 0.075},
-      "weights": {"normal": 10, "rare": 10, "epic": 10, "unique": 9, "legendary": 8}
-    },
-    {
-      "id": "potential_skill_damage",
-      "name": "스킬 데미지",
-      "stat": "skill_damage",
-      "values": {"normal": 0.01, "rare": 0.02, "epic": 0.035, "unique": 0.05, "legendary": 0.075},
-      "weights": {"normal": 10, "rare": 10, "epic": 10, "unique": 9, "legendary": 8}
-    },
-    {
-      "id": "potential_dmg_supplement",
-      "name": "가산 피해",
-      "stat": "dmg_supplement",
-      "values": {"normal": 2, "rare": 4, "epic": 7, "unique": 10, "legendary": 15},
-      "weights": {"normal": 8, "rare": 8, "epic": 8, "unique": 7, "legendary": 6}
-    },
-    {
-      "id": "potential_skill_dmg_supplement",
-      "name": "스킬 가산 피해",
-      "stat": "skill_dmg_supplement",
-      "values": {"normal": 3, "rare": 6, "epic": 10, "unique": 15, "legendary": 22},
-      "weights": {"normal": 8, "rare": 8, "epic": 8, "unique": 7, "legendary": 6}
-    },
-    {
-      "id": "potential_healing_bonus",
-      "name": "회복량 증가",
-      "stat": "healing_bonus",
-      "values": {"normal": 0.02, "rare": 0.03, "epic": 0.05, "unique": 0.07, "legendary": 0.1},
-      "weights": {"normal": 7, "rare": 7, "epic": 7, "unique": 6, "legendary": 5}
+      "values": {
+        "normal": 0.02,
+        "rare": 0.03,
+        "epic": 0.05,
+        "unique": 0.14,
+        "legendary": 0.6
+      },
+      "weights": {
+        "normal": 12.0,
+        "rare": 12.0,
+        "epic": 12.0,
+        "unique": 11.0,
+        "legendary": 10.0
+      }
     },
     {
       "id": "potential_defense_ignore",
       "name": "방어력 무시",
       "stat": "defense_ignore",
-      "values": {"epic": 0.025, "unique": 0.04, "legendary": 0.06},
-      "weights": {"epic": 6, "unique": 6, "legendary": 5}
-    },
-    {
-      "id": "potential_double_attack",
-      "name": "더블 어택 확률",
-      "stat": "double_attack_rate",
-      "values": {"epic": 0.025, "unique": 0.04, "legendary": 0.06},
-      "weights": {"epic": 5, "unique": 5, "legendary": 4}
-    },
-    {
-      "id": "potential_triple_attack",
-      "name": "트리플 어택 확률",
-      "stat": "triple_attack_rate",
-      "values": {"unique": 0.025, "legendary": 0.04},
-      "weights": {"unique": 4, "legendary": 4}
-    },
-    {
-      "id": "potential_critical_damage",
-      "name": "크리티컬 데미지",
-      "stat": "critical_damage",
-      "values": {"unique": 0.04, "legendary": 0.06},
-      "weights": {"unique": 4, "legendary": 4}
+      "values": {
+        "normal": 0.0,
+        "rare": 0.0,
+        "epic": 0.025,
+        "unique": 0.08,
+        "legendary": 0.36
+      },
+      "weights": {
+        "normal": 0.0,
+        "rare": 0.0,
+        "epic": 6.0,
+        "unique": 6.0,
+        "legendary": 5.0
+      }
     },
     {
       "id": "potential_damage_amplification",
       "name": "데미지 증가",
       "stat": "dmg_amplification",
-      "values": {"unique": 0.025, "legendary": 0.04},
-      "weights": {"unique": 3, "legendary": 3}
+      "values": {
+        "normal": 0.0,
+        "rare": 0.0,
+        "epic": 0.0,
+        "unique": 0.05,
+        "legendary": 0.24
+      },
+      "weights": {
+        "normal": 0.0,
+        "rare": 0.0,
+        "epic": 0.0,
+        "unique": 3.0,
+        "legendary": 3.0
+      }
+    },
+    {
+      "id": "potential_dmg_supplement",
+      "name": "가산 피해",
+      "stat": "dmg_supplement",
+      "values": {
+        "normal": 2.0,
+        "rare": 4.0,
+        "epic": 7.0,
+        "unique": 20.0,
+        "legendary": 90.0
+      },
+      "weights": {
+        "normal": 8.0,
+        "rare": 8.0,
+        "epic": 8.0,
+        "unique": 7.0,
+        "legendary": 6.0
+      }
+    },
+    {
+      "id": "potential_skill_damage",
+      "name": "스킬 데미지",
+      "stat": "skill_damage",
+      "values": {
+        "normal": 0.01,
+        "rare": 0.02,
+        "epic": 0.035,
+        "unique": 0.1,
+        "legendary": 0.45
+      },
+      "weights": {
+        "normal": 10.0,
+        "rare": 10.0,
+        "epic": 10.0,
+        "unique": 9.0,
+        "legendary": 8.0
+      }
+    },
+    {
+      "id": "potential_skill_dmg_supplement",
+      "name": "스킬 가산 피해",
+      "stat": "skill_dmg_supplement",
+      "values": {
+        "normal": 3.0,
+        "rare": 6.0,
+        "epic": 10.0,
+        "unique": 30.0,
+        "legendary": 132.0
+      },
+      "weights": {
+        "normal": 8.0,
+        "rare": 8.0,
+        "epic": 8.0,
+        "unique": 7.0,
+        "legendary": 6.0
+      }
+    },
+    {
+      "id": "potential_critical_rate",
+      "name": "크리티컬 확률",
+      "stat": "critical_rate",
+      "values": {
+        "normal": 0.01,
+        "rare": 0.02,
+        "epic": 0.035,
+        "unique": 0.05,
+        "legendary": 0.075
+      },
+      "weights": {
+        "normal": 10.0,
+        "rare": 10.0,
+        "epic": 10.0,
+        "unique": 9.0,
+        "legendary": 8.0
+      }
+    },
+    {
+      "id": "potential_critical_damage",
+      "name": "크리티컬 데미지",
+      "stat": "critical_damage",
+      "values": {
+        "normal": 0.0,
+        "rare": 0.0,
+        "epic": 0.0,
+        "unique": 0.08,
+        "legendary": 0.36
+      },
+      "weights": {
+        "normal": 0.0,
+        "rare": 0.0,
+        "epic": 0.0,
+        "unique": 4.0,
+        "legendary": 4.0
+      }
+    },
+    {
+      "id": "potential_triple_attack",
+      "name": "트리플 어택 확률",
+      "stat": "triple_attack_rate",
+      "values": {
+        "normal": 0.0,
+        "rare": 0.0,
+        "epic": 0.0,
+        "unique": 0.025,
+        "legendary": 0.04
+      },
+      "weights": {
+        "normal": 0.0,
+        "rare": 0.0,
+        "epic": 0.0,
+        "unique": 4.0,
+        "legendary": 4.0
+      }
+    },
+    {
+      "id": "potential_double_attack",
+      "name": "더블 어택 확률",
+      "stat": "double_attack_rate",
+      "values": {
+        "normal": 0.0,
+        "rare": 0.0,
+        "epic": 0.025,
+        "unique": 0.04,
+        "legendary": 0.06
+      },
+      "weights": {
+        "normal": 0.0,
+        "rare": 0.0,
+        "epic": 5.0,
+        "unique": 5.0,
+        "legendary": 4.0
+      }
     },
     {
       "id": "potential_life_steal",
       "name": "생명력 흡수",
       "stat": "life_steal",
-      "values": {"unique": 0.01, "legendary": 0.02},
-      "weights": {"unique": 3, "legendary": 3}
+      "values": {
+        "normal": 0.0,
+        "rare": 0.0,
+        "epic": 0.0,
+        "unique": 0.02,
+        "legendary": 0.12
+      },
+      "weights": {
+        "normal": 0.0,
+        "rare": 0.0,
+        "epic": 0.0,
+        "unique": 3.0,
+        "legendary": 3.0
+      }
+    },
+    {
+      "id": "potential_healing_bonus",
+      "name": "회복량 증가",
+      "stat": "healing_bonus",
+      "values": {
+        "normal": 0.02,
+        "rare": 0.03,
+        "epic": 0.05,
+        "unique": 0.14,
+        "legendary": 0.6
+      },
+      "weights": {
+        "normal": 7.0,
+        "rare": 7.0,
+        "epic": 7.0,
+        "unique": 6.0,
+        "legendary": 5.0
+      }
     }
   ]
 }

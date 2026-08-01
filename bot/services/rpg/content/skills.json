@@ -2711,7 +2711,8 @@
     "job_ids": [
       "archer"
     ],
-    "note": ""
+    "note": "",
+    "stats": {}
   },
   {
     "id": "sei_colpi",

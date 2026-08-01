@@ -30,7 +30,8 @@
             "target": "self",
             "stack_effect_id": "verus_hilla_red_thread",
             "value": 1,
-            "count": 1
+            "count": 1,
+            "duration": -1
           }
         ]
       },
@@ -132,7 +133,8 @@
             "target": "self",
             "stack_effect_id": "verus_hilla_red_thread",
             "value": 1,
-            "count": 1
+            "count": 1,
+            "duration": -1
           }
         ],
         "player_effects": {
@@ -192,14 +194,16 @@
             "value": 1,
             "value_from_stack_effect_id": "verus_hilla_red_thread",
             "value_from_target": "self",
-            "count": 1
+            "count": 1,
+            "duration": -1
           },
           {
             "action": "stack_remove",
             "target": "self",
             "stack_effect_id": "verus_hilla_red_thread",
             "value": 1,
-            "count": 1
+            "count": 1,
+            "duration": -1
           }
         ]
       },

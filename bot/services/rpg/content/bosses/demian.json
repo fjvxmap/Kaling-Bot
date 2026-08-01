@@ -105,7 +105,8 @@
             "target": "self",
             "count": 1,
             "stack_effect_id": "demian_stigma",
-            "value": 1
+            "value": 1,
+            "duration": -1
           }
         ],
         "duration": 0,
@@ -142,7 +143,8 @@
                 "target": "self",
                 "count": 1,
                 "stack_effect_id": "demian_stigma",
-                "value": 1
+                "value": 1,
+                "duration": -1
               }
             ],
             "duration": 0,
@@ -256,7 +258,8 @@
             "target": "self",
             "count": 1,
             "stack_effect_id": "demian_stigma",
-            "value": 7
+            "value": 7,
+            "duration": -1
           }
         ],
         "duration": 0,
@@ -386,7 +389,8 @@
             "target": "self",
             "count": 1,
             "stack_effect_id": "demian_stigma",
-            "value": 7
+            "value": 7,
+            "duration": -1
           }
         ],
         "duration": 0,
