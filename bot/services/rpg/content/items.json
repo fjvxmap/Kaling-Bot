@@ -2727,7 +2727,17 @@
     "enhancement_disabled": true,
     "unsellable": true,
     "genesis_weapon": true,
-    "description": "검은 마법사의 힘을 품은 두손검이다."
+    "description": "검은 마법사의 힘을 품은 두손검이다.",
+    "effects": {
+      "final_damage": [
+        {
+          "ratio": 0.1,
+          "target": "self",
+          "duration": -1,
+          "undispellable": true
+        }
+      ]
+    }
   },
   {
     "id": "genesis_one_handed_sword",
@@ -2743,7 +2753,17 @@
     "enhancement_disabled": true,
     "unsellable": true,
     "genesis_weapon": true,
-    "description": "검은 마법사의 힘을 품은 한손검이다."
+    "description": "검은 마법사의 힘을 품은 한손검이다.",
+    "effects": {
+      "final_damage": [
+        {
+          "ratio": 0.1,
+          "target": "self",
+          "duration": -1,
+          "undispellable": true
+        }
+      ]
+    }
   },
   {
     "id": "genesis_bow",
@@ -2752,14 +2772,24 @@
     "stats": {
       "base_atk": 6,
       "atk": 0.07,
-      "triple_attack_rate": 0.025
+      "skill_damage": 0.08
     },
     "base_price": 1,
     "excluded_from_gacha": true,
     "enhancement_disabled": true,
     "unsellable": true,
     "genesis_weapon": true,
-    "description": "검은 마법사의 힘을 품은 활이다."
+    "description": "검은 마법사의 힘을 품은 활이다.",
+    "effects": {
+      "final_damage": [
+        {
+          "ratio": 0.1,
+          "target": "self",
+          "duration": -1,
+          "undispellable": true
+        }
+      ]
+    }
   },
   {
     "id": "genesis_crossbow",
@@ -2775,7 +2805,17 @@
     "enhancement_disabled": true,
     "unsellable": true,
     "genesis_weapon": true,
-    "description": "검은 마법사의 힘을 품은 석궁이다."
+    "description": "검은 마법사의 힘을 품은 석궁이다.",
+    "effects": {
+      "final_damage": [
+        {
+          "ratio": 0.1,
+          "target": "self",
+          "duration": -1,
+          "undispellable": true
+        }
+      ]
+    }
   },
   {
     "id": "genesis_staff",
@@ -2791,7 +2831,17 @@
     "enhancement_disabled": true,
     "unsellable": true,
     "genesis_weapon": true,
-    "description": "검은 마법사의 힘을 품은 스태프이다."
+    "description": "검은 마법사의 힘을 품은 스태프이다.",
+    "effects": {
+      "final_damage": [
+        {
+          "ratio": 0.1,
+          "target": "self",
+          "duration": -1,
+          "undispellable": true
+        }
+      ]
+    }
   },
   {
     "id": "genesis_wand",
@@ -2807,7 +2857,17 @@
     "enhancement_disabled": true,
     "unsellable": true,
     "genesis_weapon": true,
-    "description": "검은 마법사의 힘을 품은 완드이다."
+    "description": "검은 마법사의 힘을 품은 완드이다.",
+    "effects": {
+      "final_damage": [
+        {
+          "ratio": 0.1,
+          "target": "self",
+          "duration": -1,
+          "undispellable": true
+        }
+      ]
+    }
   },
   {
     "id": "genesis_creation_sword",
@@ -2823,6 +2883,16 @@
     "enhancement_disabled": true,
     "unsellable": true,
     "genesis_weapon": true,
-    "description": "검은 마법사의 힘을 품은 창세검이다."
+    "description": "검은 마법사의 힘을 품은 창세검이다.",
+    "effects": {
+      "final_damage": [
+        {
+          "ratio": 0.1,
+          "target": "self",
+          "duration": -1,
+          "undispellable": true
+        }
+      ]
+    }
   }
 ]
