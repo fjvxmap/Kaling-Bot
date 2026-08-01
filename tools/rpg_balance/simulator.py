@@ -20,6 +20,14 @@ from bot.services.rpg.models import CombatStats, ItemInstance, PlayerProfile
 DEFAULT_SETS = ("epic", "unique", "unique-plus")
 
 
+class _MemoryStore:
+    def load_profiles(self) -> dict[int, PlayerProfile]:
+        return {}
+
+    def save_profiles(self, profiles: dict[int, PlayerProfile]) -> None:
+        return None
+
+
 @dataclass(frozen=True)
 class SimConfig:
     level: int
@@ -44,7 +52,7 @@ class BalanceResult:
 class BalanceSimulator:
     def __init__(self, config: SimConfig) -> None:
         self.config = config
-        self.service = RPGService(rng=Random(20260710))
+        self.service = RPGService(store=_MemoryStore(), rng=Random(20260710))
 
     def run_set(
         self,
@@ -457,4 +465,3 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"  items:  {items}")
             print(f"  skills: {skills}")
     return 0
-

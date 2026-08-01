@@ -3,6 +3,8 @@ const TABS = [
   { id: "materials", label: "재료" },
   { id: "crafting_recipes", label: "제작" },
   { id: "enhancement", label: "강화" },
+  { id: "potential", label: "잠재능력" },
+  { id: "liberation", label: "제네시스 해방" },
   { id: "gacha", label: "가챠" },
   { id: "dungeons", label: "던전" },
   { id: "bosses", label: "보스" },
@@ -374,6 +376,10 @@ function render(options = {}) {
     renderRecipes();
   } else if (state.tab === "enhancement") {
     renderEnhancement();
+  } else if (state.tab === "potential") {
+    renderPotential();
+  } else if (state.tab === "liberation") {
+    renderLiberation();
   } else if (state.tab === "gacha") {
     renderGacha();
   } else if (state.tab === "dungeons") {
@@ -549,6 +555,10 @@ function renderNav() {
       ? ADVANCED_KEYS.length
       : tab.id === "gacha"
         ? (state.content?.gacha?.pools?.length ?? 0)
+        : tab.id === "potential"
+          ? (state.content?.potential?.options?.length ?? 0)
+          : tab.id === "liberation"
+            ? (state.content?.liberation?.stages?.length ?? 0)
         : (state.content?.[tab.id]?.length ?? 0);
     return el("button", {
       className: state.tab === tab.id ? "active" : "",
@@ -601,6 +611,9 @@ function renderItemDetail(item) {
       selectField("등급", item, "rarity", rarityOptions()),
       numberField("기본 판매가", item, "base_price", { step: 1 }),
       checkboxField("가챠 제외", item, "excluded_from_gacha"),
+      checkboxField("스타포스 강화 불가", item, "enhancement_disabled"),
+      checkboxField("판매 불가", item, "unsellable"),
+      checkboxField("제네시스 무기", item, "genesis_weapon"),
       textAreaField("설명", item, "description", { full: true }),
     ]),
     statsEditor(item, "stats", "스탯", { fixedStatsKey: "fixed_stats" }),
@@ -842,6 +855,289 @@ function blankEnhancementMethod(enhancement, preferredId = "") {
     min_stars: 0,
     max_stars: state.content.settings?.max_enhancement_stars || 10,
   };
+}
+
+function renderPotential() {
+  const potential = normalizePotentialConfig();
+  const gradeRows = potential.grades.map((grade) => el("div", { className: "row six" }, [
+    el("label", { className: "field" }, [
+      el("span", {}, "등급 ID"),
+      el("input", { type: "text", value: grade, disabled: true }),
+    ]),
+    textField("표시 이름", potential.labels, grade),
+    numberField("최초 등장 확률", potential.initial_grade_rates, grade, { step: 0.001 }),
+    numberField("등급 상승 확률", potential.tier_up_rates, grade, { step: 0.001 }),
+    numberField("확정 상승 횟수", potential.pity_counts, grade, { step: 1 }),
+    numberField("재설정 골드", potential.reroll_costs, grade, { step: 1 }),
+  ]));
+  const lineRows = potential.line_same_grade_rates.map((_, index) => el("div", { className: "row two" }, [
+    el("div", { className: "field static-field" }, [
+      el("span", {}, `${index + 1}번째 줄`),
+      el("strong", {}, index === 0 ? "현재 등급 고정" : "현재 등급 등장 확률"),
+    ]),
+    numberField("동일 등급 확률", potential.line_same_grade_rates, index, { step: 0.01 }),
+  ]));
+  const configPanel = el("section", { className: "panel" }, [
+    el("div", { className: "panel-header" }, [
+      el("h2", {}, "잠재능력 설정"),
+      el("button", {
+        type: "button",
+        onclick: () => {
+          potential.options.push(blankPotentialOption(potential));
+          markDirty();
+          render();
+        },
+      }, "잠재 옵션 추가"),
+    ]),
+    el("div", { className: "panel-body" }, [
+      el("section", { className: "section themed potential-section" }, [
+        el("div", { className: "section-head" }, [el("h3", {}, "등급별 규칙")]),
+        el("div", { className: "rows" }, gradeRows),
+      ]),
+      el("section", { className: "section subtle" }, [
+        el("div", { className: "section-head" }, [el("h3", {}, "줄별 현재 등급 확률")]),
+        el("div", { className: "rows" }, lineRows),
+      ]),
+    ]),
+  ]);
+  const optionPanels = potential.options.map((option, index) => potentialOptionEditor(potential, option, index));
+  main.replaceChildren(el("div", { className: "rows" }, [configPanel, ...optionPanels]));
+}
+
+function normalizePotentialConfig() {
+  const potential = state.content.potential ||= {};
+  potential.grades = Array.isArray(potential.grades) && potential.grades.length
+    ? [...new Set(potential.grades.map(String))]
+    : ["rare", "epic", "unique", "legendary"];
+  potential.line_grades = Array.isArray(potential.line_grades) && potential.line_grades.length
+    ? [...new Set(potential.line_grades.map(String))]
+    : ["normal", ...potential.grades];
+  potential.labels ||= {};
+  potential.initial_grade_rates ||= {};
+  potential.tier_up_rates ||= {};
+  potential.pity_counts ||= {};
+  potential.reroll_costs ||= {};
+  for (const grade of potential.grades) {
+    potential.labels[grade] ??= grade;
+    potential.initial_grade_rates[grade] ??= 0;
+    potential.tier_up_rates[grade] ??= 0;
+    potential.pity_counts[grade] ??= 0;
+    potential.reroll_costs[grade] ??= 0;
+  }
+  potential.line_same_grade_rates = Array.isArray(potential.line_same_grade_rates)
+    ? potential.line_same_grade_rates.slice(0, 3)
+    : [1, 0.2, 0.05];
+  while (potential.line_same_grade_rates.length < 3) {
+    potential.line_same_grade_rates.push([1, 0.2, 0.05][potential.line_same_grade_rates.length]);
+  }
+  potential.options = Array.isArray(potential.options) ? potential.options : [];
+  for (const option of potential.options) {
+    option.id ||= nextId("potential_option", potential.options);
+    option.name ||= option.id;
+    option.stat ||= statOptions()[0]?.[0] || "base_atk";
+    option.values ||= {};
+    option.weights ||= {};
+    for (const grade of potential.line_grades) {
+      option.values[grade] ??= 0;
+      option.weights[grade] ??= 0;
+    }
+  }
+  return potential;
+}
+
+function blankPotentialOption(potential) {
+  return {
+    id: nextId("potential_option", potential.options || []),
+    name: "새 잠재 옵션",
+    stat: statOptions()[0]?.[0] || "base_atk",
+    values: Object.fromEntries(potential.line_grades.map((grade) => [grade, 0])),
+    weights: Object.fromEntries(potential.line_grades.map((grade) => [grade, 0])),
+  };
+}
+
+function potentialOptionEditor(potential, option, index) {
+  return el("section", { className: "panel themed potential-panel" }, [
+    el("div", { className: "panel-header" }, [
+      el("h2", {}, option.name || option.id),
+      el("button", {
+        type: "button",
+        className: "danger",
+        onclick: () => {
+          potential.options.splice(index, 1);
+          markDirty();
+          render();
+        },
+      }, "삭제"),
+    ]),
+    el("div", { className: "panel-body" }, [
+      el("div", { className: "form-grid three" }, [
+        nestedIdField("옵션 ID", option, potential.options),
+        textField("이름", option, "name"),
+        selectField("스탯", option, "stat", statOptions()),
+      ]),
+      el("section", { className: "section subtle" }, [
+        el("div", { className: "section-head" }, [el("h3", {}, "등급별 수치와 가중치")]),
+        el("div", { className: "rows" }, potential.line_grades.map((grade) => el("div", { className: "row three" }, [
+          el("div", { className: "field static-field" }, [
+            el("span", {}, "등급"),
+            el("strong", {}, potential.labels[grade] || grade),
+          ]),
+          numberField("스탯 수치", option.values, grade, { step: 0.001 }),
+          numberField("등장 가중치", option.weights, grade, { step: 0.1 }),
+        ]))),
+      ]),
+    ]),
+  ]);
+}
+
+function renderLiberation() {
+  const liberation = normalizeLiberationConfig();
+  const bossOptions = (state.content.bosses || []).map((boss) => [boss.id, `${boss.name} (${boss.id})`]);
+  const configPanel = el("section", { className: "panel" }, [
+    el("div", { className: "panel-header" }, [
+      el("h2", {}, "제네시스 해방 설정"),
+    ]),
+    el("div", { className: "panel-body" }, [
+      el("div", { className: "form-grid" }, [
+        selectField("수령 조건 보스", liberation, "boss_id", bossOptions),
+      ]),
+    ]),
+  ]);
+  const weaponSection = el("section", { className: "panel themed liberation-panel" }, [
+    el("div", { className: "panel-header" }, [
+      el("h2", {}, "직업군별 제네시스 무기"),
+      el("button", {
+        type: "button",
+        onclick: () => {
+          liberation.weapons.push({ template_id: genesisItemOptions()[0]?.[0] || "", job_ids: [] });
+          markDirty();
+          render();
+        },
+      }, "무기 매핑 추가"),
+    ]),
+    el("div", { className: "panel-body rows" }, liberation.weapons.length
+      ? liberation.weapons.map((weapon, index) => liberationWeaponEditor(liberation, weapon, index))
+      : [el("div", { className: "empty" }, "직업군별 무기 매핑 없음")]),
+  ]);
+  const stageSection = el("section", { className: "panel themed liberation-panel" }, [
+    el("div", { className: "panel-header" }, [
+      el("h2", {}, "해방 단계"),
+      el("button", {
+        type: "button",
+        onclick: () => {
+          liberation.stages.push({
+            stage: liberation.stages.length + 1,
+            name: `${liberation.stages.length + 1}차 해방`,
+            stars: 0,
+            materials: {},
+          });
+          markDirty();
+          render();
+        },
+      }, "해방 단계 추가"),
+    ]),
+    el("div", { className: "panel-body rows" }, liberation.stages.length
+      ? liberation.stages.map((stage, index) => liberationStageEditor(liberation, stage, index))
+      : [el("div", { className: "empty" }, "해방 단계 없음")]),
+  ]);
+  main.replaceChildren(el("div", { className: "rows" }, [configPanel, weaponSection, stageSection]));
+}
+
+function normalizeLiberationConfig() {
+  const liberation = state.content.liberation ||= {};
+  liberation.boss_id ||= state.content.bosses?.[0]?.id || "";
+  liberation.weapons = Array.isArray(liberation.weapons) ? liberation.weapons : [];
+  liberation.stages = Array.isArray(liberation.stages) ? liberation.stages : [];
+  for (const weapon of liberation.weapons) {
+    weapon.template_id ||= genesisItemOptions()[0]?.[0] || "";
+    weapon.job_ids = Array.isArray(weapon.job_ids) ? [...new Set(weapon.job_ids.map(String))] : [];
+  }
+  for (const [index, stage] of liberation.stages.entries()) {
+    stage.stage = Math.max(1, Number(stage.stage || index + 1));
+    stage.name ||= `${stage.stage}차 해방`;
+    stage.stars = Math.max(0, Number(stage.stars || 0));
+    stage.materials = stage.materials && typeof stage.materials === "object" ? stage.materials : {};
+  }
+  return liberation;
+}
+
+function genesisItemOptions() {
+  const rows = (state.content.items || []).filter((item) => item.genesis_weapon);
+  return (rows.length ? rows : state.content.items || []).map((item) => [item.id, `${item.name} (${item.id})`]);
+}
+
+function liberationWeaponEditor(liberation, weapon, index) {
+  const jobRows = weapon.job_ids.map((jobId, jobIndex) => {
+    const proxy = { job_id: jobId };
+    return el("div", { className: "row two" }, [
+      selectField("직업", proxy, "job_id", jobOptions(), {
+        onChange: (nextJobId) => {
+          weapon.job_ids[jobIndex] = nextJobId;
+          weapon.job_ids = [...new Set(weapon.job_ids)];
+        },
+      }),
+      deleteButton(() => {
+        weapon.job_ids.splice(jobIndex, 1);
+        markDirty();
+        render();
+      }),
+    ]);
+  });
+  return el("section", { className: "section subtle" }, [
+    el("div", { className: "section-head" }, [
+      el("h3", {}, findById("items", weapon.template_id)?.name || weapon.template_id || "제네시스 무기"),
+      el("button", {
+        type: "button",
+        className: "danger",
+        onclick: () => {
+          liberation.weapons.splice(index, 1);
+          markDirty();
+          render();
+        },
+      }, "삭제"),
+    ]),
+    el("div", { className: "form-grid" }, [
+      selectField("제네시스 무기", weapon, "template_id", genesisItemOptions(), { rerender: true }),
+    ]),
+    el("div", { className: "section-head compact" }, [
+      el("h3", {}, "연결 직업"),
+      el("button", {
+        type: "button",
+        onclick: () => {
+          const nextJob = jobOptions().find(([jobId]) => !weapon.job_ids.includes(jobId))?.[0];
+          if (nextJob) {
+            weapon.job_ids.push(nextJob);
+            markDirty();
+            render();
+          }
+        },
+      }, "직업 추가"),
+    ]),
+    el("div", { className: "rows" }, jobRows.length ? jobRows : [el("div", { className: "empty" }, "연결 직업 없음")]),
+  ]);
+}
+
+function liberationStageEditor(liberation, stage, index) {
+  return el("section", { className: "section subtle" }, [
+    el("div", { className: "section-head" }, [
+      el("h3", {}, stage.name || `${stage.stage}차 해방`),
+      el("button", {
+        type: "button",
+        className: "danger",
+        onclick: () => {
+          liberation.stages.splice(index, 1);
+          markDirty();
+          render();
+        },
+      }, "삭제"),
+    ]),
+    el("div", { className: "form-grid three" }, [
+      numberField("단계", stage, "stage", { step: 1 }),
+      textField("이름", stage, "name"),
+      numberField("완료 성급", stage, "stars", { step: 1 }),
+    ]),
+    materialCostEditor(stage, "필요 재료"),
+  ]);
 }
 
 function renderGacha() {
@@ -1451,6 +1747,7 @@ function renderStackEffectDetail(effect) {
     ]),
     stackTierEditor(effect),
     stackConditionEditor(effect),
+    stackReactionEditor(effect),
   ]);
   mainDetail("스택 효과 편집", effect, body);
 }
@@ -1478,6 +1775,81 @@ function normalizeStackEffect(effect) {
   effect.conditions = effect.conditions
     .filter((condition) => condition && typeof condition === "object")
     .map((condition) => normalizeStackCondition(condition));
+  effect.reactions = Array.isArray(effect.reactions)
+    ? effect.reactions.filter((reaction) => reaction && typeof reaction === "object")
+    : [];
+  for (const reaction of effect.reactions) {
+    reaction.with_stack_effect_id ||= reaction.other_stack_effect_id || "";
+    delete reaction.other_stack_effect_id;
+    reaction.remove_self ??= true;
+    reaction.remove_other ??= true;
+    ensurePlainDamageEditorState(reaction);
+  }
+}
+
+function stackReactionEditor(effect) {
+  effect.reactions ||= [];
+  const otherOptions = stackEffectOptions().filter(([effectId]) => effectId !== effect.id);
+  const rows = effect.reactions.map((reaction, index) => {
+    const plainDamage = ensurePlainDamageEditorState(reaction);
+    const fields = [
+      selectField("함께 있을 스택", reaction, "with_stack_effect_id", otherOptions),
+      selectField("무속성 피해", plainDamage, "mode", PLAIN_DAMAGE_MODES, {
+        rerender: true,
+        onChange: (mode) => {
+          if (mode === "none") {
+            plainDamage.value = 0;
+          } else if (Number(plainDamage.value || 0) <= 0) {
+            plainDamage.value = mode === "target_max_hp_ratio" ? 0.3 : 1;
+          }
+        },
+      }),
+    ];
+    if (plainDamage.mode !== "none") {
+      fields.push(numberField(
+        plainDamage.mode === "target_max_hp_ratio" ? "최대 HP 비율" : "고정 피해",
+        plainDamage,
+        "value",
+        { step: plainDamage.mode === "target_max_hp_ratio" ? 0.01 : 1 },
+      ));
+    }
+    fields.push(
+      checkboxField("자신 스택 제거", reaction, "remove_self"),
+      checkboxField("상대 스택 제거", reaction, "remove_other"),
+      deleteButton(() => {
+        effect.reactions.splice(index, 1);
+        markDirty();
+        render();
+      }),
+    );
+    return el("div", { className: "subpanel" }, [
+      el("div", { className: "row five" }, fields),
+    ]);
+  });
+  return el("section", { className: "section themed reaction-section" }, [
+    el("div", { className: "section-head" }, [
+      el("h3", {}, "동시 스택 반응"),
+      el("button", {
+        type: "button",
+        onclick: () => {
+          const otherId = otherOptions[0]?.[0];
+          if (!otherId) {
+            showToast("반응시킬 다른 스택 효과가 없습니다.", true);
+            return;
+          }
+          effect.reactions.push({
+            with_stack_effect_id: otherId,
+            plain_damage: { mode: "target_max_hp_ratio", value: 0.3 },
+            remove_self: true,
+            remove_other: true,
+          });
+          markDirty();
+          render();
+        },
+      }, "반응 추가"),
+    ]),
+    el("div", { className: "rows" }, rows.length ? rows : [el("div", { className: "empty" }, "동시 스택 반응 없음")]),
+  ]);
 }
 
 function forceSelfSpecialEffectTargets(effects) {
@@ -4754,6 +5126,7 @@ function effectActionEditor(owner, key, title, config = {}) {
     if (isStackAction) {
       action.stack_effect_id ||= state.content.stack_effects?.[0]?.id || "";
       action.value = Math.max(1, Number(action.value || action.stacks || action.count || 1));
+      action.duration = Number.isFinite(Number(action.duration)) ? Number(action.duration) : -1;
       action.value_from_stack_effect_id ||= action.value_from_stack || action.source_stack_effect_id || "";
       if (action.value_from_stack_effect_id) {
         action.value_from_target ||= action.source_target || action.target || "self";
@@ -4781,6 +5154,9 @@ function effectActionEditor(owner, key, title, config = {}) {
     ];
     if (isStackAction) {
       fields.push(selectField("스택 효과", action, "stack_effect_id", stackEffectOptions()));
+      if (["stack_increase", "stack_set", "stack_max"].includes(action.action)) {
+        fields.push(numberField("지속 턴 (-1=무한)", action, "duration", { step: 1 }));
+      }
       if (!["stack_remove", "stack_max"].includes(action.action)) {
         fields.push(
           numberField("스택 수", action, "value", { step: 1 }),

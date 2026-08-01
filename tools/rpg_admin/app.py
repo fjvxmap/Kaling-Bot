@@ -26,6 +26,8 @@ SIMPLE_FILES = {
     "player": "player.json",
     "stat_allocation": "stat_allocation.json",
     "enhancement": "enhancement.json",
+    "potential": "potential.json",
+    "liberation": "liberation.json",
     "gacha": "gacha.json",
     "items": "items.json",
     "jobs": "jobs.json",
@@ -112,6 +114,9 @@ def normalize_content(content: dict[str, Any]) -> None:
     normalize_enhancement(content.setdefault("enhancement", {}), max_enhancement_stars)
     for item in content.get("items", []):
         if isinstance(item, dict):
+            item["enhancement_disabled"] = bool(item.get("enhancement_disabled", False))
+            item["unsellable"] = bool(item.get("unsellable", False))
+            item["genesis_weapon"] = bool(item.get("genesis_weapon", False))
             normalize_stats_map(item, "stats", stat_order_index)
             normalize_fixed_stats(item, "stats", "fixed_stats", stat_order_index)
             normalize_stat_effects(item, "stat_effect_mods", "stat_effects", -1, bool(item.get("undispellable", True)), stat_order_index)
@@ -200,6 +205,8 @@ def normalize_content(content: dict[str, Any]) -> None:
     if not isinstance(content.get("gacha"), dict):
         content["gacha"] = {}
     normalize_gacha(content["gacha"])
+    normalize_potential(content.setdefault("potential", {}), stat_order_index)
+    normalize_liberation(content.setdefault("liberation", {}))
 
 
 def normalize_stack_effect(effect: dict[str, Any], stat_order_index: dict[str, int]) -> None:
@@ -229,6 +236,125 @@ def normalize_stack_effect(effect: dict[str, Any], stat_order_index: dict[str, i
         for condition in conditions
         if isinstance(condition, dict)
     ]
+    reactions = effect.get("reactions")
+    if not isinstance(reactions, list):
+        reactions = []
+    effect["reactions"] = [
+        {
+            "with_stack_effect_id": str(
+                reaction.get("with_stack_effect_id", reaction.get("other_stack_effect_id", "")) or ""
+            ),
+            "plain_damage": normalize_plain_damage_value(reaction.get("plain_damage")),
+            "remove_self": bool(reaction.get("remove_self", True)),
+            "remove_other": bool(reaction.get("remove_other", True)),
+        }
+        for reaction in reactions
+        if isinstance(reaction, dict)
+    ]
+
+
+def normalize_potential(potential: dict[str, Any], stat_order_index: dict[str, int]) -> None:
+    grades = potential.get("grades")
+    if not isinstance(grades, list) or not grades:
+        grades = ["rare", "epic", "unique", "legendary"]
+    grades = list(dict.fromkeys(str(grade) for grade in grades if str(grade)))
+    potential["grades"] = grades
+    line_grades = potential.get("line_grades")
+    if not isinstance(line_grades, list) or not line_grades:
+        line_grades = ["normal", *grades]
+    line_grades = list(dict.fromkeys(str(grade) for grade in line_grades if str(grade)))
+    for grade in grades:
+        if grade not in line_grades:
+            line_grades.append(grade)
+    potential["line_grades"] = line_grades
+    labels = potential.get("labels")
+    potential["labels"] = {
+        grade: str(labels.get(grade, grade)) if isinstance(labels, dict) else grade
+        for grade in line_grades
+    }
+    for key in ("initial_grade_rates", "tier_up_rates"):
+        raw = potential.get(key)
+        potential[key] = {
+            grade: max(0.0, safe_float(raw.get(grade), 0.0)) if isinstance(raw, dict) else 0.0
+            for grade in grades
+        }
+    raw_pity = potential.get("pity_counts")
+    potential["pity_counts"] = {
+        grade: max(0, safe_int(raw_pity.get(grade), 0)) if isinstance(raw_pity, dict) else 0
+        for grade in grades
+    }
+    raw_costs = potential.get("reroll_costs")
+    potential["reroll_costs"] = {
+        grade: max(0, safe_int(raw_costs.get(grade), 0)) if isinstance(raw_costs, dict) else 0
+        for grade in grades
+    }
+    rates = potential.get("line_same_grade_rates")
+    if not isinstance(rates, list):
+        rates = [1.0, 0.2, 0.05]
+    rates = [max(0.0, min(1.0, safe_float(value, 0.0))) for value in rates[:3]]
+    while len(rates) < 3:
+        rates.append((1.0, 0.2, 0.05)[len(rates)])
+    potential["line_same_grade_rates"] = rates
+    options = potential.get("options")
+    if not isinstance(options, list):
+        options = []
+    normalized_options = []
+    for option in options:
+        if not isinstance(option, dict):
+            continue
+        values = option.get("values")
+        weights = option.get("weights")
+        normalized_options.append({
+            "id": str(option.get("id", "")),
+            "name": str(option.get("name", option.get("id", ""))),
+            "stat": str(option.get("stat", "")),
+            "values": {
+                grade: safe_float(values.get(grade), 0.0) if isinstance(values, dict) else 0.0
+                for grade in line_grades
+            },
+            "weights": {
+                grade: max(0.0, safe_float(weights.get(grade), 0.0)) if isinstance(weights, dict) else 0.0
+                for grade in line_grades
+            },
+        })
+    normalized_options.sort(key=lambda option: (stat_order_index.get(option["stat"], 9999), option["id"]))
+    potential["options"] = normalized_options
+
+
+def normalize_liberation(liberation: dict[str, Any]) -> None:
+    liberation["boss_id"] = str(liberation.get("boss_id", ""))
+    weapons = liberation.get("weapons")
+    if not isinstance(weapons, list):
+        weapons = []
+    liberation["weapons"] = [
+        {
+            "template_id": str(row.get("template_id", "")),
+            "job_ids": list(dict.fromkeys(str(job_id) for job_id in row.get("job_ids", []) if str(job_id)))
+            if isinstance(row.get("job_ids"), list) else [],
+        }
+        for row in weapons
+        if isinstance(row, dict)
+    ]
+    stages = liberation.get("stages")
+    if not isinstance(stages, list):
+        stages = []
+    normalized_stages = []
+    for index, row in enumerate(stages, start=1):
+        if not isinstance(row, dict):
+            continue
+        materials = row.get("materials")
+        normalized_stages.append({
+            "stage": max(1, safe_int(row.get("stage"), index)),
+            "name": str(row.get("name", f"{index}차 해방")),
+            "stars": max(0, safe_int(row.get("stars"), 0)),
+            "materials": {
+                str(material_id): max(1, safe_int(amount, 1))
+                for material_id, amount in materials.items()
+                if str(material_id) and safe_int(amount, 0) > 0
+            } if isinstance(materials, dict) else {},
+        })
+    normalized_stages.sort(key=lambda stage: stage["stage"])
+    liberation["stages"] = normalized_stages
 
 
 def force_self_stat_effect_targets(rows: Any) -> None:
@@ -337,6 +463,12 @@ def normalize_plain_damage(pattern: dict[str, Any]) -> None:
         pattern.pop("plain_damage", None)
         return
     pattern["plain_damage"] = {"mode": mode, "value": value}
+
+
+def normalize_plain_damage_value(raw: Any) -> dict[str, Any]:
+    holder = {"plain_damage": raw}
+    normalize_plain_damage(holder)
+    return holder.get("plain_damage", {"mode": "none", "value": 0.0})
 
 
 def normalize_self_hp_loss(pattern: dict[str, Any]) -> None:
@@ -1081,6 +1213,7 @@ def normalize_effect_actions(row: dict[str, Any], key: str) -> None:
         if action_id in STACK_EFFECT_ACTION_IDS:
             action["stack_effect_id"] = str(action.get("stack_effect_id", action.get("effect_id", "")) or "")
             action["value"] = max(1, safe_int(action.get("value", action.get("stacks", action.get("count"))), 1))
+            action["duration"] = max(-1, safe_int(action.get("duration"), -1))
             action["value_from_stack_effect_id"] = str(
                 action.get(
                     "value_from_stack_effect_id",
@@ -1337,6 +1470,8 @@ def validate_content(content: dict[str, Any]) -> list[str]:
     bosses = ensure_unique_ids(content.get("bosses", []), "boss", errors)
     validate_settings(content.get("settings", {}), errors)
     validate_enhancement(content.get("enhancement", {}), materials, errors)
+    validate_potential(content.get("potential", {}), stat_ids, errors)
+    validate_liberation(content.get("liberation", {}), bosses, items, jobs, materials, errors)
 
     for item in content.get("items", []):
         check_rarity(item.get("rarity"), rarities, f"item {item.get('id')}", errors)
@@ -1352,7 +1487,7 @@ def validate_content(content: dict[str, Any]) -> list[str]:
         validate_stat_effects(job.get("stat_effects"), stat_ids, f"job {job.get('id')} stat effects", errors)
         validate_combat_effects(job.get("effects"), f"job {job.get('id')} effects", errors)
     for effect in content.get("stack_effects", []):
-        validate_stack_effect(effect, stat_ids, f"stack effect {effect.get('id')}", errors)
+        validate_stack_effect(effect, stat_ids, f"stack effect {effect.get('id')}", errors, stack_effects)
     for skill in content.get("skills", []):
         for job_id in skill.get("job_ids", []):
             if job_id not in jobs:
@@ -1497,7 +1632,13 @@ def check_rarity(rarity: Any, rarities: set[str], label: str, errors: list[str])
         errors.append(f"{label} rarity not found: {rarity}")
 
 
-def validate_stack_effect(effect: dict[str, Any], stat_ids: set[str], label: str, errors: list[str]) -> None:
+def validate_stack_effect(
+    effect: dict[str, Any],
+    stat_ids: set[str],
+    label: str,
+    errors: list[str],
+    stack_effect_ids: set[str],
+) -> None:
     max_stacks = safe_int(effect.get("max_stacks", effect.get("max")), 0)
     if max_stacks < 1:
         errors.append(f"{label} max stacks must be at least 1")
@@ -1519,12 +1660,10 @@ def validate_stack_effect(effect: dict[str, Any], stat_ids: set[str], label: str
         validate_stat_effects(tier.get("stat_effects"), stat_ids, f"{label} tier {stack} stat effects", errors)
         validate_combat_effects(tier.get("effects"), f"{label} tier {stack} effects", errors)
     conditions = effect.get("conditions", [])
-    if conditions in (None, []):
-        return
-    if not isinstance(conditions, list):
+    if conditions not in (None, []) and not isinstance(conditions, list):
         errors.append(f"{label} conditions is not an array")
-        return
-    for index, condition in enumerate(conditions, start=1):
+        conditions = []
+    for index, condition in enumerate(conditions or [], start=1):
         if not isinstance(condition, dict):
             errors.append(f"{label} condition {index} is not an object")
             continue
@@ -1546,6 +1685,20 @@ def validate_stack_effect(effect: dict[str, Any], stat_ids: set[str], label: str
             errors.append(f"{label} condition {index} required must be at least 1")
         if objective == "hits" and safe_int(condition.get("min_damage"), 0) < 0:
             errors.append(f"{label} condition {index} min damage must be non-negative")
+    reactions = effect.get("reactions", [])
+    if reactions not in (None, []) and not isinstance(reactions, list):
+        errors.append(f"{label} reactions is not an array")
+        reactions = []
+    for index, reaction in enumerate(reactions or [], start=1):
+        if not isinstance(reaction, dict):
+            errors.append(f"{label} reaction {index} is not an object")
+            continue
+        other_id = str(reaction.get("with_stack_effect_id", ""))
+        if other_id not in stack_effect_ids:
+            errors.append(f"{label} reaction {index} stack effect not found: {other_id}")
+        if other_id == str(effect.get("id", "")):
+            errors.append(f"{label} reaction {index} cannot target itself")
+        validate_plain_damage(reaction.get("plain_damage"), f"{label} reaction {index} plain damage", errors)
 
 
 def validate_boss_stack_effects(
@@ -2036,6 +2189,104 @@ def validate_settings(settings: Any, errors: list[str]) -> None:
             errors.append(f"settings reward_multipliers {key} must be non-negative")
 
 
+def validate_potential(potential: Any, stat_ids: set[str], errors: list[str]) -> None:
+    if not isinstance(potential, dict):
+        errors.append("potential is not an object")
+        return
+    grades = potential.get("grades", [])
+    if not isinstance(grades, list) or not grades:
+        errors.append("potential grades is empty")
+        return
+    grade_ids = [str(grade) for grade in grades]
+    if len(grade_ids) != len(set(grade_ids)):
+        errors.append("potential grades has duplicate ids")
+    line_grades = potential.get("line_grades", grade_ids)
+    if not isinstance(line_grades, list) or not line_grades:
+        errors.append("potential line grades is empty")
+        line_grade_ids = grade_ids
+    else:
+        line_grade_ids = [str(grade) for grade in line_grades]
+        if len(line_grade_ids) != len(set(line_grade_ids)):
+            errors.append("potential line grades has duplicate ids")
+        if any(grade not in line_grade_ids for grade in grade_ids):
+            errors.append("potential line grades must include every item grade")
+    rates = potential.get("initial_grade_rates", {})
+    if not isinstance(rates, dict) or sum(max(0.0, safe_float(rates.get(grade), 0.0)) for grade in grade_ids) <= 0:
+        errors.append("potential initial grade rates must have a positive total")
+    line_rates = potential.get("line_same_grade_rates", [])
+    if not isinstance(line_rates, list) or len(line_rates) != 3:
+        errors.append("potential line same grade rates must contain 3 values")
+    options = potential.get("options", [])
+    option_ids = ensure_unique_ids(options, "potential option", errors)
+    if not option_ids:
+        errors.append("potential has no options")
+    for option in options:
+        if not isinstance(option, dict):
+            continue
+        option_id = str(option.get("id", ""))
+        stat = str(option.get("stat", ""))
+        if stat not in stat_ids:
+            errors.append(f"potential option {option_id} stat not found: {stat}")
+        values = option.get("values", {})
+        weights = option.get("weights", {})
+        usable = False
+        for grade in line_grade_ids:
+            value = safe_float(values.get(grade), 0.0) if isinstance(values, dict) else 0.0
+            weight = safe_float(weights.get(grade), 0.0) if isinstance(weights, dict) else 0.0
+            if weight < 0:
+                errors.append(f"potential option {option_id} {grade} weight must be non-negative")
+            if value != 0 and weight > 0:
+                usable = True
+        if not usable:
+            errors.append(f"potential option {option_id} has no usable grade")
+    for grade in line_grade_ids:
+        if not any(
+            isinstance(option, dict)
+            and safe_float(option.get("values", {}).get(grade), 0.0) != 0
+            and safe_float(option.get("weights", {}).get(grade), 0.0) > 0
+            for option in options
+        ):
+            errors.append(f"potential grade {grade} has no usable options")
+
+
+def validate_liberation(
+    liberation: Any,
+    boss_ids: set[str],
+    item_ids: set[str],
+    job_ids: set[str],
+    material_ids: set[str],
+    errors: list[str],
+) -> None:
+    if not isinstance(liberation, dict):
+        errors.append("liberation is not an object")
+        return
+    boss_id = str(liberation.get("boss_id", ""))
+    if boss_id not in boss_ids:
+        errors.append(f"liberation boss not found: {boss_id}")
+    for index, weapon in enumerate(liberation.get("weapons", []), start=1):
+        if not isinstance(weapon, dict):
+            errors.append(f"liberation weapon {index} is not an object")
+            continue
+        template_id = str(weapon.get("template_id", ""))
+        if template_id not in item_ids:
+            errors.append(f"liberation weapon not found: {template_id}")
+        for job_id in weapon.get("job_ids", []):
+            if str(job_id) not in job_ids:
+                errors.append(f"liberation weapon {template_id} job not found: {job_id}")
+    seen_stages: set[int] = set()
+    for index, stage in enumerate(liberation.get("stages", []), start=1):
+        if not isinstance(stage, dict):
+            errors.append(f"liberation stage {index} is not an object")
+            continue
+        stage_number = safe_int(stage.get("stage"), 0)
+        if stage_number < 1 or stage_number in seen_stages:
+            errors.append(f"liberation stage is invalid or duplicated: {stage_number}")
+        seen_stages.add(stage_number)
+        for material_id in stage.get("materials", {}):
+            if str(material_id) not in material_ids:
+                errors.append(f"liberation stage {stage_number} material not found: {material_id}")
+
+
 def validate_enhancement(enhancement: Any, material_ids: set[str], errors: list[str]) -> None:
     if not isinstance(enhancement, dict):
         errors.append("enhancement is not an object")
@@ -2259,6 +2510,8 @@ def validate_effect_actions(
                 errors.append(f"{label} {index} value source target is invalid: {source_target}")
             if safe_int(action.get("value", action.get("stacks", 1)), 1) < 1:
                 errors.append(f"{label} {index} value must be at least 1")
+            if safe_int(action.get("duration"), -1) < -1:
+                errors.append(f"{label} {index} duration must be -1 or greater")
         conditions = action.get("conditions")
         if conditions in (None, []):
             continue

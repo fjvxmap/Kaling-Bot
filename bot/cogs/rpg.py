@@ -17,6 +17,7 @@ from bot.services.rpg.data import (
     GACHA_DEFAULT_POOL_ID,
     GACHA_POOLS,
     ITEM_BY_ID,
+    LIBERATION,
     MATERIAL_BY_ID,
     MATERIALS,
     MAX_EQUIPPED_ITEMS,
@@ -45,6 +46,8 @@ from bot.services.rpg.manager import (
     ExploreResult,
     GachaResult,
     JobResult,
+    LiberationResult,
+    PotentialResult,
     RPGService,
     RPG_TIMEZONE,
     SellResult,
@@ -534,6 +537,32 @@ class RPGCog(commands.Cog):
                 view.selected_spare_uid,
             ),
             view=view,
+        )
+
+    @rpg.command(name="잠재능력", description="장비의 잠재능력 세 줄을 확인하고 재설정합니다.")
+    async def potential(self, interaction: discord.Interaction) -> None:
+        profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
+        items = self._potential_display_items(profile)
+        if not items:
+            await interaction.response.send_message(
+                embed=discord.Embed(
+                    title="잠재능력",
+                    description="잠재능력을 확인할 장비가 없습니다.",
+                    color=0xA0A7B4,
+                )
+            )
+            return
+        await interaction.response.send_message(
+            embed=self._potential_embed(profile),
+            view=PotentialView(self, interaction.user.id, interaction.user.display_name),
+        )
+
+    @rpg.command(name="해방", description="제네시스 무기를 받고 해방 단계를 진행합니다.")
+    async def liberation(self, interaction: discord.Interaction) -> None:
+        profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
+        await interaction.response.send_message(
+            embed=self._liberation_embed(profile),
+            view=LiberationView(self, interaction.user.id, interaction.user.display_name),
         )
 
     def _add_boss_participant(self, session: BossSession, user_id: int, display_name: str) -> tuple[bool, str]:
@@ -1836,6 +1865,8 @@ class RPGCog(commands.Cog):
         before_max_hp = self._participant_max_hp(participant)
         participant.player_effects = self.service._tick_effects(participant.player_effects)
         participant.boss_effects = self.service._tick_effects(participant.boss_effects)
+        participant.player_stack_effects = self.service.tick_stack_effects(participant.player_stack_effects)
+        participant.boss_stack_effects = self.service.tick_stack_effects(participant.boss_stack_effects)
         self._sync_participant_hp_from_snapshot(participant, before_max_hp)
         self._tick_ability_cooldowns(participant)
         participant.turn += 1
@@ -3068,7 +3099,8 @@ class RPGCog(commands.Cog):
             stacks_count = max(0, int(stack.stacks))
             if stacks_count <= 0:
                 continue
-            parts.append(f"{template.name} lv.{stacks_count}")
+            turns = f" · {stack.turns}턴" if stack.turns > 0 else ""
+            parts.append(f"{template.name} lv.{stacks_count}{turns}")
         return ", ".join(parts)
 
     def _boss_shared_effects_text(self, session: BossSession, *, limit: int) -> str:
@@ -3865,6 +3897,95 @@ class RPGCog(commands.Cog):
                 return selected
         return pools[0] if pools else None
 
+    def _potential_embed(
+        self,
+        profile: PlayerProfile,
+        selected_uid: int | None = None,
+        result: PotentialResult | None = None,
+    ) -> discord.Embed:
+        item = self._profile_item(profile, selected_uid)
+        description = result.message if result is not None else "장비를 선택하면 잠재능력과 재설정 비용을 확인할 수 있습니다."
+        embed = discord.Embed(title="잠재능력", description=description, color=0xB56BFF)
+        if item is None:
+            lines = []
+            for candidate in self._potential_display_items(profile)[:10]:
+                grade = self.service.potential_grade_label(candidate.potential_grade)
+                if candidate.potential_locked:
+                    grade = "잠김"
+                lines.append(f"{self._item_display_title(candidate)} · {grade}")
+            embed.add_field(name="장비", value="\n".join(lines), inline=False)
+            embed.set_footer(text=f"보유 골드 {profile.gold}G")
+            return embed
+
+        template = ITEM_BY_ID[item.template_id]
+        embed.color = RARITY_COLORS.get(template.rarity, 0xB56BFF)
+        embed.add_field(name="장비", value=self._item_display_title(item), inline=False)
+        embed.add_field(name="잠재 합산", value=self.service.format_stats(self.service.potential_stats(item), signed=True), inline=False)
+        potential_text = self.service.potential_text(item)
+        embed.add_field(name="잠재능력", value=potential_text.removeprefix("잠재능력: ") or "없음", inline=False)
+        if item.potential_locked:
+            embed.add_field(name="재설정", value="2차 해방 후 가능", inline=False)
+        else:
+            embed.add_field(name="재설정 비용", value=f"{self.service.potential_reroll_cost(item)}G", inline=True)
+        if result is not None and result.tier_up:
+            embed.add_field(
+                name="등급 상승",
+                value=(
+                    f"{self.service.potential_grade_label(result.before_grade)} → "
+                    f"{self.service.potential_grade_label(result.after_grade)}"
+                ),
+                inline=True,
+            )
+        embed.set_footer(text=f"보유 골드 {profile.gold}G")
+        return embed
+
+    def _liberation_embed(
+        self,
+        profile: PlayerProfile,
+        result: LiberationResult | None = None,
+    ) -> discord.Embed:
+        boss = BOSS_BY_ID.get(LIBERATION.boss_id)
+        item = self.service.genesis_item(profile)
+        description = result.message if result is not None else "제네시스 무기 해방 진행 상황입니다."
+        embed = discord.Embed(title="제네시스 해방", description=description, color=0xF3C567)
+        if item is None:
+            cleared = LIBERATION.boss_id in profile.cleared_boss_ids
+            boss_name = boss.name if boss is not None else "검은 마법사"
+            embed.add_field(
+                name="제네시스 무기",
+                value="수령 가능" if cleared else f"{boss_name} 실전 처치 필요",
+                inline=False,
+            )
+            template_id = self.service.liberation_weapon_template_id(profile)
+            if template_id in ITEM_BY_ID:
+                embed.add_field(name="현재 직업군 무기", value=ITEM_BY_ID[template_id].name, inline=False)
+            return embed
+
+        stage_labels = {0: "미해방", 1: "1차 해방", 2: "2차 해방"}
+        embed.add_field(
+            name="제네시스 무기",
+            value=f"{self._item_display_title(item)} · {stage_labels.get(profile.genesis_liberation_stage, '미해방')}",
+            inline=False,
+        )
+        embed.add_field(name="현재 능력", value=self.service.item_stats_text(item), inline=False)
+        next_stage = self.service.liberation_next_stage(profile)
+        if next_stage is None:
+            embed.add_field(name="진행", value="해방 완료", inline=False)
+        else:
+            material_lines = []
+            for material_id, amount in next_stage.materials.items():
+                owned = int(profile.materials.get(material_id, 0))
+                marker = "완료" if owned >= amount else "부족"
+                material_lines.append(
+                    f"`{marker}` {self.service.material_name(material_id)} {owned}/{amount}"
+                )
+            embed.add_field(
+                name=f"다음 단계 · {next_stage.name} (+{next_stage.stars})",
+                value="\n".join(material_lines),
+                inline=False,
+            )
+        return embed
+
     def _enhancement_picker_embed(self, profile: PlayerProfile) -> discord.Embed:
         display_items = self._enhancement_display_items(profile)
         enhance_count = len([item for item in profile.inventory if not item.destroyed and item.template_id in ITEM_BY_ID])
@@ -4311,7 +4432,9 @@ class RPGCog(commands.Cog):
         return sorted(
             [
                 item for item in profile.inventory
-                if item.uid not in equipped_ids and item.template_id in ITEM_BY_ID
+                if item.uid not in equipped_ids
+                and item.template_id in ITEM_BY_ID
+                and not ITEM_BY_ID[item.template_id].unsellable
             ],
             key=lambda item: (
                 item.destroyed,
@@ -4332,6 +4455,7 @@ class RPGCog(commands.Cog):
                 if item.uid not in equipped_ids
                 and item.template_id in ITEM_BY_ID
                 and ITEM_BY_ID[item.template_id].rarity in selected
+                and not ITEM_BY_ID[item.template_id].unsellable
             ],
             key=lambda item: (
                 RARITIES.index(ITEM_BY_ID[item.template_id].rarity),
@@ -4345,13 +4469,30 @@ class RPGCog(commands.Cog):
         return sorted(
             [
                 item for item in profile.inventory
-                if not item.destroyed and item.template_id in ITEM_BY_ID
+                if not item.destroyed
+                and item.template_id in ITEM_BY_ID
+                and not ITEM_BY_ID[item.template_id].enhancement_disabled
             ],
             key=lambda item: (
                 -self._item_rarity_rank(item),
                 item.uid not in equipped_ids,
                 -item.stars,
                 -self.service.item_score(item),
+                item.uid,
+            ),
+        )[:25]
+
+    def _potential_display_items(self, profile: PlayerProfile):
+        equipped_ids = set(profile.equipped_item_uids)
+        return sorted(
+            [
+                item for item in profile.inventory
+                if not item.destroyed and item.template_id in ITEM_BY_ID
+            ],
+            key=lambda item: (
+                item.uid not in equipped_ids,
+                -self._item_rarity_rank(item),
+                -item.stars,
                 item.uid,
             ),
         )[:25]
@@ -5561,6 +5702,142 @@ class SpecialAbilityEquipSelect(discord.ui.Select):
         await interaction.response.edit_message(
             embed=self.view.cog._ability_embed(result.profile, result),
             view=AbilityEquipView(self.view.cog, self.view.user_id, self.view.display_name),
+        )
+
+
+class PotentialView(discord.ui.View):
+    def __init__(
+        self,
+        cog: RPGCog,
+        user_id: int,
+        display_name: str,
+        selected_uid: int | None = None,
+    ) -> None:
+        super().__init__(timeout=180)
+        self.cog = cog
+        self.user_id = user_id
+        self.display_name = display_name
+        self.selected_uid = selected_uid
+        profile = cog.service.get_profile(user_id, display_name)
+        items = cog._potential_display_items(profile)
+        options = []
+        for item in items:
+            template = ITEM_BY_ID[item.template_id]
+            grade = "잠김" if item.potential_locked else cog.service.potential_grade_label(item.potential_grade)
+            options.append(
+                discord.SelectOption(
+                    label=cog._item_select_label(item),
+                    value=str(item.uid),
+                    description=f"{grade} · {cog.service.potential_reroll_cost(item)}G"[:100],
+                    emoji=cog._rarity_emoji(template.rarity),
+                    default=item.uid == selected_uid,
+                )
+            )
+        if options:
+            self.add_item(PotentialSelect(options))
+        item = cog._profile_item(profile, selected_uid)
+        can_reroll = (
+            item is not None
+            and not item.potential_locked
+            and profile.gold >= cog.service.potential_reroll_cost(item)
+        )
+        self.add_item(PotentialRerollButton(disabled=not can_reroll))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.user_id:
+            return True
+        await interaction.response.send_message("이 잠재능력 UI는 명령을 실행한 사람만 사용할 수 있습니다.", ephemeral=True)
+        return False
+
+
+class PotentialSelect(discord.ui.Select):
+    def __init__(self, options: list[discord.SelectOption]) -> None:
+        super().__init__(placeholder="잠재능력을 확인할 장비 선택", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, PotentialView)
+        uid = int(self.values[0])
+        profile = self.view.cog.service.get_profile(self.view.user_id, self.view.display_name)
+        await interaction.response.edit_message(
+            embed=self.view.cog._potential_embed(profile, uid),
+            view=PotentialView(self.view.cog, self.view.user_id, self.view.display_name, uid),
+        )
+
+
+class PotentialRerollButton(discord.ui.Button):
+    def __init__(self, *, disabled: bool = False) -> None:
+        super().__init__(label="재설정", style=discord.ButtonStyle.primary, disabled=disabled)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, PotentialView)
+        if self.view.selected_uid is None:
+            await interaction.response.send_message("먼저 장비를 선택하세요.", ephemeral=True)
+            return
+        result = self.view.cog.service.reroll_potential(
+            self.view.user_id,
+            self.view.display_name,
+            self.view.selected_uid,
+        )
+        await interaction.response.edit_message(
+            embed=self.view.cog._potential_embed(result.profile, self.view.selected_uid, result),
+            view=PotentialView(
+                self.view.cog,
+                self.view.user_id,
+                self.view.display_name,
+                self.view.selected_uid,
+            ),
+        )
+
+
+class LiberationView(discord.ui.View):
+    def __init__(self, cog: RPGCog, user_id: int, display_name: str) -> None:
+        super().__init__(timeout=180)
+        self.cog = cog
+        self.user_id = user_id
+        self.display_name = display_name
+        profile = cog.service.get_profile(user_id, display_name)
+        item = cog.service.genesis_item(profile)
+        if item is None:
+            enabled = (
+                LIBERATION.boss_id in profile.cleared_boss_ids
+                and bool(cog.service.liberation_weapon_template_id(profile))
+            )
+            self.add_item(LiberationActionButton("제네시스 무기 받기", claim=True, disabled=not enabled))
+        else:
+            stage = cog.service.liberation_next_stage(profile)
+            if stage is None:
+                self.add_item(LiberationActionButton("해방 완료", claim=False, disabled=True))
+            else:
+                enabled = all(profile.materials.get(material_id, 0) >= amount for material_id, amount in stage.materials.items())
+                self.add_item(LiberationActionButton(stage.name, claim=False, disabled=not enabled))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.user_id:
+            return True
+        await interaction.response.send_message("이 해방 UI는 명령을 실행한 사람만 사용할 수 있습니다.", ephemeral=True)
+        return False
+
+
+class LiberationActionButton(discord.ui.Button):
+    def __init__(self, label: str, *, claim: bool, disabled: bool = False) -> None:
+        super().__init__(label=label, style=discord.ButtonStyle.primary, disabled=disabled)
+        self.claim = claim
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, LiberationView)
+        if self.claim:
+            result = self.view.cog.service.claim_genesis_weapon(
+                self.view.user_id,
+                self.view.display_name,
+            )
+        else:
+            result = self.view.cog.service.advance_genesis_liberation(
+                self.view.user_id,
+                self.view.display_name,
+            )
+        await interaction.response.edit_message(
+            embed=self.view.cog._liberation_embed(result.profile, result),
+            view=LiberationView(self.view.cog, self.view.user_id, self.view.display_name),
         )
 
 

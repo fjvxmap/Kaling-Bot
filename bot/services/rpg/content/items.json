@@ -2187,5 +2187,117 @@
         }
       ]
     }
+  },
+  {
+    "id": "genesis_two_handed_sword",
+    "name": "제네시스 투핸드소드",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 8,
+      "atk": 0.09,
+      "critical_damage": 0.02
+    },
+    "base_price": 1,
+    "excluded_from_gacha": true,
+    "enhancement_disabled": true,
+    "unsellable": true,
+    "genesis_weapon": true,
+    "description": "검은 마법사의 힘을 품은 두손검이다."
+  },
+  {
+    "id": "genesis_one_handed_sword",
+    "name": "제네시스 세이버",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 6,
+      "atk": 0.07,
+      "defense": 0.08
+    },
+    "base_price": 1,
+    "excluded_from_gacha": true,
+    "enhancement_disabled": true,
+    "unsellable": true,
+    "genesis_weapon": true,
+    "description": "검은 마법사의 힘을 품은 한손검이다."
+  },
+  {
+    "id": "genesis_bow",
+    "name": "제네시스 보우",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 6,
+      "atk": 0.07,
+      "triple_attack_rate": 0.025
+    },
+    "base_price": 1,
+    "excluded_from_gacha": true,
+    "enhancement_disabled": true,
+    "unsellable": true,
+    "genesis_weapon": true,
+    "description": "검은 마법사의 힘을 품은 활이다."
+  },
+  {
+    "id": "genesis_crossbow",
+    "name": "제네시스 크로스보우",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 8,
+      "skill_damage": 0.07,
+      "critical_rate": 0.03
+    },
+    "base_price": 1,
+    "excluded_from_gacha": true,
+    "enhancement_disabled": true,
+    "unsellable": true,
+    "genesis_weapon": true,
+    "description": "검은 마법사의 힘을 품은 석궁이다."
+  },
+  {
+    "id": "genesis_staff",
+    "name": "제네시스 스태프",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 8,
+      "skill_damage": 0.09,
+      "skill_dmg_supplement": 8
+    },
+    "base_price": 1,
+    "excluded_from_gacha": true,
+    "enhancement_disabled": true,
+    "unsellable": true,
+    "genesis_weapon": true,
+    "description": "검은 마법사의 힘을 품은 스태프이다."
+  },
+  {
+    "id": "genesis_wand",
+    "name": "제네시스 완드",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 6,
+      "skill_damage": 0.07,
+      "healing_bonus": 0.05
+    },
+    "base_price": 1,
+    "excluded_from_gacha": true,
+    "enhancement_disabled": true,
+    "unsellable": true,
+    "genesis_weapon": true,
+    "description": "검은 마법사의 힘을 품은 완드이다."
+  },
+  {
+    "id": "genesis_creation_sword",
+    "name": "제네시스 창세검",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 7,
+      "atk": 0.08,
+      "double_attack_rate": 0.03
+    },
+    "base_price": 1,
+    "excluded_from_gacha": true,
+    "enhancement_disabled": true,
+    "unsellable": true,
+    "genesis_weapon": true,
+    "description": "검은 마법사의 힘을 품은 창세검이다."
   }
 ]

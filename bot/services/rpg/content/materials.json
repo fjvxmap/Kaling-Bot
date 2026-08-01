@@ -45,5 +45,41 @@
     "emoji": "",
     "description": ".",
     "stats": {}
+  },
+  {
+    "id": "lotus_liberation_trace",
+    "name": "윙 마스터 스우의 흔적",
+    "rarity": "normal",
+    "description": "제네시스 무기 해방에 필요한 스우의 흔적이다."
+  },
+  {
+    "id": "demian_liberation_trace",
+    "name": "파멸의 검 데미안의 흔적",
+    "rarity": "normal",
+    "description": "제네시스 무기 해방에 필요한 데미안의 흔적이다."
+  },
+  {
+    "id": "lucid_liberation_trace",
+    "name": "악몽의 주인 루시드의 흔적",
+    "rarity": "normal",
+    "description": "제네시스 무기 해방에 필요한 루시드의 흔적이다."
+  },
+  {
+    "id": "dusk_liberation_trace",
+    "name": "거대 괴수 더스크의 흔적",
+    "rarity": "normal",
+    "description": "제네시스 무기 해방에 필요한 더스크의 흔적이다."
+  },
+  {
+    "id": "dunkel_liberation_trace",
+    "name": "친위대장 듄켈의 흔적",
+    "rarity": "normal",
+    "description": "제네시스 무기 해방에 필요한 듄켈의 흔적이다."
+  },
+  {
+    "id": "verus_hilla_liberation_trace",
+    "name": "붉은 마녀 진 힐라의 흔적",
+    "rarity": "normal",
+    "description": "제네시스 무기 해방에 필요한 진 힐라의 흔적이다."
   }
 ]

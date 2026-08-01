@@ -1,0 +1,415 @@
+{
+  "id": "black_mage",
+  "name": "검은 마법사",
+  "level_req": 20,
+  "stats": {
+    "base_atk": 42,
+    "max_hp": 42000,
+    "defense": 0.55,
+    "dmg_mitigation": 8,
+    "triple_attack_rate": 0.45,
+    "double_attack_rate": 0.35
+  },
+  "gold": 9000,
+  "exp": 1,
+  "patterns": [],
+  "warnings": [
+    {
+      "id": "red_lightning",
+      "name": "붉은 번개",
+      "activation_priority": 100,
+      "pattern": {
+        "id": "red_lightning_failure",
+        "name": "붉은 번개",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "plain_damage": {
+          "mode": "target_max_hp_ratio",
+          "value": 0.99
+        }
+      },
+      "objectives": [
+        {"objective": "damage", "required": 800, "min_damage": 0},
+        {"objective": "hits", "required": 10, "min_damage": 0}
+      ],
+      "turns": 2,
+      "activation_conditions": [
+        {"kind": "turn_multiple", "multiple": 6},
+        {"kind": "boss_hp_ratio", "min_ratio": 0.501, "max_ratio": 1.0}
+      ]
+    },
+    {
+      "id": "aeon",
+      "name": "창조의 아이온",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "aeon_failure",
+        "name": "창조의 아이온",
+        "damage_multiplier": 1.7,
+        "hits": 3,
+        "effect_actions": [
+          {
+            "action": "stack_set",
+            "target": "enemy",
+            "stack_effect_id": "black_mage_creation_curse",
+            "value": 1,
+            "duration": 4
+          }
+        ]
+      },
+      "objectives": [
+        {"objective": "hits", "required": 8, "min_damage": 0}
+      ],
+      "turns": 1
+    },
+    {
+      "id": "yaldabaoth",
+      "name": "파괴의 얄다바오트",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "yaldabaoth_failure",
+        "name": "파괴의 얄다바오트",
+        "damage_multiplier": 2.2,
+        "hits": 2,
+        "effect_actions": [
+          {
+            "action": "stack_set",
+            "target": "enemy",
+            "stack_effect_id": "black_mage_destruction_curse",
+            "value": 1,
+            "duration": 4
+          }
+        ]
+      },
+      "objectives": [
+        {"objective": "damage", "required": 700, "min_damage": 0}
+      ],
+      "turns": 1
+    },
+    {
+      "id": "nox_sphere",
+      "name": "녹스피어",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "nox_sphere_failure",
+        "name": "녹스피어",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "plain_damage": {
+          "mode": "target_max_hp_ratio",
+          "value": 0.9
+        },
+        "effect_actions": [
+          {
+            "action": "stack_set",
+            "target": "enemy",
+            "stack_effect_id": "black_mage_creation_curse",
+            "value": 1,
+            "duration": 4
+          }
+        ]
+      },
+      "objectives": [
+        {"objective": "hits", "required": 12, "min_damage": 0}
+      ],
+      "turns": 2
+    },
+    {
+      "id": "black_chain",
+      "name": "검은 사슬",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "black_chain_failure",
+        "name": "검은 사슬",
+        "damage_multiplier": 1.25,
+        "hits": 4,
+        "effect_actions": [
+          {
+            "action": "stack_set",
+            "target": "enemy",
+            "stack_effect_id": "black_mage_destruction_curse",
+            "value": 1,
+            "duration": 4
+          }
+        ]
+      },
+      "objectives": [
+        {"objective": "debuff", "required": 1, "min_damage": 0},
+        {"objective": "damage", "required": 900, "min_damage": 0}
+      ],
+      "turns": 1
+    },
+    {
+      "id": "eye_of_destruction",
+      "name": "파멸의 눈",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "eye_of_destruction_failure",
+        "name": "파멸의 눈",
+        "damage_multiplier": 1.1,
+        "hits": 5,
+        "effect_actions": [
+          {
+            "action": "stack_set",
+            "target": "enemy",
+            "stack_effect_id": "black_mage_destruction_curse",
+            "value": 1,
+            "duration": 4
+          }
+        ]
+      },
+      "objectives": [
+        {"objective": "dispel", "required": 1, "min_damage": 0}
+      ],
+      "turns": 2
+    },
+    {
+      "id": "morning_starfall",
+      "name": "모닝 스타폴",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "morning_starfall_failure",
+        "name": "모닝 스타폴",
+        "damage_multiplier": 1.8,
+        "hits": 3,
+        "effect_actions": [
+          {
+            "action": "stack_set",
+            "target": "enemy",
+            "stack_effect_id": "black_mage_creation_curse",
+            "value": 1,
+            "duration": 4
+          }
+        ]
+      },
+      "objectives": [
+        {"objective": "ability", "required": 2, "min_damage": 0}
+      ],
+      "turns": 1
+    },
+    {
+      "id": "creation_authority",
+      "name": "창조와 파괴의 권능",
+      "activation_priority": 110,
+      "pattern": {
+        "id": "creation_authority_failure",
+        "name": "창조와 파괴의 권능",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "plain_damage": {
+          "mode": "target_max_hp_ratio",
+          "value": 1.0
+        }
+      },
+      "objectives": [
+        {"objective": "damage", "required": 1400, "min_damage": 0},
+        {"objective": "hits", "required": 15, "min_damage": 0}
+      ],
+      "turns": 2,
+      "activation_conditions": [
+        {"kind": "turn_multiple", "multiple": 7},
+        {"kind": "boss_hp_ratio", "min_ratio": 0.251, "max_ratio": 0.5}
+      ]
+    },
+    {
+      "id": "knockback",
+      "name": "넉백",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "knockback_failure",
+        "name": "넉백",
+        "damage_multiplier": 2.4,
+        "hits": 2,
+        "effect_actions": [
+          {
+            "action": "stack_set",
+            "target": "enemy",
+            "stack_effect_id": "black_mage_creation_curse",
+            "value": 1,
+            "duration": 4
+          }
+        ]
+      },
+      "objectives": [
+        {"objective": "hits", "required": 12, "min_damage": 0}
+      ],
+      "turns": 1
+    },
+    {
+      "id": "destruction_laser",
+      "name": "파괴의 레이저",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "destruction_laser_failure",
+        "name": "파괴의 레이저",
+        "damage_multiplier": 1.6,
+        "hits": 5,
+        "effect_actions": [
+          {
+            "action": "stack_set",
+            "target": "enemy",
+            "stack_effect_id": "black_mage_destruction_curse",
+            "value": 1,
+            "duration": 4
+          }
+        ]
+      },
+      "objectives": [
+        {"objective": "damage", "required": 1300, "min_damage": 0}
+      ],
+      "turns": 1
+    },
+    {
+      "id": "enhanced_destruction_laser",
+      "name": "강화 레이저",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "enhanced_destruction_laser_failure",
+        "name": "강화 레이저",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "plain_damage": {
+          "mode": "target_max_hp_ratio",
+          "value": 0.55
+        },
+        "effect_actions": [
+          {
+            "action": "stack_set",
+            "target": "enemy",
+            "stack_effect_id": "black_mage_destruction_curse",
+            "value": 1,
+            "duration": 4
+          }
+        ]
+      },
+      "objectives": [
+        {"objective": "ability_damage", "required": 900, "min_damage": 0},
+        {"objective": "hits", "required": 10, "min_damage": 0}
+      ],
+      "turns": 2
+    },
+    {
+      "id": "black_bullet",
+      "name": "탄막 (검은색)",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "black_bullet_failure",
+        "name": "탄막 (검은색)",
+        "damage_multiplier": 1.0,
+        "hits": 8,
+        "effect_actions": [
+          {
+            "action": "stack_set",
+            "target": "enemy",
+            "stack_effect_id": "black_mage_destruction_curse",
+            "value": 1,
+            "duration": 4
+          }
+        ]
+      },
+      "objectives": [
+        {"objective": "hits", "required": 16, "min_damage": 0}
+      ],
+      "turns": 1
+    },
+    {
+      "id": "white_bullet",
+      "name": "탄막 (흰색)",
+      "activation_priority": 0,
+      "pattern": {
+        "id": "white_bullet_failure",
+        "name": "탄막 (흰색)",
+        "damage_multiplier": 1.0,
+        "hits": 8,
+        "effect_actions": [
+          {
+            "action": "stack_set",
+            "target": "enemy",
+            "stack_effect_id": "black_mage_creation_curse",
+            "value": 1,
+            "duration": 4
+          }
+        ]
+      },
+      "objectives": [
+        {"objective": "damage", "required": 1500, "min_damage": 0}
+      ],
+      "turns": 1
+    },
+    {
+      "id": "godlike_authority",
+      "name": "신에 가까운 자의 권능",
+      "activation_priority": 130,
+      "pattern": {
+        "id": "godlike_authority_failure",
+        "name": "신에 가까운 자의 권능",
+        "damage_multiplier": 0,
+        "hits": 0,
+        "plain_damage": {
+          "mode": "target_max_hp_ratio",
+          "value": 1.0
+        }
+      },
+      "objectives": [
+        {"objective": "damage", "required": 2600, "min_damage": 0},
+        {"objective": "hits", "required": 24, "min_damage": 0}
+      ],
+      "turns": 3,
+      "activation_conditions": [
+        {"kind": "turn_multiple", "multiple": 6},
+        {"kind": "boss_hp_ratio", "min_ratio": 0.0, "max_ratio": 0.25}
+      ]
+    }
+  ],
+  "hp_warnings": [],
+  "ct": {
+    "gauge_by_hp": [
+      {"above": 0, "max": 3}
+    ],
+    "warnings_by_hp": [
+      {
+        "above": 1,
+        "warning_id": "aeon",
+        "warning_ids": ["aeon", "yaldabaoth"]
+      },
+      {
+        "above": 0.75,
+        "warning_id": "nox_sphere",
+        "warning_ids": ["nox_sphere", "black_chain", "eye_of_destruction", "morning_starfall"]
+      },
+      {
+        "above": 0.5,
+        "warning_id": "knockback",
+        "warning_ids": ["knockback", "destruction_laser", "enhanced_destruction_laser"]
+      },
+      {
+        "above": 0.25,
+        "warning_id": "black_bullet",
+        "warning_ids": ["black_bullet", "white_bullet"]
+      }
+    ]
+  },
+  "rewards": {
+    "items": [],
+    "materials": [
+      {
+        "id": "boss_power_crystal",
+        "chance": 1.0,
+        "min": 1,
+        "max": 1,
+        "participant_chance": 0.0
+      },
+      {
+        "id": "gold_brick",
+        "chance": 0.012,
+        "min": 1,
+        "max": 1,
+        "owner_chance": 0.025
+      }
+    ]
+  },
+  "description": "빛과 어둠을 초월한 절대자의 마지막 결전이다.",
+  "sort_order": 16,
+  "stack_effects": [],
+  "hp_locks": [0.75, 0.5, 0.25]
+}

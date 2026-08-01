@@ -41,10 +41,21 @@ from .data import (
     MATERIAL_BY_ID,
     MATERIALS,
     MATERIALS_BY_RARITY,
+    LIBERATION,
     MAX_ENHANCEMENT_STARS,
     MAX_EQUIPPED_ITEMS,
     MAX_EQUIPPED_SKILLS,
     PERCENT_STATS,
+    POTENTIAL_GRADES,
+    POTENTIAL_GRADE_LABELS,
+    POTENTIAL_INITIAL_GRADE_RATES,
+    POTENTIAL_LINE_GRADES,
+    POTENTIAL_LINE_SAME_GRADE_RATES,
+    POTENTIAL_OPTIONS,
+    POTENTIAL_OPTION_BY_ID,
+    POTENTIAL_PITY_COUNTS,
+    POTENTIAL_REROLL_COSTS,
+    POTENTIAL_TIER_UP_RATES,
     PLAYER_START,
     PostAttackAbilityDamageEffect,
     RARITIES,
@@ -86,7 +97,7 @@ from .data import (
     sell_price,
     stat_delta,
 )
-from .models import CombatStats, ItemInstance, PlayerProfile
+from .models import CombatStats, ItemInstance, PlayerProfile, PotentialLine
 from .store import RPGStore
 
 
@@ -124,6 +135,7 @@ class ActiveStackEffect:
     stacks: int
     persistent: bool = False
     condition_progress: dict[str, int] = field(default_factory=dict)
+    turns: int = INFINITE_EFFECT_TURNS
 
 
 @dataclass
@@ -260,6 +272,28 @@ class EnhancementResult:
 
 
 @dataclass
+class PotentialResult:
+    ok: bool
+    message: str
+    profile: PlayerProfile
+    item: ItemInstance | None = None
+    cost: int = 0
+    before_grade: str = ""
+    after_grade: str = ""
+    tier_up: bool = False
+
+
+@dataclass
+class LiberationResult:
+    ok: bool
+    message: str
+    profile: PlayerProfile
+    item: ItemInstance | None = None
+    stage: int = -1
+    consumed_materials: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass
 class EquipmentResult:
     ok: bool
     message: str
@@ -338,6 +372,10 @@ class RPGService:
         self._profiles = self.store.load_profiles()
         for profile in self._profiles.values():
             self._cleanup_profile(profile)
+        if self._profiles:
+            # Persist one-time schema migrations (notably potential lines) as soon
+            # as the service starts, even before an individual player runs a command.
+            self._save()
 
     def start_profile(self, user_id: int, display_name: str) -> tuple[PlayerProfile, bool]:
         if user_id in self._profiles:
@@ -509,6 +547,7 @@ class RPGService:
         if profile.level < job.level_req:
             return JobResult(False, f"{job.name}은 Lv.{job.level_req}부터 전직할 수 있습니다.", profile, job)
         profile.job_id = job.id
+        self._sync_genesis_weapon(profile)
         self._cleanup_equipped_skills(profile)
         self._save()
         return JobResult(True, f"{job.name}{self._direction_particle(job.name)} 전직했습니다.", profile, job)
@@ -526,9 +565,97 @@ class RPGService:
         if profile.level < job.level_req:
             return JobResult(False, f"{job.name}은 Lv.{job.level_req}부터 전직할 수 있습니다.", profile, job)
         profile.job_id = job.id
+        self._sync_genesis_weapon(profile)
         self._cleanup_equipped_skills(profile)
         self._save()
         return JobResult(True, f"{job.name}{self._direction_particle(job.name)} 자유전직했습니다.", profile, job)
+
+    def genesis_item(self, profile: PlayerProfile) -> ItemInstance | None:
+        if profile.genesis_item_uid <= 0:
+            return None
+        return next(
+            (
+                item for item in profile.inventory
+                if item.uid == profile.genesis_item_uid
+                and item.template_id in ITEM_BY_ID
+                and ITEM_BY_ID[item.template_id].genesis_weapon
+            ),
+            None,
+        )
+
+    def liberation_weapon_template_id(self, profile: PlayerProfile) -> str:
+        for weapon in LIBERATION.weapons:
+            if profile.job_id in weapon.job_ids:
+                return weapon.template_id
+        chain_ids = {job.id for job in self.job_chain(profile)}
+        for weapon in LIBERATION.weapons:
+            if chain_ids.intersection(weapon.job_ids):
+                return weapon.template_id
+        return ""
+
+    def liberation_next_stage(self, profile: PlayerProfile):
+        target_stage = max(1, int(profile.genesis_liberation_stage) + 1)
+        return next((stage for stage in LIBERATION.stages if stage.stage == target_stage), None)
+
+    def claim_genesis_weapon(self, user_id: int, display_name: str) -> LiberationResult:
+        profile = self.get_profile(user_id, display_name)
+        existing = self.genesis_item(profile)
+        if existing is not None:
+            return LiberationResult(False, "이미 제네시스 무기를 받았습니다.", profile, existing, profile.genesis_liberation_stage)
+        if not LIBERATION.boss_id or LIBERATION.boss_id not in profile.cleared_boss_ids:
+            return LiberationResult(False, "검은 마법사 처치 기록이 필요합니다.", profile)
+        template_id = self.liberation_weapon_template_id(profile)
+        if not template_id:
+            return LiberationResult(False, "현재 직업군에 맞는 제네시스 무기가 없습니다.", profile)
+        item = self._grant_item(profile, template_id, 0)
+        if item is None:
+            return LiberationResult(False, "제네시스 무기 데이터를 찾지 못했습니다.", profile)
+        profile.genesis_item_uid = item.uid
+        profile.genesis_liberation_stage = 0
+        item.potential_grade = ""
+        item.potential_lines = []
+        item.potential_locked = True
+        self._save()
+        return LiberationResult(True, f"{ITEM_BY_ID[item.template_id].name}을 받았습니다.", profile, item, 0)
+
+    def advance_genesis_liberation(self, user_id: int, display_name: str) -> LiberationResult:
+        profile = self.get_profile(user_id, display_name)
+        item = self.genesis_item(profile)
+        if item is None:
+            return LiberationResult(False, "먼저 제네시스 무기를 받아야 합니다.", profile)
+        stage = self.liberation_next_stage(profile)
+        if stage is None:
+            return LiberationResult(False, "제네시스 무기 해방을 모두 완료했습니다.", profile, item, profile.genesis_liberation_stage)
+        missing = {
+            material_id: amount - int(profile.materials.get(material_id, 0))
+            for material_id, amount in stage.materials.items()
+            if int(profile.materials.get(material_id, 0)) < amount
+        }
+        if missing:
+            text = ", ".join(f"{self.material_name(material_id)} x{amount}" for material_id, amount in missing.items())
+            return LiberationResult(False, f"해방 재료가 부족합니다: {text}", profile, item, profile.genesis_liberation_stage)
+        for material_id, amount in stage.materials.items():
+            remaining = int(profile.materials.get(material_id, 0)) - amount
+            if remaining > 0:
+                profile.materials[material_id] = remaining
+            else:
+                profile.materials.pop(material_id, None)
+        profile.genesis_liberation_stage = stage.stage
+        item.stars = stage.stars
+        if stage.stage >= 2:
+            item.potential_locked = False
+            item.potential_grade = "unique"
+            item.potential_lines = self._roll_potential_lines("unique")
+        self._save()
+        return LiberationResult(True, f"{stage.name}을 완료했습니다.", profile, item, stage.stage, dict(stage.materials))
+
+    def _sync_genesis_weapon(self, profile: PlayerProfile) -> None:
+        item = self.genesis_item(profile)
+        if item is None:
+            return
+        template_id = self.liberation_weapon_template_id(profile)
+        if template_id in ITEM_BY_ID and ITEM_BY_ID[template_id].genesis_weapon:
+            item.template_id = template_id
 
     def _direction_particle(self, text: str) -> str:
         if not text:
@@ -974,6 +1101,8 @@ class RPGService:
         if item.destroyed:
             return EnhancementPreview(False, "파괴된 흔적은 먼저 복구해야 합니다.", profile, item)
         template = ITEM_BY_ID[item.template_id]
+        if template.enhancement_disabled:
+            return EnhancementPreview(False, "이 장비는 스타포스 강화할 수 없습니다.", profile, item)
         if item.stars >= MAX_ENHANCEMENT_STARS:
             return EnhancementPreview(False, "이미 최대 강화 단계입니다.", profile, item)
         if not enhancement_method_available(method, item.stars):
@@ -1303,6 +1432,8 @@ class RPGService:
             return SellResult(False, "해당 장비를 찾지 못했습니다.", profile)
         if item.uid in profile.equipped_item_uids:
             return SellResult(False, "장착 중인 장비는 먼저 장착 해제해야 판매할 수 있습니다.", profile)
+        if ITEM_BY_ID[item.template_id].unsellable:
+            return SellResult(False, "이 장비는 판매할 수 없습니다.", profile)
         price = self.item_sell_price(item)
         profile.inventory = [owned for owned in profile.inventory if owned.uid != item.uid]
         profile.gold += price
@@ -1317,7 +1448,12 @@ class RPGService:
         kept_items = []
         total_gold = 0
         for item in profile.inventory:
-            if item.uid in selected and item.uid not in equipped and item.template_id in ITEM_BY_ID:
+            if (
+                item.uid in selected
+                and item.uid not in equipped
+                and item.template_id in ITEM_BY_ID
+                and not ITEM_BY_ID[item.template_id].unsellable
+            ):
                 total_gold += self.item_sell_price(item)
                 sold_items.append(self.item_title(item))
             else:
@@ -1338,7 +1474,12 @@ class RPGService:
         total_gold = 0
         for item in profile.inventory:
             template = ITEM_BY_ID.get(item.template_id)
-            if template is not None and template.rarity in rarity_set and item.uid not in equipped:
+            if (
+                template is not None
+                and template.rarity in rarity_set
+                and item.uid not in equipped
+                and not template.unsellable
+            ):
                 total_gold += self.item_sell_price(item)
                 sold_items.append(self.item_title(item))
             else:
@@ -1395,6 +1536,15 @@ class RPGService:
                 score += value * 28
             else:
                 score += value * 850
+        for key, value in self.potential_stats(item).items():
+            if key == "base_atk":
+                score += value * 20
+            elif key == "max_hp":
+                score += value * 2.0
+            elif key == "dmg_mitigation":
+                score += value * 28
+            else:
+                score += value * 850
         return score
 
     def item_title(self, item: ItemInstance) -> str:
@@ -1406,11 +1556,13 @@ class RPGService:
         stats = scaled_item_stats(item.template_id, item.stars)
         stat_text = self.format_stats(stats, signed=True)
         effect_text = self.item_template_effects_text(item.template_id)
+        parts = [] if stat_text == "스탯 없음" else [stat_text]
         if effect_text:
-            if stat_text == "스탯 없음":
-                return f"영속 효과: {effect_text}"
-            return f"{stat_text}\n영속 효과: {effect_text}"
-        return stat_text
+            parts.append(f"영속 효과: {effect_text}")
+        potential_text = self.potential_text(item)
+        if potential_text:
+            parts.append(potential_text)
+        return "\n".join(parts) if parts else "스탯 없음"
 
     def item_template_effects_text(self, template_id: str) -> str:
         template = ITEM_BY_ID.get(template_id)
@@ -1430,6 +1582,152 @@ class RPGService:
             )
         )
         return " · ".join(parts)
+
+    def potential_grade_label(self, grade: str) -> str:
+        return POTENTIAL_GRADE_LABELS.get(grade, grade or "없음")
+
+    def potential_stats(self, item: ItemInstance) -> dict[str, float]:
+        totals: dict[str, float] = {}
+        for line in item.potential_lines:
+            option = POTENTIAL_OPTION_BY_ID.get(line.option_id)
+            if option is None:
+                continue
+            value = float(option.values.get(line.grade, 0.0))
+            if not value:
+                continue
+            totals[option.stat] = totals.get(option.stat, 0.0) + value
+        return totals
+
+    def potential_text(self, item: ItemInstance) -> str:
+        if item.potential_locked:
+            return "잠재능력: 잠김"
+        if item.potential_grade not in POTENTIAL_GRADES or not item.potential_lines:
+            return ""
+        lines = []
+        for line in item.potential_lines:
+            option = POTENTIAL_OPTION_BY_ID.get(line.option_id)
+            if option is None:
+                continue
+            value = float(option.values.get(line.grade, 0.0))
+            label = self._format_stat_label(option.stat, value)
+            lines.append(f"{label} {self._format_stat_value(option.stat, value, signed=True)}")
+        grade = self.potential_grade_label(item.potential_grade)
+        return f"잠재능력 [{grade}]: " + " · ".join(lines) if lines else ""
+
+    def potential_reroll_cost(self, item: ItemInstance) -> int:
+        return max(0, int(POTENTIAL_REROLL_COSTS.get(item.potential_grade, 0)))
+
+    def reroll_potential(self, user_id: int, display_name: str, item_uid: int) -> PotentialResult:
+        profile = self.get_profile(user_id, display_name)
+        item = self._find_item(profile, item_uid)
+        if item is None:
+            return PotentialResult(False, "해당 장비를 찾지 못했습니다.", profile)
+        if item.destroyed:
+            return PotentialResult(False, "파괴된 흔적의 잠재능력은 재설정할 수 없습니다.", profile, item)
+        self._ensure_item_potential(profile, item)
+        if item.potential_locked or item.potential_grade not in POTENTIAL_GRADES:
+            return PotentialResult(False, "아직 잠재능력을 재설정할 수 없는 장비입니다.", profile, item)
+        cost = self.potential_reroll_cost(item)
+        if profile.gold < cost:
+            return PotentialResult(False, f"골드가 부족합니다. 필요 {cost}G · 보유 {profile.gold}G", profile, item, cost)
+
+        before_grade = item.potential_grade
+        after_grade = before_grade
+        tier_up = False
+        grade_index = POTENTIAL_GRADES.index(before_grade)
+        if grade_index < len(POTENTIAL_GRADES) - 1:
+            pity = max(0, int(profile.potential_pity.get(before_grade, 0)))
+            pity_limit = max(0, int(POTENTIAL_PITY_COUNTS.get(before_grade, 0)))
+            guaranteed = pity_limit > 0 and pity + 1 >= pity_limit
+            tier_up = guaranteed or self.rng.random() < POTENTIAL_TIER_UP_RATES.get(before_grade, 0.0)
+            if tier_up:
+                after_grade = POTENTIAL_GRADES[grade_index + 1]
+                profile.potential_pity[before_grade] = 0
+            else:
+                profile.potential_pity[before_grade] = pity + 1
+
+        profile.gold -= cost
+        item.potential_grade = after_grade
+        item.potential_lines = self._roll_potential_lines(after_grade)
+        self._save()
+        message = "잠재능력 등급이 상승했습니다." if tier_up else "잠재능력을 재설정했습니다."
+        return PotentialResult(True, message, profile, item, cost, before_grade, after_grade, tier_up)
+
+    def _ensure_item_potential(self, profile: PlayerProfile, item: ItemInstance) -> None:
+        template = ITEM_BY_ID.get(item.template_id)
+        if template is None:
+            return
+        if template.genesis_weapon:
+            unlocked = profile.genesis_item_uid == item.uid and profile.genesis_liberation_stage >= 2
+            item.potential_locked = not unlocked
+            if not unlocked:
+                item.potential_grade = ""
+                item.potential_lines = []
+                return
+            if item.potential_grade not in POTENTIAL_GRADES or len(item.potential_lines) != 3:
+                item.potential_grade = "unique"
+                item.potential_lines = self._roll_potential_lines("unique")
+            return
+
+        item.potential_locked = False
+        grade_valid = item.potential_grade in POTENTIAL_GRADES
+        grade_index = POTENTIAL_LINE_GRADES.index(item.potential_grade) if grade_valid else -1
+        allowed_line_grades = {
+            POTENTIAL_LINE_GRADES[index]
+            for index in (grade_index, grade_index - 1)
+            if index >= 0
+        }
+        lines_valid = (
+            grade_valid
+            and len(item.potential_lines) == 3
+            and item.potential_lines[0].grade == item.potential_grade
+            and all(
+                line.grade in allowed_line_grades
+                and line.option_id in POTENTIAL_OPTION_BY_ID
+                and POTENTIAL_OPTION_BY_ID[line.option_id].values.get(line.grade, 0.0) != 0
+                for line in item.potential_lines
+            )
+        )
+        if not grade_valid:
+            item.potential_grade = self._roll_initial_potential_grade()
+        if not lines_valid:
+            item.potential_lines = self._roll_potential_lines(item.potential_grade)
+
+    def _roll_initial_potential_grade(self) -> str:
+        grades = list(POTENTIAL_GRADES)
+        weights = [POTENTIAL_INITIAL_GRADE_RATES.get(grade, 0.0) for grade in grades]
+        return self._weighted_choice(grades, weights) or (grades[0] if grades else "rare")
+
+    def _roll_potential_lines(self, grade: str) -> list[PotentialLine]:
+        if grade not in POTENTIAL_GRADES:
+            return []
+        grade_index = POTENTIAL_LINE_GRADES.index(grade)
+        lines: list[PotentialLine] = []
+        for line_index in range(3):
+            same_rate = POTENTIAL_LINE_SAME_GRADE_RATES[line_index] if line_index < len(POTENTIAL_LINE_SAME_GRADE_RATES) else 0.0
+            line_grade = grade
+            if grade_index > 0 and self.rng.random() >= same_rate:
+                line_grade = POTENTIAL_LINE_GRADES[grade_index - 1]
+            options = [
+                option for option in POTENTIAL_OPTIONS
+                if option.values.get(line_grade, 0.0) != 0 and option.weights.get(line_grade, 0.0) > 0
+            ]
+            option = self._weighted_choice(options, [candidate.weights.get(line_grade, 0.0) for candidate in options])
+            if option is not None:
+                lines.append(PotentialLine(option.id, line_grade))
+        return lines
+
+    def _weighted_choice(self, values, weights):
+        total = sum(max(0.0, float(weight)) for weight in weights)
+        if not values or total <= 0:
+            return None
+        roll = self.rng.random() * total
+        running = 0.0
+        for value, weight in zip(values, weights):
+            running += max(0.0, float(weight))
+            if roll < running:
+                return value
+        return values[-1]
 
     def material_name(self, material_id: str) -> str:
         material = MATERIAL_BY_ID.get(material_id)
@@ -1692,7 +1990,8 @@ class RPGService:
                         value = f" {source_name} 기준"
                     else:
                         value = f" {action.value}"
-                parts.append(f"{label}({target}, {effect_name}{value})")
+                duration = f", {action.duration}턴" if action.duration > 0 else ""
+                parts.append(f"{label}({target}, {effect_name}{value}{duration})")
             else:
                 count = f" x{action.count}" if action.count > 1 else ""
                 parts.append(f"{label}({target}{count})")
@@ -1724,7 +2023,7 @@ class RPGService:
         player_hp = self._stats_with_effects(player_base, player_effects).final_hp
         enemy_hp = self._stats_with_effects(enemy_base, enemy_effects).final_hp
         triggered_patterns: set[int] = set()
-        skills = self.equipped_skills(profile)
+        skills = self.combat_skills(profile)
         uses_left = {skill.id: skill.uses for skill in skills if skill.uses > 0}
         cooldowns = {skill.id: 0 for skill in skills}
         log: list[str] = []
@@ -1925,103 +2224,47 @@ class RPGService:
         if not available:
             return None
 
-        player_ratio = self._hp_ratio(player_hp, player_stats.final_hp)
-        enemy_ratio = self._hp_ratio(enemy_hp, enemy_stats.final_hp)
-        incoming = self._estimated_basic_attack_damage(enemy_stats, enemy_hp, player_stats, player_hp, enemy_effects)
-        base_damage = self._estimated_basic_attack_damage(
-            player_stats,
-            player_hp,
-            enemy_stats,
-            enemy_hp,
-            player_effects,
-            multiplier=basic_attack_multiplier,
-        )
-        if base_damage >= enemy_hp:
-            return None
+        # Exploration follows the same action economy as a manual boss turn: every
+        # ready ability may be used once before the basic attack.  Ordering matters
+        # because later damage should benefit from debuffs and buffs applied first.
+        role_priority = {
+            "debuff": 0,
+            "buff": 1,
+            "defense": 1,
+            "heal": 1,
+            "attack": 2,
+            "damage": 2,
+        }
 
-        attack_skills = [
-            skill for skill in available
-            if skill.damage_multiplier > 0 and skill.hits > 0
-        ]
-        if attack_skills:
-            attack_skills.sort(
-                key=lambda skill: self._estimated_skill_damage(
-                    skill,
-                    player_stats,
-                    player_hp,
-                    enemy_stats,
-                    enemy_hp,
-                    player_effects,
-                    skill_damage_multiplier=skill_damage_multiplier,
-                ),
-                reverse=True,
-            )
-            if self._estimated_skill_damage(
-                attack_skills[0],
-                player_stats,
-                player_hp,
-                enemy_stats,
-                enemy_hp,
-                player_effects,
-                skill_damage_multiplier=skill_damage_multiplier,
-            ) >= enemy_hp:
-                return attack_skills[0]
+        def priority(skill: SkillTemplate) -> tuple[int, int]:
+            if (
+                skill.role == "debuff"
+                or skill.enemy_mods
+                or skill.enemy_stat_effects
+                or skill.enemy_effects.has_any
+                or any(action.target in {"enemy", "opponents"} for action in skill.effect_actions)
+            ):
+                group = 0
+            elif (
+                skill.role in {"buff", "defense", "heal"}
+                or skill.heal_power > 0
+                or skill.player_mods
+                or skill.player_stat_effects
+                or skill.player_effects.has_any
+            ):
+                group = 1
+            else:
+                group = role_priority.get(skill.role, 2)
+            return group, skills.index(skill)
 
-        heal_skills = [skill for skill in available if skill.heal_power > 0]
-        if heal_skills:
-            heal_skills.sort(key=lambda skill: skill.heal_power, reverse=True)
-            best_heal = heal_skills[0]
-            expected_heal = self._direct_heal_amount(player_stats, best_heal.heal_power)
-            missing_hp = player_stats.final_hp - player_hp
-            if player_ratio <= 0.55 or missing_hp >= expected_heal * 0.65 or incoming >= player_hp * 0.65:
-                return best_heal
-
-        defense_skills = [
-            skill for skill in available
-            if skill.role == "defense" and not self._has_active_effect(player_effects, skill.id)
-        ]
-        if defense_skills and (player_ratio <= 0.72 or incoming >= player_stats.final_hp * 0.16):
-            defense_skills.sort(
-                key=lambda skill: (
-                    skill.damage_cut
-                    + skill.player_mods.get("damage_cut", 0)
-                    + skill.player_mods.get("defense", 0)
-                    + skill.player_mods.get("garrison", 0)
-                ),
-                reverse=True,
-            )
-            return defense_skills[0]
-
-        buff_skills = [
-            skill for skill in available
-            if skill.role == "buff" and not self._has_active_effect(player_effects, skill.id)
-        ]
-        if buff_skills and enemy_ratio >= 0.42:
-            buff_skills.sort(key=lambda skill: skill.player_mods.get("atk", 0) + skill.player_mods.get("strength", 0) + skill.player_mods.get("dmg_amplification", 0), reverse=True)
-            return buff_skills[0]
-
-        debuff_skills = [
-            skill for skill in available
-            if skill.role == "debuff" and not self._has_active_effect(enemy_effects, skill.id)
-        ]
-        if debuff_skills and enemy_ratio >= 0.35:
-            debuff_skills.sort(key=lambda skill: abs(sum(skill.enemy_mods.values())) + skill.damage_cut, reverse=True)
-            return debuff_skills[0]
-
-        if not attack_skills:
-            return None
-        best_attack = attack_skills[0]
-        best_damage = self._estimated_skill_damage(
-            best_attack,
-            player_stats,
-            player_hp,
-            enemy_stats,
-            enemy_hp,
-            player_effects,
-            skill_damage_multiplier=skill_damage_multiplier,
-        )
-        if best_damage >= enemy_hp or best_damage >= base_damage * 1.15:
-            return best_attack
+        available.sort(key=priority)
+        for skill in available:
+            if skill.heal_power <= 0:
+                return skill
+            if player_hp < player_stats.final_hp:
+                return skill
+            if skill.damage_multiplier > 0 or skill.player_mods or skill.enemy_mods or skill.effect_actions:
+                return skill
         return None
 
     def _skill_ready(
@@ -2183,6 +2426,11 @@ class RPGService:
             )
             result.dispels += dispels
             result.clear_alls += clear_alls
+            reaction_damage = self._resolve_stack_reactions(enemy_stack_effects, enemy_stats.final_hp)
+            if reaction_damage > 0:
+                result.damage += reaction_damage
+                result.hit_damages.append(reaction_damage)
+                result.detail_lines.append(f"스택 반응: {reaction_damage}")
         return result
 
     def _skill_activation_label(self, skill_name: str, activation_index: int) -> str:
@@ -2262,7 +2510,7 @@ class RPGService:
             opponent_stacks=opponent_stack_effects,
             source_role="boss",
         )
-        damage = 0
+        damage = self._resolve_stack_reactions(player_stack_effects, player_stats.final_hp)
         if pattern.damage_multiplier > 0 and pattern.hits > 0:
             active_boss_effects = self._effects_with_stacks(enemy_effects, boss_stack_effects)
             for _ in range(pattern.hits):
@@ -2278,6 +2526,43 @@ class RPGService:
                 if damage_details is not None:
                     damage_details.append(hit_damage)
         damage += self._plain_damage_value(pattern, player_stats.final_hp)
+        return damage
+
+    def _resolve_stack_reactions(
+        self,
+        stacks: list[ActiveStackEffect] | None,
+        target_max_hp: int,
+    ) -> int:
+        if not stacks:
+            return 0
+        damage = 0
+        remove_ids: set[str] = set()
+        active_ids = {
+            current.template_id
+            for current in stacks
+            if current.stacks > 0
+        }
+        for current in list(stacks):
+            if current.template_id in remove_ids or current.stacks <= 0:
+                continue
+            template = STACK_EFFECT_BY_ID.get(current.template_id)
+            if template is None:
+                continue
+            for reaction in template.reactions:
+                if reaction.with_stack_effect_id not in active_ids or reaction.with_stack_effect_id in remove_ids:
+                    continue
+                plain = reaction.plain_damage
+                if plain.mode == "target_max_hp_ratio":
+                    damage += max(0, int(target_max_hp * plain.value))
+                elif plain.mode == "flat":
+                    damage += max(0, int(plain.value))
+                if reaction.remove_self:
+                    remove_ids.add(template.id)
+                if reaction.remove_other:
+                    remove_ids.add(reaction.with_stack_effect_id)
+                break
+        if remove_ids:
+            stacks[:] = [current for current in stacks if current.template_id not in remove_ids]
         return damage
 
     def _plain_damage_value(self, pattern: BossPattern, target_max_hp: int) -> int:
@@ -2320,6 +2605,8 @@ class RPGService:
             self._apply_stat(stats, key, value)
         for item in self.equipped_items(profile):
             for key, value in scaled_item_stats(item.template_id, item.stars).items():
+                self._apply_stat(stats, key, value)
+            for key, value in self.potential_stats(item).items():
                 self._apply_stat(stats, key, value)
         stats.base_atk = max(1, int(stats.base_atk))
         stats.max_hp = max(1, int(stats.max_hp))
@@ -2986,7 +3273,7 @@ class RPGService:
         next_stacks = max(0, min(template.max_stacks, next_stacks))
         if current is None:
             if next_stacks > 0:
-                stacks.append(ActiveStackEffect(template.id, next_stacks))
+                stacks.append(ActiveStackEffect(template.id, next_stacks, turns=action.duration))
             return
         if next_stacks <= 0:
             if current.persistent or current.condition_progress or template.conditions:
@@ -2995,6 +3282,25 @@ class RPGService:
             stacks[:] = [effect for effect in stacks if effect.template_id != template.id]
             return
         current.stacks = next_stacks
+        if operation in {"increase", "set", "max"}:
+            current.turns = action.duration
+
+    def tick_stack_effects(self, stacks: list[ActiveStackEffect]) -> list[ActiveStackEffect]:
+        next_stacks: list[ActiveStackEffect] = []
+        for current in stacks:
+            if current.turns == INFINITE_EFFECT_TURNS:
+                next_stacks.append(current)
+                continue
+            current.turns -= 1
+            if current.turns > 0:
+                next_stacks.append(current)
+                continue
+            template = STACK_EFFECT_BY_ID.get(current.template_id)
+            if current.persistent or current.condition_progress or (template is not None and template.conditions):
+                current.stacks = 0
+                current.turns = INFINITE_EFFECT_TURNS
+                next_stacks.append(current)
+        return next_stacks
 
     def _active_stack_count(self, stacks: list[ActiveStackEffect], template_id: str) -> int:
         for effect in stacks:
@@ -3985,6 +4291,7 @@ class RPGService:
         item = ItemInstance(profile.next_item_uid, template_id, stars=max(0, int(stars)))
         profile.next_item_uid += 1
         profile.inventory.append(item)
+        self._ensure_item_potential(profile, item)
         return item
 
     def _apply_auto_sell(self, profile: PlayerProfile, reward: RewardReport) -> None:
@@ -4010,7 +4317,7 @@ class RPGService:
             if item.template_id not in ITEM_BY_ID:
                 continue
             rarity = ITEM_BY_ID[item.template_id].rarity
-            if rarity not in profile.auto_sell_rarities:
+            if rarity not in profile.auto_sell_rarities or ITEM_BY_ID[item.template_id].unsellable:
                 kept_items.append(item)
                 continue
             sold_gold += self.item_sell_price(item)
@@ -4114,6 +4421,12 @@ class RPGService:
             item for item in profile.inventory
             if item.uid > 0 and item.template_id in ITEM_BY_ID
         ]
+        if profile.genesis_liberation_stage >= 0 and self.genesis_item(profile) is None:
+            profile.genesis_item_uid = 0
+            profile.genesis_liberation_stage = -1
+        self._sync_genesis_weapon(profile)
+        for item in profile.inventory:
+            self._ensure_item_potential(profile, item)
         if not profile.equipment_initialized:
             profile.equipped_item_uids = [
                 item.uid for item in sorted(

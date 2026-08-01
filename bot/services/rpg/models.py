@@ -7,11 +7,27 @@ from .data import DAILY_EXPLORES, MATERIAL_BY_ID, PLAYER_START
 
 
 @dataclass
+class PotentialLine:
+    option_id: str
+    grade: str
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "PotentialLine":
+        return cls(
+            option_id=str(data.get("option_id", data.get("id", ""))),
+            grade=str(data.get("grade", "")),
+        )
+
+
+@dataclass
 class ItemInstance:
     uid: int
     template_id: str
     stars: int = 0
     destroyed: bool = False
+    potential_grade: str = ""
+    potential_lines: list[PotentialLine] = field(default_factory=list)
+    potential_locked: bool = False
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ItemInstance":
@@ -20,6 +36,13 @@ class ItemInstance:
             template_id=str(data.get("template_id", "")),
             stars=max(0, int(data.get("stars", 0))),
             destroyed=bool(data.get("destroyed", False)),
+            potential_grade=str(data.get("potential_grade", "")),
+            potential_lines=[
+                PotentialLine.from_dict(line)
+                for line in data.get("potential_lines", [])
+                if isinstance(line, dict)
+            ],
+            potential_locked=bool(data.get("potential_locked", False)),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -79,6 +102,9 @@ class PlayerProfile:
     materials: dict[str, int] = field(default_factory=dict)
     inventory: list[ItemInstance] = field(default_factory=list)
     next_item_uid: int = 1
+    potential_pity: dict[str, int] = field(default_factory=dict)
+    genesis_item_uid: int = 0
+    genesis_liberation_stage: int = -1
 
     @classmethod
     def create(cls, user_id: int, display_name: str) -> "PlayerProfile":
@@ -142,6 +168,11 @@ class PlayerProfile:
                     for material_id, amount in value.items()
                     if str(material_id) in MATERIAL_BY_ID
                 }
+            elif key == "potential_pity" and isinstance(value, dict):
+                profile.potential_pity = {
+                    str(grade): max(0, int(count))
+                    for grade, count in value.items()
+                }
             else:
                 setattr(profile, key, value)
         profile.version = 1
@@ -186,6 +217,12 @@ class PlayerProfile:
             if material_id in MATERIAL_BY_ID and amount > 0
         }
         profile.next_item_uid = max(1, int(profile.next_item_uid))
+        profile.potential_pity = {
+            str(grade): max(0, int(count))
+            for grade, count in profile.potential_pity.items()
+        }
+        profile.genesis_item_uid = max(0, int(profile.genesis_item_uid))
+        profile.genesis_liberation_stage = max(-1, min(2, int(profile.genesis_liberation_stage)))
         return profile
 
     def to_dict(self) -> dict[str, Any]:

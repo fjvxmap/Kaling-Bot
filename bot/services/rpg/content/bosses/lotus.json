@@ -293,6 +293,14 @@
         "participant_chance": 0.0,
         "participant_min": 1,
         "participant_max": 1
+      },
+      {
+        "id": "lotus_liberation_trace",
+        "chance": 1.0,
+        "min": 1,
+        "max": 1,
+        "owner_chance": 1.0,
+        "participant_chance": 1.0
       }
     ]
   },

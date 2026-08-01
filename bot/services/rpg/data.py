@@ -97,6 +97,12 @@ def _load_content() -> dict[str, Any]:
             "player": _read_json(CONTENT_DIR / "player.json"),
             "stat_allocation": _read_json(CONTENT_DIR / "stat_allocation.json"),
             "enhancement": _read_json(CONTENT_DIR / "enhancement.json"),
+            "potential": _read_json(CONTENT_DIR / "potential.json")
+            if (CONTENT_DIR / "potential.json").exists()
+            else {},
+            "liberation": _read_json(CONTENT_DIR / "liberation.json")
+            if (CONTENT_DIR / "liberation.json").exists()
+            else {},
             "gacha": _read_json(CONTENT_DIR / "gacha.json"),
             "items": _read_json(CONTENT_DIR / "items.json"),
             "jobs": _read_json(CONTENT_DIR / "jobs.json"),
@@ -264,6 +270,7 @@ class EffectAction:
     value: int = 1
     value_from_stack_effect_id: str = ""
     value_from_target: str = ""
+    duration: int = INFINITE_EFFECT_TURNS
     conditions: list[EffectActionStackCondition] = field(default_factory=list)
 
 
@@ -285,6 +292,14 @@ class StackEffectTier:
 
 
 @dataclass(frozen=True)
+class StackEffectReaction:
+    with_stack_effect_id: str
+    plain_damage: PlainDamage = field(default_factory=PlainDamage)
+    remove_self: bool = True
+    remove_other: bool = True
+
+
+@dataclass(frozen=True)
 class StackEffectTemplate:
     id: str
     name: str
@@ -292,6 +307,7 @@ class StackEffectTemplate:
     description: str = ""
     tiers: list[StackEffectTier] = field(default_factory=list)
     conditions: list[StackEffectCondition] = field(default_factory=list)
+    reactions: list[StackEffectReaction] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -306,6 +322,39 @@ class ItemTemplate:
     effects: CombatSpecialEffects = field(default_factory=CombatSpecialEffects)
     undispellable: bool = True
     excluded_from_gacha: bool = False
+    enhancement_disabled: bool = False
+    unsellable: bool = False
+    genesis_weapon: bool = False
+
+
+@dataclass(frozen=True)
+class PotentialOptionTemplate:
+    id: str
+    name: str
+    stat: str
+    values: dict[str, float]
+    weights: dict[str, float]
+
+
+@dataclass(frozen=True)
+class LiberationWeaponTemplate:
+    template_id: str
+    job_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class LiberationStageTemplate:
+    stage: int
+    name: str
+    stars: int
+    materials: dict[str, int]
+
+
+@dataclass(frozen=True)
+class LiberationTemplate:
+    boss_id: str = ""
+    weapons: tuple[LiberationWeaponTemplate, ...] = ()
+    stages: tuple[LiberationStageTemplate, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -1042,6 +1091,7 @@ def _effect_actions(raw: Any) -> list[EffectAction]:
                     or ""
                 ),
                 value_from_target=str(row.get("value_from_target", row.get("source_target", "")) or ""),
+                duration=_effect_duration(row, INFINITE_EFFECT_TURNS),
                 conditions=[
                     condition
                     for condition in (
@@ -1134,6 +1184,21 @@ def _stack_effect_tier(raw: dict[str, Any]) -> StackEffectTier:
     )
 
 
+def _stack_effect_reaction(raw: dict[str, Any]) -> StackEffectReaction:
+    damage_raw = raw.get("plain_damage", {})
+    if not isinstance(damage_raw, dict):
+        damage_raw = {}
+    mode = str(damage_raw.get("mode", "none") or "none")
+    if mode not in {"none", "flat", "target_max_hp_ratio"}:
+        mode = "none"
+    return StackEffectReaction(
+        with_stack_effect_id=str(raw.get("with_stack_effect_id", raw.get("other_stack_effect_id", "")) or ""),
+        plain_damage=PlainDamage(mode=mode, value=max(0.0, _safe_float(damage_raw.get("value"), 0.0))),
+        remove_self=bool(raw.get("remove_self", True)),
+        remove_other=bool(raw.get("remove_other", True)),
+    )
+
+
 def _stack_effect_template(raw: dict[str, Any]) -> StackEffectTemplate:
     max_stacks = max(1, _safe_int(raw.get("max_stacks", raw.get("max", 1)), 1))
     tiers = [
@@ -1151,6 +1216,11 @@ def _stack_effect_template(raw: dict[str, Any]) -> StackEffectTemplate:
             _stack_effect_condition(condition)
             for condition in raw.get("conditions", [])
             if isinstance(condition, dict)
+        ],
+        reactions=[
+            _stack_effect_reaction(reaction)
+            for reaction in raw.get("reactions", [])
+            if isinstance(reaction, dict)
         ],
     )
 
@@ -1191,6 +1261,58 @@ def _item(raw: dict[str, Any]) -> ItemTemplate:
         effects=_combat_effects(raw.get("effects"), INFINITE_EFFECT_TURNS, undispellable),
         undispellable=undispellable,
         excluded_from_gacha=bool(raw.get("excluded_from_gacha", False)),
+        enhancement_disabled=bool(raw.get("enhancement_disabled", False)),
+        unsellable=bool(raw.get("unsellable", False)),
+        genesis_weapon=bool(raw.get("genesis_weapon", False)),
+    )
+
+
+def _potential_option(raw: dict[str, Any]) -> PotentialOptionTemplate:
+    values = raw.get("values", {})
+    weights = raw.get("weights", {})
+    return PotentialOptionTemplate(
+        id=str(raw.get("id", "")),
+        name=str(raw.get("name", raw.get("id", ""))),
+        stat=str(raw.get("stat", "")),
+        values={str(key): _safe_float(value, 0.0) for key, value in values.items()} if isinstance(values, dict) else {},
+        weights={str(key): max(0.0, _safe_float(value, 0.0)) for key, value in weights.items()} if isinstance(weights, dict) else {},
+    )
+
+
+def _liberation_template(raw: Any) -> LiberationTemplate:
+    if not isinstance(raw, dict) or not raw:
+        return LiberationTemplate()
+    weapons = []
+    for row in raw.get("weapons", []):
+        if not isinstance(row, dict):
+            continue
+        weapons.append(
+            LiberationWeaponTemplate(
+                template_id=str(row.get("template_id", "")),
+                job_ids=tuple(str(job_id) for job_id in row.get("job_ids", []) if str(job_id)),
+            )
+        )
+    stages = []
+    for row in raw.get("stages", []):
+        if not isinstance(row, dict):
+            continue
+        materials = row.get("materials", {})
+        stages.append(
+            LiberationStageTemplate(
+                stage=max(1, _safe_int(row.get("stage"), len(stages) + 1)),
+                name=str(row.get("name", f"{len(stages) + 1}차 해방")),
+                stars=max(0, _safe_int(row.get("stars"), 0)),
+                materials={
+                    str(material_id): max(1, _safe_int(amount, 1))
+                    for material_id, amount in materials.items()
+                    if str(material_id) and _safe_int(amount, 0) > 0
+                } if isinstance(materials, dict) else {},
+            )
+        )
+    return LiberationTemplate(
+        boss_id=str(raw.get("boss_id", "black_mage")),
+        weapons=tuple(weapons),
+        stages=tuple(sorted(stages, key=lambda stage: stage.stage)),
     )
 
 
@@ -2107,6 +2229,47 @@ RARITY_PRICE_MULTIPLIERS = {
 }
 _ENHANCEMENT = CONTENT.get("enhancement", {})
 
+_POTENTIAL_DATA = CONTENT.get("potential", {})
+if not isinstance(_POTENTIAL_DATA, dict):
+    _POTENTIAL_DATA = {}
+POTENTIAL_GRADES = tuple(str(grade) for grade in _POTENTIAL_DATA.get("grades", ("rare", "epic", "unique", "legendary")))
+POTENTIAL_LINE_GRADES = tuple(
+    str(grade)
+    for grade in _POTENTIAL_DATA.get("line_grades", ("normal", *POTENTIAL_GRADES))
+)
+POTENTIAL_GRADE_LABELS = {
+    str(key): str(value)
+    for key, value in _POTENTIAL_DATA.get("labels", {}).items()
+}
+POTENTIAL_INITIAL_GRADE_RATES = {
+    str(key): max(0.0, _safe_float(value, 0.0))
+    for key, value in _POTENTIAL_DATA.get("initial_grade_rates", {}).items()
+}
+POTENTIAL_TIER_UP_RATES = {
+    str(key): max(0.0, min(1.0, _safe_float(value, 0.0)))
+    for key, value in _POTENTIAL_DATA.get("tier_up_rates", {}).items()
+}
+POTENTIAL_PITY_COUNTS = {
+    str(key): max(0, _safe_int(value, 0))
+    for key, value in _POTENTIAL_DATA.get("pity_counts", {}).items()
+}
+POTENTIAL_LINE_SAME_GRADE_RATES = tuple(
+    max(0.0, min(1.0, _safe_float(value, 0.0)))
+    for value in _POTENTIAL_DATA.get("line_same_grade_rates", (1.0, 0.2, 0.05))
+)
+POTENTIAL_REROLL_COSTS = {
+    str(key): max(0, _safe_int(value, 0))
+    for key, value in _POTENTIAL_DATA.get("reroll_costs", {}).items()
+}
+POTENTIAL_OPTIONS = tuple(
+    _potential_option(option)
+    for option in _POTENTIAL_DATA.get("options", [])
+    if isinstance(option, dict)
+)
+POTENTIAL_OPTION_BY_ID = {option.id: option for option in POTENTIAL_OPTIONS if option.id}
+
+LIBERATION = _liberation_template(CONTENT.get("liberation", {}))
+
 ITEM_CATALOG = [_item(item) for item in CONTENT.get("items", [])]
 ITEM_BY_ID = {item.id: item for item in ITEM_CATALOG}
 ITEMS_BY_RARITY = {
@@ -2201,6 +2364,13 @@ def _validate_content() -> None:
                 errors.append(f"stack effect {effect.id} condition objective not found: {condition.objective}")
             if condition.operation not in {"increase", "decrease", "set", "remove", "max"}:
                 errors.append(f"stack effect {effect.id} condition operation is invalid: {condition.operation}")
+        for reaction in effect.reactions:
+            if reaction.with_stack_effect_id not in STACK_EFFECT_BY_ID:
+                errors.append(
+                    f"stack effect {effect.id} reaction target not found: {reaction.with_stack_effect_id}"
+                )
+            if reaction.with_stack_effect_id == effect.id:
+                errors.append(f"stack effect {effect.id} cannot react with itself")
     for skill in SKILLS:
         errors.extend(_validate_effect_actions(skill.effect_actions, f"skill {skill.id} effect actions"))
     for recipe in CRAFTING_RECIPES:
@@ -2396,6 +2566,48 @@ def _validate_content() -> None:
             errors.append(f"gacha festival {festival.id} ends_at must be after starts_at")
         for index, override in enumerate(festival.overrides, start=1):
             errors.extend(_validate_gacha_festival_override(override, f"gacha festival {festival.id} override {index}"))
+    if len(POTENTIAL_GRADES) != len(set(POTENTIAL_GRADES)):
+        errors.append("potential grades have duplicate ids")
+    if len(POTENTIAL_LINE_GRADES) != len(set(POTENTIAL_LINE_GRADES)):
+        errors.append("potential line grades have duplicate ids")
+    if any(grade not in POTENTIAL_LINE_GRADES for grade in POTENTIAL_GRADES):
+        errors.append("potential line grades must include every item grade")
+    if len(POTENTIAL_LINE_SAME_GRADE_RATES) != 3:
+        errors.append("potential line_same_grade_rates must contain exactly 3 values")
+    if sum(POTENTIAL_INITIAL_GRADE_RATES.get(grade, 0.0) for grade in POTENTIAL_GRADES) <= 0:
+        errors.append("potential initial grade rates must have a positive total")
+    option_ids = [option.id for option in POTENTIAL_OPTIONS]
+    if len(option_ids) != len(set(option_ids)):
+        errors.append("potential options have duplicate ids")
+    for option in POTENTIAL_OPTIONS:
+        if not option.id:
+            errors.append("potential option id is required")
+        if option.stat not in STAT_ORDER:
+            errors.append(f"potential option {option.id} stat not found: {option.stat}")
+        if not any(option.weights.get(grade, 0.0) > 0 and option.values.get(grade, 0.0) != 0 for grade in POTENTIAL_LINE_GRADES):
+            errors.append(f"potential option {option.id} has no usable grade")
+    for grade in POTENTIAL_LINE_GRADES:
+        if not any(
+            option.weights.get(grade, 0.0) > 0 and option.values.get(grade, 0.0) != 0
+            for option in POTENTIAL_OPTIONS
+        ):
+            errors.append(f"potential grade {grade} has no usable options")
+    if LIBERATION.boss_id and LIBERATION.boss_id not in BOSS_BY_ID:
+        errors.append(f"liberation boss not found: {LIBERATION.boss_id}")
+    for weapon in LIBERATION.weapons:
+        if weapon.template_id not in ITEM_BY_ID:
+            errors.append(f"liberation weapon not found: {weapon.template_id}")
+        for job_id in weapon.job_ids:
+            if job_id not in JOB_BY_ID:
+                errors.append(f"liberation weapon {weapon.template_id} job not found: {job_id}")
+    seen_liberation_stages: set[int] = set()
+    for stage in LIBERATION.stages:
+        if stage.stage in seen_liberation_stages:
+            errors.append(f"liberation duplicate stage: {stage.stage}")
+        seen_liberation_stages.add(stage.stage)
+        for material_id in stage.materials:
+            if material_id not in MATERIAL_BY_ID:
+                errors.append(f"liberation stage {stage.stage} material not found: {material_id}")
     if errors:
         raise ValueError("Invalid RPG content:\n" + "\n".join(f"- {error}" for error in errors))
 
@@ -2403,6 +2615,8 @@ def _validate_content() -> None:
 def _validate_effect_actions(actions: list[EffectAction], label: str) -> list[str]:
     errors: list[str] = []
     for action in actions:
+        if action.duration < INFINITE_EFFECT_TURNS:
+            errors.append(f"{label} stack duration must be -1 or greater")
         if action.action in STACK_EFFECT_ACTIONS and action.stack_effect_id not in STACK_EFFECT_BY_ID:
             errors.append(f"{label} stack effect not found: {action.stack_effect_id}")
         if (
