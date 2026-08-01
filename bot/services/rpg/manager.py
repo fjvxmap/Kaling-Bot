@@ -272,6 +272,13 @@ class EnhancementResult:
 
 
 @dataclass
+class PotentialCandidate:
+    grade: str
+    lines: list[PotentialLine] = field(default_factory=list)
+    tier_up: bool = False
+
+
+@dataclass
 class PotentialResult:
     ok: bool
     message: str
@@ -281,6 +288,9 @@ class PotentialResult:
     before_grade: str = ""
     after_grade: str = ""
     tier_up: bool = False
+    before_lines: list[PotentialLine] = field(default_factory=list)
+    candidates: list[PotentialCandidate] = field(default_factory=list)
+    reroll_count: int = 0
 
 
 @dataclass
@@ -1603,21 +1613,37 @@ class RPGService:
             return "잠재능력: 잠김"
         if item.potential_grade not in POTENTIAL_GRADES or not item.potential_lines:
             return ""
+        lines = self.potential_lines_text(item.potential_lines)
+        if not lines:
+            return ""
+        grade = self.potential_grade_label(item.potential_grade)
+        return f"잠재능력 [{grade}]\n{lines}"
+
+    def potential_lines_text(self, potential_lines: list[PotentialLine]) -> str:
         lines = []
-        for line in item.potential_lines:
+        for line in potential_lines:
             option = POTENTIAL_OPTION_BY_ID.get(line.option_id)
             if option is None:
                 continue
             value = float(option.values.get(line.grade, 0.0))
             label = self._format_stat_label(option.stat, value)
-            lines.append(f"{label} {self._format_stat_value(option.stat, value, signed=True)}")
-        grade = self.potential_grade_label(item.potential_grade)
-        return f"잠재능력 [{grade}]: " + " · ".join(lines) if lines else ""
+            line_grade = self.potential_grade_label(line.grade)
+            lines.append(
+                f"[{line_grade}] {label} "
+                f"{self._format_stat_value(option.stat, value, signed=True)}"
+            )
+        return "\n".join(lines)
 
     def potential_reroll_cost(self, item: ItemInstance) -> int:
         return max(0, int(POTENTIAL_REROLL_COSTS.get(item.potential_grade, 0)))
 
-    def reroll_potential(self, user_id: int, display_name: str, item_uid: int) -> PotentialResult:
+    def reroll_potential(
+        self,
+        user_id: int,
+        display_name: str,
+        item_uid: int,
+        count: int = 1,
+    ) -> PotentialResult:
         profile = self.get_profile(user_id, display_name)
         item = self._find_item(profile, item_uid)
         if item is None:
@@ -1627,31 +1653,144 @@ class RPGService:
         self._ensure_item_potential(profile, item)
         if item.potential_locked or item.potential_grade not in POTENTIAL_GRADES:
             return PotentialResult(False, "아직 잠재능력을 재설정할 수 없는 장비입니다.", profile, item)
-        cost = self.potential_reroll_cost(item)
+        if count not in {1, 3}:
+            return PotentialResult(False, "잠재능력은 1회 또는 3회만 재설정할 수 있습니다.", profile, item)
+        cost = self.potential_reroll_cost(item) * count
         if profile.gold < cost:
-            return PotentialResult(False, f"골드가 부족합니다. 필요 {cost}G · 보유 {profile.gold}G", profile, item, cost)
+            return PotentialResult(
+                False,
+                f"골드가 부족합니다. 필요 {cost}G · 보유 {profile.gold}G",
+                profile,
+                item,
+                cost,
+            )
 
+        before_lines = self._copy_potential_lines(item.potential_lines)
         before_grade = item.potential_grade
-        after_grade = before_grade
-        tier_up = False
-        grade_index = POTENTIAL_GRADES.index(before_grade)
-        if grade_index < len(POTENTIAL_GRADES) - 1:
-            pity = max(0, int(profile.potential_pity.get(before_grade, 0)))
-            pity_limit = max(0, int(POTENTIAL_PITY_COUNTS.get(before_grade, 0)))
-            guaranteed = pity_limit > 0 and pity + 1 >= pity_limit
-            tier_up = guaranteed or self.rng.random() < POTENTIAL_TIER_UP_RATES.get(before_grade, 0.0)
-            if tier_up:
-                after_grade = POTENTIAL_GRADES[grade_index + 1]
-                profile.potential_pity[before_grade] = 0
-            else:
-                profile.potential_pity[before_grade] = pity + 1
-
+        excluded = {self._potential_signature(before_grade, before_lines)}
+        candidates = []
+        for _ in range(count):
+            after_grade, tier_up = self._roll_potential_candidate_grade(profile, before_grade)
+            lines = self._roll_distinct_potential_lines(after_grade, excluded)
+            excluded.add(self._potential_signature(after_grade, lines))
+            candidates.append(PotentialCandidate(after_grade, lines, tier_up))
         profile.gold -= cost
-        item.potential_grade = after_grade
-        item.potential_lines = self._roll_potential_lines(after_grade)
         self._save()
-        message = "잠재능력 등급이 상승했습니다." if tier_up else "잠재능력을 재설정했습니다."
-        return PotentialResult(True, message, profile, item, cost, before_grade, after_grade, tier_up)
+        tier_up = any(candidate.tier_up for candidate in candidates)
+        message = f"잠재능력을 {count}회 재설정했습니다. 적용할 전체 옵션을 선택하세요."
+        if tier_up:
+            message += " 등급 상승 후보가 있습니다."
+        return PotentialResult(
+            ok=True,
+            message=message,
+            profile=profile,
+            item=item,
+            cost=cost,
+            before_grade=before_grade,
+            after_grade=candidates[0].grade if candidates else before_grade,
+            tier_up=tier_up,
+            before_lines=before_lines,
+            candidates=candidates,
+            reroll_count=count,
+        )
+
+    def apply_potential_candidate(
+        self,
+        user_id: int,
+        display_name: str,
+        item_uid: int,
+        before_grade: str,
+        before_lines: list[PotentialLine],
+        candidate: PotentialCandidate,
+    ) -> PotentialResult:
+        profile = self.get_profile(user_id, display_name)
+        item = self._find_item(profile, item_uid)
+        if item is None:
+            return PotentialResult(False, "해당 장비를 찾지 못했습니다.", profile)
+        if item.destroyed:
+            return PotentialResult(False, "파괴된 흔적의 잠재능력은 변경할 수 없습니다.", profile, item)
+        self._ensure_item_potential(profile, item)
+        if item.potential_locked:
+            return PotentialResult(False, "아직 잠재능력을 변경할 수 없는 장비입니다.", profile, item)
+        current_signature = self._potential_signature(item.potential_grade, item.potential_lines)
+        before_signature = self._potential_signature(before_grade, before_lines)
+        if current_signature != before_signature:
+            return PotentialResult(
+                False,
+                "잠재능력이 이미 변경되어 이 메모리얼 결과를 적용할 수 없습니다.",
+                profile,
+                item,
+            )
+        if not self._potential_state_valid(candidate.grade, candidate.lines):
+            return PotentialResult(False, "유효하지 않은 잠재능력 결과입니다.", profile, item)
+
+        item.potential_grade = candidate.grade
+        item.potential_lines = self._copy_potential_lines(candidate.lines)
+        self._save()
+        tier_up = candidate.grade != before_grade
+        message = "새 잠재능력을 적용했습니다."
+        if tier_up:
+            message += " 잠재능력 등급이 상승했습니다."
+        return PotentialResult(
+            True,
+            message,
+            profile,
+            item,
+            before_grade=before_grade,
+            after_grade=candidate.grade,
+            tier_up=tier_up,
+            before_lines=self._copy_potential_lines(before_lines),
+            candidates=[
+                PotentialCandidate(
+                    candidate.grade,
+                    self._copy_potential_lines(candidate.lines),
+                    candidate.tier_up,
+                )
+            ],
+        )
+
+    def _roll_potential_candidate_grade(
+        self,
+        profile: PlayerProfile,
+        before_grade: str,
+    ) -> tuple[str, bool]:
+        after_grade = before_grade
+        grade_index = POTENTIAL_GRADES.index(before_grade)
+        if grade_index >= len(POTENTIAL_GRADES) - 1:
+            return after_grade, False
+        pity = max(0, int(profile.potential_pity.get(before_grade, 0)))
+        pity_limit = max(0, int(POTENTIAL_PITY_COUNTS.get(before_grade, 0)))
+        guaranteed = pity_limit > 0 and pity + 1 >= pity_limit
+        tier_up = guaranteed or self.rng.random() < POTENTIAL_TIER_UP_RATES.get(before_grade, 0.0)
+        if tier_up:
+            after_grade = POTENTIAL_GRADES[grade_index + 1]
+            profile.potential_pity[before_grade] = 0
+        else:
+            profile.potential_pity[before_grade] = pity + 1
+        return after_grade, tier_up
+
+    def _roll_distinct_potential_lines(
+        self,
+        grade: str,
+        excluded: set[tuple[str, tuple[tuple[str, str], ...]]],
+    ) -> list[PotentialLine]:
+        lines = []
+        for _ in range(20):
+            lines = self._roll_potential_lines(grade)
+            if self._potential_signature(grade, lines) not in excluded:
+                break
+        return lines
+
+    @staticmethod
+    def _copy_potential_lines(lines: list[PotentialLine]) -> list[PotentialLine]:
+        return [PotentialLine(line.option_id, line.grade) for line in lines]
+
+    @staticmethod
+    def _potential_signature(
+        grade: str,
+        lines: list[PotentialLine],
+    ) -> tuple[str, tuple[tuple[str, str], ...]]:
+        return grade, tuple((line.option_id, line.grade) for line in lines)
 
     def _ensure_item_potential(self, profile: PlayerProfile, item: ItemInstance) -> None:
         template = ITEM_BY_ID.get(item.template_id)
@@ -1687,20 +1826,23 @@ class RPGService:
                 line.grade = item.potential_grade
 
     def _potential_lines_valid(self, item: ItemInstance) -> bool:
-        if item.potential_grade not in POTENTIAL_GRADES or len(item.potential_lines) != 3:
+        return self._potential_state_valid(item.potential_grade, item.potential_lines)
+
+    def _potential_state_valid(self, grade: str, lines: list[PotentialLine]) -> bool:
+        if grade not in POTENTIAL_GRADES or len(lines) != 3:
             return False
-        grade_index = POTENTIAL_LINE_GRADES.index(item.potential_grade)
-        allowed_line_grades = {item.potential_grade}
+        grade_index = POTENTIAL_LINE_GRADES.index(grade)
+        allowed_line_grades = {grade}
         # Rare is the project-specific floor: all three lines remain Rare.
-        if item.potential_grade != POTENTIAL_GRADES[0] and grade_index > 0:
+        if grade != POTENTIAL_GRADES[0] and grade_index > 0:
             allowed_line_grades.add(POTENTIAL_LINE_GRADES[grade_index - 1])
         return (
-            item.potential_lines[0].grade == item.potential_grade
+            lines[0].grade == grade
             and all(
                 line.grade in allowed_line_grades
                 and line.option_id in POTENTIAL_OPTION_BY_ID
                 and POTENTIAL_OPTION_BY_ID[line.option_id].values.get(line.grade, 0.0) != 0
-                for line in item.potential_lines
+                for line in lines
             )
         )
 

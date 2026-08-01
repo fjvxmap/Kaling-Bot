@@ -47,6 +47,7 @@ from bot.services.rpg.manager import (
     GachaResult,
     JobResult,
     LiberationResult,
+    PotentialCandidate,
     PotentialResult,
     RPGService,
     RPG_TIMEZONE,
@@ -499,14 +500,14 @@ class RPGCog(commands.Cog):
             view=AbilityEquipView(self, interaction.user.id, interaction.user.display_name),
         )
 
-    @rpg.command(name="강화", description="장비를 선택해서 강화 정보와 확률을 확인합니다.")
+    @rpg.command(name="강화", description="장비의 스타포스와 잠재능력을 강화합니다.")
     @app_commands.rename(uid="장비번호")
     @app_commands.describe(uid="바로 확인할 장비 번호. 비워두면 선택 UI를 표시합니다.")
     async def enhance(self, interaction: discord.Interaction, uid: int | None = None) -> None:
         profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
         if not profile.inventory:
             embed = discord.Embed(
-                title="장비 강화",
+                title="장비 강화 · 스타포스",
                 description="강화할 장비가 없습니다. 던전이나 보스에서 장비를 획득하세요.",
                 color=0xED4245,
             )
@@ -539,14 +540,14 @@ class RPGCog(commands.Cog):
             view=view,
         )
 
-    @rpg.command(name="잠재능력", description="장비의 잠재능력 세 줄을 확인하고 재설정합니다.")
+    @rpg.command(name="잠재능력", description="장비 강화의 잠재능력 화면을 엽니다.")
     async def potential(self, interaction: discord.Interaction) -> None:
         profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
         items = self._potential_display_items(profile)
         if not items:
             await interaction.response.send_message(
                 embed=discord.Embed(
-                    title="잠재능력",
+                    title="장비 강화 · 잠재능력",
                     description="잠재능력을 확인할 장비가 없습니다.",
                     color=0xA0A7B4,
                 )
@@ -3901,42 +3902,88 @@ class RPGCog(commands.Cog):
         self,
         profile: PlayerProfile,
         selected_uid: int | None = None,
-        result: PotentialResult | None = None,
+        message: str = "",
     ) -> discord.Embed:
         item = self._profile_item(profile, selected_uid)
-        description = result.message if result is not None else "장비를 선택하면 잠재능력과 재설정 비용을 확인할 수 있습니다."
-        embed = discord.Embed(title="잠재능력", description=description, color=0xB56BFF)
+        description = message or "장비를 선택하면 잠재능력과 재설정 비용을 확인할 수 있습니다."
+        embed = discord.Embed(title="장비 강화 · 잠재능력", description=description, color=0xB56BFF)
         if item is None:
             lines = []
             for candidate in self._potential_display_items(profile)[:10]:
                 grade = self.service.potential_grade_label(candidate.potential_grade)
                 if candidate.potential_locked:
                     grade = "잠김"
-                lines.append(f"{self._item_display_title(candidate)} · {grade}")
+                marker = self._item_ownership_marker(profile, candidate)
+                lines.append(f"`{marker}` {self._item_display_title(candidate)} · {grade}")
             embed.add_field(name="장비", value="\n".join(lines), inline=False)
             embed.set_footer(text=f"보유 골드 {profile.gold}G")
             return embed
 
         template = ITEM_BY_ID[item.template_id]
         embed.color = RARITY_COLORS.get(template.rarity, 0xB56BFF)
-        embed.add_field(name="장비", value=self._item_display_title(item), inline=False)
-        embed.add_field(name="잠재 합산", value=self.service.format_stats(self.service.potential_stats(item), signed=True), inline=False)
-        potential_text = self.service.potential_text(item)
-        embed.add_field(name="잠재능력", value=potential_text.removeprefix("잠재능력: ") or "없음", inline=False)
+        marker = self._item_ownership_marker(profile, item)
+        embed.add_field(name="장비", value=f"`{marker}` {self._item_display_title(item)}", inline=False)
+        potential_lines = self.service.potential_lines_text(item.potential_lines)
+        grade = self.service.potential_grade_label(item.potential_grade)
+        embed.add_field(
+            name=f"잠재능력 · {grade}",
+            value=potential_lines or ("잠김" if item.potential_locked else "없음"),
+            inline=False,
+        )
+        potential_stats = self.service.format_stats(self.service.potential_stats(item), signed=True)
+        embed.add_field(name="잠재 합산", value=potential_stats.replace(" · ", "\n"), inline=False)
         if item.potential_locked:
             embed.add_field(name="재설정", value="2차 해방 후 가능", inline=False)
         else:
-            embed.add_field(name="재설정 비용", value=f"{self.service.potential_reroll_cost(item)}G", inline=True)
-        if result is not None and result.tier_up:
+            cost = self.service.potential_reroll_cost(item)
             embed.add_field(
-                name="등급 상승",
-                value=(
-                    f"{self.service.potential_grade_label(result.before_grade)} → "
-                    f"{self.service.potential_grade_label(result.after_grade)}"
-                ),
+                name="재설정 비용",
+                value=f"1회 {cost}G\n3회 {cost * 3}G",
                 inline=True,
             )
         embed.set_footer(text=f"보유 골드 {profile.gold}G")
+        return embed
+
+    def _potential_memorial_embed(
+        self,
+        result: PotentialResult,
+        selected_index: int = 1,
+    ) -> discord.Embed:
+        item = result.item
+        color = 0xB56BFF
+        if item is not None and item.template_id in ITEM_BY_ID:
+            color = RARITY_COLORS.get(ITEM_BY_ID[item.template_id].rarity, color)
+        embed = discord.Embed(
+            title="장비 강화 · 잠재능력 메모리얼",
+            description=result.message,
+            color=color,
+        )
+        if item is None:
+            return embed
+        marker = self._item_ownership_marker(result.profile, item)
+        embed.add_field(
+            name="장비",
+            value=f"`{marker}` {self._item_display_title(item)}",
+            inline=False,
+        )
+        before_label = self.service.potential_grade_label(result.before_grade)
+        before_prefix = "선택 · " if selected_index == 0 else ""
+        embed.add_field(
+            name=f"{before_prefix}기존 잠재능력 · {before_label}",
+            value=self.service.potential_lines_text(result.before_lines) or "없음",
+            inline=False,
+        )
+        for index, candidate in enumerate(result.candidates, start=1):
+            selected = "선택 · " if selected_index == index else ""
+            grade = self.service.potential_grade_label(candidate.grade)
+            tier_up = " · 등급 상승" if candidate.tier_up else ""
+            embed.add_field(
+                name=f"{selected}새 잠재능력 {index} · {grade}{tier_up}",
+                value=self.service.potential_lines_text(candidate.lines) or "없음",
+                inline=False,
+            )
+        embed.add_field(name="사용 골드", value=f"{result.cost}G", inline=True)
+        embed.set_footer(text=f"보유 골드 {result.profile.gold}G")
         return embed
 
     def _liberation_embed(
@@ -3991,7 +4038,7 @@ class RPGCog(commands.Cog):
         enhance_count = len([item for item in profile.inventory if not item.destroyed and item.template_id in ITEM_BY_ID])
         trace_count = len([item for item in profile.inventory if item.destroyed and item.template_id in ITEM_BY_ID])
         embed = discord.Embed(
-            title="장비 강화",
+            title="장비 강화 · 스타포스",
             description="아래 선택 메뉴에서 강화할 장비를 고르세요.",
             color=self._items_embed_color(display_items),
         )
@@ -4013,12 +4060,12 @@ class RPGCog(commands.Cog):
         color = 0xFFB84D
         if preview.item is not None and preview.item.template_id in ITEM_BY_ID:
             color = RARITY_COLORS[ITEM_BY_ID[preview.item.template_id].rarity]
-        embed = discord.Embed(title="강화 미리보기", description=preview.message, color=color)
+        embed = discord.Embed(title="장비 강화 · 스타포스", description=preview.message, color=color)
         if preview.item is None:
             return embed
         embed.add_field(name="장비", value=self._item_display_title(preview.item), inline=False)
         if preview.method_name:
-            embed.add_field(name="강화 방식", value=preview.method_name, inline=True)
+            embed.add_field(name="스타포스 방식", value=preview.method_name, inline=True)
         embed.add_field(name="현재 스탯", value=self.service.format_stats(preview.before_stats, signed=True), inline=False)
         method_lines = []
         for method in self.service.enhancement_methods()[:6]:
@@ -4034,7 +4081,7 @@ class RPGCog(commands.Cog):
                 f"{self._enhancement_cost_text(method_preview.cost, method_preview.material_costs)}"
             )
         if method_lines:
-            embed.add_field(name="강화 방식 목록", value="\n".join(method_lines), inline=False)
+            embed.add_field(name="스타포스 방식 목록", value="\n".join(method_lines), inline=False)
         effect_text = self.service.item_template_effects_text(preview.item.template_id)
         if effect_text:
             embed.add_field(name="영속 효과", value=self._trim(effect_text, 1024), inline=False)
@@ -4114,11 +4161,11 @@ class RPGCog(commands.Cog):
         color = 0x57F287 if result.ok else 0xED4245
         if result.item is not None and result.item.template_id in ITEM_BY_ID:
             color = RARITY_COLORS[ITEM_BY_ID[result.item.template_id].rarity]
-        embed = discord.Embed(title="장비 강화", description=result.message, color=color)
+        embed = discord.Embed(title="장비 강화 · 스타포스", description=result.message, color=color)
         if result.item is not None:
             embed.add_field(name="장비", value=self._item_display_title(result.item), inline=False)
             if result.method_name:
-                embed.add_field(name="강화 방식", value=result.method_name, inline=True)
+                embed.add_field(name="스타포스 방식", value=result.method_name, inline=True)
             if result.item.destroyed:
                 embed.add_field(name="흔적 정보", value=f"파괴 당시 +{result.item.stars}", inline=False)
             else:
@@ -4350,6 +4397,9 @@ class RPGCog(commands.Cog):
         label = RARITY_LABELS.get(template.rarity, template.rarity)
         destroyed = " 흔적" if item.destroyed else ""
         return f"[{label}] {template.name} +{item.stars}{destroyed}"[:100]
+
+    def _item_ownership_marker(self, profile: PlayerProfile, item) -> str:
+        return "장착" if item.uid in profile.equipped_item_uids else "보유"
 
     def _item_option_description(self, marker: str, item, *extra: str) -> str:
         bits = [marker, *extra, self.service.item_stats_text(item)]
@@ -5720,28 +5770,39 @@ class PotentialView(discord.ui.View):
         self.selected_uid = selected_uid
         profile = cog.service.get_profile(user_id, display_name)
         items = cog._potential_display_items(profile)
+        if selected_uid is not None and all(item.uid != selected_uid for item in items):
+            self.selected_uid = None
         options = []
         for item in items:
             template = ITEM_BY_ID[item.template_id]
             grade = "잠김" if item.potential_locked else cog.service.potential_grade_label(item.potential_grade)
+            marker = cog._item_ownership_marker(profile, item)
+            cost = cog.service.potential_reroll_cost(item)
             options.append(
                 discord.SelectOption(
                     label=cog._item_select_label(item),
                     value=str(item.uid),
-                    description=f"{grade} · {cog.service.potential_reroll_cost(item)}G"[:100],
+                    description=f"{marker} · {grade} · 1회 {cost}G"[:100],
                     emoji=cog._rarity_emoji(template.rarity),
-                    default=item.uid == selected_uid,
+                    default=item.uid == self.selected_uid,
                 )
             )
         if options:
             self.add_item(PotentialSelect(options))
-        item = cog._profile_item(profile, selected_uid)
-        can_reroll = (
+        item = cog._profile_item(profile, self.selected_uid)
+        can_reroll_once = (
             item is not None
             and not item.potential_locked
             and profile.gold >= cog.service.potential_reroll_cost(item)
         )
-        self.add_item(PotentialRerollButton(disabled=not can_reroll))
+        can_reroll_three = (
+            item is not None
+            and not item.potential_locked
+            and profile.gold >= cog.service.potential_reroll_cost(item) * 3
+        )
+        self.add_item(PotentialRerollButton(1, disabled=not can_reroll_once))
+        self.add_item(PotentialRerollButton(3, disabled=not can_reroll_three))
+        self.add_item(OpenStarforceViewButton())
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id == self.user_id:
@@ -5752,7 +5813,13 @@ class PotentialView(discord.ui.View):
 
 class PotentialSelect(discord.ui.Select):
     def __init__(self, options: list[discord.SelectOption]) -> None:
-        super().__init__(placeholder="잠재능력을 확인할 장비 선택", min_values=1, max_values=1, options=options)
+        super().__init__(
+            placeholder="잠재능력을 확인할 장비 선택",
+            min_values=1,
+            max_values=1,
+            options=options,
+            row=0,
+        )
 
     async def callback(self, interaction: discord.Interaction) -> None:
         assert isinstance(self.view, PotentialView)
@@ -5765,8 +5832,14 @@ class PotentialSelect(discord.ui.Select):
 
 
 class PotentialRerollButton(discord.ui.Button):
-    def __init__(self, *, disabled: bool = False) -> None:
-        super().__init__(label="재설정", style=discord.ButtonStyle.primary, disabled=disabled)
+    def __init__(self, count: int, *, disabled: bool = False) -> None:
+        self.count = count
+        super().__init__(
+            label=f"{count}회 재설정",
+            style=discord.ButtonStyle.primary if count == 1 else discord.ButtonStyle.secondary,
+            disabled=disabled,
+            row=1,
+        )
 
     async def callback(self, interaction: discord.Interaction) -> None:
         assert isinstance(self.view, PotentialView)
@@ -5777,14 +5850,202 @@ class PotentialRerollButton(discord.ui.Button):
             self.view.user_id,
             self.view.display_name,
             self.view.selected_uid,
+            self.count,
+        )
+        if not result.ok:
+            await interaction.response.edit_message(
+                embed=self.view.cog._potential_embed(
+                    result.profile,
+                    self.view.selected_uid,
+                    result.message,
+                ),
+                view=PotentialView(
+                    self.view.cog,
+                    self.view.user_id,
+                    self.view.display_name,
+                    self.view.selected_uid,
+                ),
+            )
+            return
+        await interaction.response.edit_message(
+            embed=self.view.cog._potential_memorial_embed(result, 1),
+            view=PotentialMemorialView(
+                self.view.cog,
+                self.view.user_id,
+                self.view.display_name,
+                result,
+                1,
+            ),
+        )
+
+
+class PotentialMemorialView(discord.ui.View):
+    def __init__(
+        self,
+        cog: RPGCog,
+        user_id: int,
+        display_name: str,
+        result: PotentialResult,
+        selected_index: int = 1,
+    ) -> None:
+        super().__init__(timeout=180)
+        self.cog = cog
+        self.user_id = user_id
+        self.display_name = display_name
+        self.result = result
+        self.selected_index = max(0, min(selected_index, len(result.candidates)))
+        options = [
+            discord.SelectOption(
+                label="기존 잠재능력 유지",
+                value="0",
+                description=cog.service.potential_grade_label(result.before_grade),
+                default=self.selected_index == 0,
+            )
+        ]
+        for index, candidate in enumerate(result.candidates, start=1):
+            grade = cog.service.potential_grade_label(candidate.grade)
+            detail = f"{grade} · 등급 상승" if candidate.tier_up else grade
+            options.append(
+                discord.SelectOption(
+                    label=f"새 잠재능력 {index}",
+                    value=str(index),
+                    description=detail[:100],
+                    default=self.selected_index == index,
+                )
+            )
+        self.add_item(PotentialMemorialSelect(options))
+        self.add_item(PotentialApplySelectionButton())
+        self.add_item(PotentialKeepCurrentButton())
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.user_id:
+            return True
+        await interaction.response.send_message(
+            "이 잠재능력 UI는 명령을 실행한 사람만 사용할 수 있습니다.",
+            ephemeral=True,
+        )
+        return False
+
+
+class PotentialMemorialSelect(discord.ui.Select):
+    def __init__(self, options: list[discord.SelectOption]) -> None:
+        super().__init__(
+            placeholder="적용할 잠재능력 전체 선택",
+            min_values=1,
+            max_values=1,
+            options=options,
+            row=0,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, PotentialMemorialView)
+        selected_index = int(self.values[0])
+        await interaction.response.edit_message(
+            embed=self.view.cog._potential_memorial_embed(self.view.result, selected_index),
+            view=PotentialMemorialView(
+                self.view.cog,
+                self.view.user_id,
+                self.view.display_name,
+                self.view.result,
+                selected_index,
+            ),
+        )
+
+
+class PotentialApplySelectionButton(discord.ui.Button):
+    def __init__(self) -> None:
+        super().__init__(label="선택 적용", style=discord.ButtonStyle.primary, row=1)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, PotentialMemorialView)
+        result = self.view.result
+        item_uid = result.item.uid if result.item is not None else 0
+        if self.view.selected_index == 0:
+            profile = self.view.cog.service.get_profile(self.view.user_id, self.view.display_name)
+            await interaction.response.edit_message(
+                embed=self.view.cog._potential_embed(
+                    profile,
+                    item_uid,
+                    "기존 잠재능력을 유지했습니다.",
+                ),
+                view=PotentialView(
+                    self.view.cog,
+                    self.view.user_id,
+                    self.view.display_name,
+                    item_uid,
+                ),
+            )
+            return
+        candidate: PotentialCandidate = result.candidates[self.view.selected_index - 1]
+        applied = self.view.cog.service.apply_potential_candidate(
+            self.view.user_id,
+            self.view.display_name,
+            item_uid,
+            result.before_grade,
+            result.before_lines,
+            candidate,
         )
         await interaction.response.edit_message(
-            embed=self.view.cog._potential_embed(result.profile, self.view.selected_uid, result),
+            embed=self.view.cog._potential_embed(applied.profile, item_uid, applied.message),
             view=PotentialView(
                 self.view.cog,
                 self.view.user_id,
                 self.view.display_name,
-                self.view.selected_uid,
+                item_uid,
+            ),
+        )
+
+
+class PotentialKeepCurrentButton(discord.ui.Button):
+    def __init__(self) -> None:
+        super().__init__(label="기존 유지", style=discord.ButtonStyle.secondary, row=1)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, PotentialMemorialView)
+        item_uid = self.view.result.item.uid if self.view.result.item is not None else 0
+        profile = self.view.cog.service.get_profile(self.view.user_id, self.view.display_name)
+        await interaction.response.edit_message(
+            embed=self.view.cog._potential_embed(
+                profile,
+                item_uid,
+                "기존 잠재능력을 유지했습니다.",
+            ),
+            view=PotentialView(
+                self.view.cog,
+                self.view.user_id,
+                self.view.display_name,
+                item_uid,
+            ),
+        )
+
+
+class OpenStarforceViewButton(discord.ui.Button):
+    def __init__(self) -> None:
+        super().__init__(label="스타포스", style=discord.ButtonStyle.secondary, row=2)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, PotentialView)
+        profile = self.view.cog.service.get_profile(self.view.user_id, self.view.display_name)
+        enhanceable_uids = {
+            item.uid for item in self.view.cog._enhancement_display_items(profile)
+        }
+        selected_uid = self.view.selected_uid if self.view.selected_uid in enhanceable_uids else None
+        embed = self.view.cog._enhancement_picker_embed(profile)
+        if selected_uid is not None:
+            embed = self.view.cog._enhancement_preview_embed(
+                self.view.cog.service.enhancement_preview(
+                    self.view.user_id,
+                    self.view.display_name,
+                    selected_uid,
+                )
+            )
+        await interaction.response.edit_message(
+            embed=embed,
+            view=EnhancementView(
+                self.view.cog,
+                self.view.user_id,
+                self.view.display_name,
+                selected_uid,
             ),
         )
 
@@ -5895,6 +6156,7 @@ class EnhancementView(discord.ui.View):
                 )
         else:
             self.add_item(EnhancementConfirmButton("gold", "강화", primary=True, disabled=selected_item is None))
+        self.add_item(OpenPotentialViewButton())
         self.add_item(OpenRestoreViewButton(disabled=not self.cog._restore_trace_display_items(profile)))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -5911,6 +6173,7 @@ class EnhancementSelect(discord.ui.Select):
             min_values=1,
             max_values=1,
             options=options,
+            row=0,
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
@@ -5939,6 +6202,7 @@ class EnhancementConfirmButton(discord.ui.Button):
             label=method_name[:80] if method_name else "강화",
             style=discord.ButtonStyle.primary if primary else discord.ButtonStyle.secondary,
             disabled=disabled,
+            row=1,
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
@@ -5970,9 +6234,34 @@ class EnhancementConfirmButton(discord.ui.Button):
         )
 
 
+class OpenPotentialViewButton(discord.ui.Button):
+    def __init__(self) -> None:
+        super().__init__(label="잠재능력", style=discord.ButtonStyle.secondary, row=2)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, EnhancementView)
+        profile = self.view.cog.service.get_profile(self.view.user_id, self.view.display_name)
+        potential_uids = {item.uid for item in self.view.cog._potential_display_items(profile)}
+        selected_uid = self.view.selected_uid if self.view.selected_uid in potential_uids else None
+        await interaction.response.edit_message(
+            embed=self.view.cog._potential_embed(profile, selected_uid),
+            view=PotentialView(
+                self.view.cog,
+                self.view.user_id,
+                self.view.display_name,
+                selected_uid,
+            ),
+        )
+
+
 class OpenRestoreViewButton(discord.ui.Button):
     def __init__(self, *, disabled: bool = False) -> None:
-        super().__init__(label="흔적 복구", style=discord.ButtonStyle.secondary, disabled=disabled)
+        super().__init__(
+            label="흔적 복구",
+            style=discord.ButtonStyle.secondary,
+            disabled=disabled,
+            row=2,
+        )
 
     async def callback(self, interaction: discord.Interaction) -> None:
         assert isinstance(self.view, EnhancementView)
