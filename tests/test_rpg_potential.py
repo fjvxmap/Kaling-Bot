@@ -10,9 +10,10 @@ from bot.services.rpg.data import (
     MAX_ENHANCEMENT_STARS,
     POTENTIAL_GRADES,
     POTENTIAL_OPTION_BY_ID,
+    POTENTIAL_PITY_COUNTS,
     scaled_item_stats,
 )
-from bot.services.rpg.manager import RPGService
+from bot.services.rpg.manager import PotentialCandidate, RPGService
 from bot.services.rpg.models import ItemInstance, PlayerProfile, PotentialLine
 from bot.services.rpg.store import RPGStore
 from tools.rpg_admin.app import normalize_potential
@@ -194,6 +195,89 @@ class PotentialTests(unittest.TestCase):
             signatures,
         )
         self.assertTrue(all(len(candidate.lines) == 3 for candidate in result.candidates))
+
+    def test_memorial_reroll_can_discard_pending_candidates_without_applying(self) -> None:
+        service = self.service(Random(2468))
+        profile, _ = service.start_profile(1, "Tester")
+        template_id = next(
+            template.id for template in ITEM_BY_ID.values() if not template.genesis_weapon
+        )
+        item = service._grant_item(profile, template_id)
+        assert item is not None
+        profile.gold = 100_000
+        before_grade = item.potential_grade
+        before_lines = service._copy_potential_lines(item.potential_lines)
+        gold_before = profile.gold
+
+        first = service.reroll_potential(profile.user_id, profile.display_name, item.uid)
+        second = service.reroll_potential(profile.user_id, profile.display_name, item.uid, count=3)
+
+        self.assertTrue(first.ok)
+        self.assertTrue(second.ok)
+        self.assertEqual(item.potential_grade, before_grade)
+        self.assertEqual(item.potential_lines, before_lines)
+        self.assertEqual(profile.gold, gold_before - first.cost - second.cost)
+        self.assertEqual(second.before_grade, before_grade)
+        self.assertEqual(second.before_lines, before_lines)
+
+    def test_tier_up_candidate_must_be_applied(self) -> None:
+        service = self.service(Random(1357))
+        profile, _ = service.start_profile(1, "Tester")
+        template_id = next(
+            template.id for template in ITEM_BY_ID.values() if not template.genesis_weapon
+        )
+        item = service._grant_item(profile, template_id)
+        assert item is not None
+        item.potential_grade = "rare"
+        item.potential_lines = [
+            PotentialLine("potential_base_atk", "rare") for _ in range(3)
+        ]
+        profile.gold = 100_000
+        profile.potential_pity["rare"] = POTENTIAL_PITY_COUNTS["rare"] - 1
+
+        result = service.reroll_potential(profile.user_id, profile.display_name, item.uid)
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.required_grade, "epic")
+        self.assertEqual(result.candidates[0].grade, "epic")
+        keep_old = service.apply_potential_candidate(
+            profile.user_id,
+            profile.display_name,
+            item.uid,
+            result.before_grade,
+            result.before_lines,
+            PotentialCandidate(result.before_grade, result.before_lines),
+            result.required_grade,
+        )
+        self.assertFalse(keep_old.ok)
+        self.assertIn("반드시 적용", keep_old.message)
+
+        applied = service.apply_potential_candidate(
+            profile.user_id,
+            profile.display_name,
+            item.uid,
+            result.before_grade,
+            result.before_lines,
+            result.candidates[0],
+            result.required_grade,
+        )
+
+        self.assertTrue(applied.ok)
+        self.assertEqual(item.potential_grade, "epic")
+
+    def test_potential_tier_progress_is_rendered_as_current_over_guarantee(self) -> None:
+        service = self.service()
+        profile = PlayerProfile.create(1, "Tester")
+        profile.potential_pity["epic"] = 3
+
+        self.assertEqual(
+            service.potential_tier_progress_text(profile, "epic"),
+            f"3/{POTENTIAL_PITY_COUNTS['epic']}",
+        )
+        self.assertEqual(
+            service.potential_tier_progress_text(profile, POTENTIAL_GRADES[-1]),
+            "최고 등급",
+        )
 
     def test_stale_memorial_result_cannot_overwrite_a_newer_choice(self) -> None:
         service = self.service(Random(9012))

@@ -29,7 +29,8 @@
         },
         "stats": {},
         "player_mods": {},
-        "boss_mods": {}
+        "boss_mods": {},
+        "duration": 0
       },
       "objectives": [
         {
@@ -77,7 +78,8 @@
         ],
         "stats": {},
         "player_mods": {},
-        "boss_mods": {}
+        "boss_mods": {},
+        "duration": 0
       },
       "objectives": [
         {
@@ -109,7 +111,8 @@
         ],
         "stats": {},
         "player_mods": {},
-        "boss_mods": {}
+        "boss_mods": {},
+        "duration": 0
       },
       "objectives": [
         {
@@ -145,7 +148,8 @@
         ],
         "stats": {},
         "player_mods": {},
-        "boss_mods": {}
+        "boss_mods": {},
+        "duration": 0
       },
       "objectives": [
         {
@@ -177,7 +181,8 @@
         ],
         "stats": {},
         "player_mods": {},
-        "boss_mods": {}
+        "boss_mods": {},
+        "duration": 0
       },
       "objectives": [
         {
@@ -214,7 +219,8 @@
         ],
         "stats": {},
         "player_mods": {},
-        "boss_mods": {}
+        "boss_mods": {},
+        "duration": 0
       },
       "objectives": [
         {
@@ -246,7 +252,8 @@
         ],
         "stats": {},
         "player_mods": {},
-        "boss_mods": {}
+        "boss_mods": {},
+        "duration": 0
       },
       "objectives": [
         {
@@ -272,7 +279,8 @@
         },
         "stats": {},
         "player_mods": {},
-        "boss_mods": {}
+        "boss_mods": {},
+        "duration": 0
       },
       "objectives": [
         {
@@ -320,7 +328,8 @@
         ],
         "stats": {},
         "player_mods": {},
-        "boss_mods": {}
+        "boss_mods": {},
+        "duration": 0
       },
       "objectives": [
         {
@@ -352,7 +361,8 @@
         ],
         "stats": {},
         "player_mods": {},
-        "boss_mods": {}
+        "boss_mods": {},
+        "duration": 0
       },
       "objectives": [
         {
@@ -388,7 +398,8 @@
         ],
         "stats": {},
         "player_mods": {},
-        "boss_mods": {}
+        "boss_mods": {},
+        "duration": 0
       },
       "objectives": [
         {
@@ -425,7 +436,8 @@
         ],
         "stats": {},
         "player_mods": {},
-        "boss_mods": {}
+        "boss_mods": {},
+        "duration": 0
       },
       "objectives": [
         {
@@ -457,7 +469,8 @@
         ],
         "stats": {},
         "player_mods": {},
-        "boss_mods": {}
+        "boss_mods": {},
+        "duration": 0
       },
       "objectives": [
         {
@@ -483,7 +496,8 @@
         },
         "stats": {},
         "player_mods": {},
-        "boss_mods": {}
+        "boss_mods": {},
+        "duration": 0
       },
       "objectives": [
         {
@@ -558,7 +572,16 @@
     ]
   },
   "rewards": {
-    "items": [],
+    "items": [
+      {
+        "chance": 0.02,
+        "min": 1,
+        "max": 1,
+        "template_id": "genesis_badge",
+        "participant_chance": 0.008,
+        "stars": 0
+      }
+    ],
     "materials": [
       {
         "id": "boss_power_crystal",
@@ -569,14 +592,14 @@
       },
       {
         "id": "gold_brick",
-        "chance": 0.012,
+        "chance": 0.04,
         "min": 1,
         "max": 1,
-        "owner_chance": 0.025
+        "participant_chance": 0.02
       }
     ]
   },
-  "description": "빛과 어둠을 초월한 절대자의 마지막 결전이다.",
+  "description": "\"오너라, 너희의 모든 것을 걸고.\"",
   "sort_order": 16,
   "stack_effects": [],
   "hp_locks": [

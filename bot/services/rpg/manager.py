@@ -291,6 +291,7 @@ class PotentialResult:
     before_lines: list[PotentialLine] = field(default_factory=list)
     candidates: list[PotentialCandidate] = field(default_factory=list)
     reroll_count: int = 0
+    required_grade: str = ""
 
 
 @dataclass
@@ -1637,6 +1638,17 @@ class RPGService:
     def potential_reroll_cost(self, item: ItemInstance) -> int:
         return max(0, int(POTENTIAL_REROLL_COSTS.get(item.potential_grade, 0)))
 
+    def potential_tier_progress_text(self, profile: PlayerProfile, grade: str) -> str:
+        if grade not in POTENTIAL_GRADES:
+            return "없음"
+        if POTENTIAL_GRADES.index(grade) >= len(POTENTIAL_GRADES) - 1:
+            return "최고 등급"
+        limit = max(0, int(POTENTIAL_PITY_COUNTS.get(grade, 0)))
+        if limit <= 0:
+            return "보장 없음"
+        progress = max(0, min(limit, int(profile.potential_pity.get(grade, 0))))
+        return f"{progress}/{limit}"
+
     def reroll_potential(
         self,
         user_id: int,
@@ -1677,9 +1689,13 @@ class RPGService:
         profile.gold -= cost
         self._save()
         tier_up = any(candidate.tier_up for candidate in candidates)
+        required_grade = next(
+            (candidate.grade for candidate in candidates if candidate.tier_up),
+            "",
+        )
         message = f"잠재능력을 {count}회 재설정했습니다. 적용할 전체 옵션을 선택하세요."
         if tier_up:
-            message += " 등급 상승 후보가 있습니다."
+            message += " 등급이 상승해 상승 등급 후보를 반드시 적용해야 합니다."
         return PotentialResult(
             ok=True,
             message=message,
@@ -1692,6 +1708,7 @@ class RPGService:
             before_lines=before_lines,
             candidates=candidates,
             reroll_count=count,
+            required_grade=required_grade,
         )
 
     def apply_potential_candidate(
@@ -1702,6 +1719,7 @@ class RPGService:
         before_grade: str,
         before_lines: list[PotentialLine],
         candidate: PotentialCandidate,
+        required_grade: str = "",
     ) -> PotentialResult:
         profile = self.get_profile(user_id, display_name)
         item = self._find_item(profile, item_uid)
@@ -1723,6 +1741,14 @@ class RPGService:
             )
         if not self._potential_state_valid(candidate.grade, candidate.lines):
             return PotentialResult(False, "유효하지 않은 잠재능력 결과입니다.", profile, item)
+        if required_grade and candidate.grade != required_grade:
+            required_label = self.potential_grade_label(required_grade)
+            return PotentialResult(
+                False,
+                f"등급이 상승했으므로 {required_label} 잠재능력을 반드시 적용해야 합니다.",
+                profile,
+                item,
+            )
 
         item.potential_grade = candidate.grade
         item.potential_lines = self._copy_potential_lines(candidate.lines)

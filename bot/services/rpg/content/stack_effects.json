@@ -763,7 +763,17 @@
               "undispellable": true
             }
           ]
-        }
+        },
+        "stat_effects": [
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": 0.1,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
       }
     ],
     "conditions": [],
@@ -777,7 +787,8 @@
         "remove_self": true,
         "remove_other": true
       }
-    ]
+    ],
+    "stats": {}
   },
   {
     "id": "black_mage_destruction_curse",
@@ -805,10 +816,12 @@
               "undispellable": true
             }
           ]
-        }
+        },
+        "stats": {}
       }
     ],
     "conditions": [],
-    "reactions": []
+    "reactions": [],
+    "stats": {}
   }
 ]

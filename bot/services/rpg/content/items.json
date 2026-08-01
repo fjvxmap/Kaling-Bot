@@ -2719,6 +2719,8 @@
     "rarity": "unique",
     "stats": {
       "base_atk": 8,
+      "max_hp": 20,
+      "hp_bonus": 0.35,
       "atk": 0.09,
       "critical_damage": 0.02
     },
@@ -2745,6 +2747,8 @@
     "rarity": "unique",
     "stats": {
       "base_atk": 6,
+      "max_hp": 20,
+      "hp_bonus": 0.35,
       "atk": 0.07,
       "defense": 0.08
     },
@@ -2771,6 +2775,8 @@
     "rarity": "unique",
     "stats": {
       "base_atk": 6,
+      "max_hp": 20,
+      "hp_bonus": 0.35,
       "atk": 0.07,
       "skill_damage": 0.08
     },
@@ -2797,6 +2803,8 @@
     "rarity": "unique",
     "stats": {
       "base_atk": 8,
+      "max_hp": 20,
+      "hp_bonus": 0.35,
       "skill_damage": 0.07,
       "critical_rate": 0.03
     },
@@ -2823,6 +2831,8 @@
     "rarity": "unique",
     "stats": {
       "base_atk": 8,
+      "max_hp": 20,
+      "hp_bonus": 0.35,
       "skill_damage": 0.09,
       "skill_dmg_supplement": 8
     },
@@ -2849,6 +2859,8 @@
     "rarity": "unique",
     "stats": {
       "base_atk": 6,
+      "max_hp": 20,
+      "hp_bonus": 0.35,
       "skill_damage": 0.07,
       "healing_bonus": 0.05
     },
@@ -2875,6 +2887,8 @@
     "rarity": "unique",
     "stats": {
       "base_atk": 7,
+      "max_hp": 20,
+      "hp_bonus": 0.35,
       "atk": 0.08,
       "double_attack_rate": 0.03
     },
@@ -2894,5 +2908,34 @@
         }
       ]
     }
+  },
+  {
+    "id": "genesis_badge",
+    "name": "창세의 뱃지",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 75,
+      "garrison": 0.8,
+      "dmg_mitigation": -25
+    },
+    "base_price": 1,
+    "excluded_from_gacha": true,
+    "description": ".",
+    "effects": {
+      "final_damage": [
+        {
+          "ratio": 0.08,
+          "target": "self",
+          "duration": -1,
+          "undispellable": true
+        }
+      ]
+    },
+    "enhancement_disabled": false,
+    "unsellable": false,
+    "genesis_weapon": false,
+    "fixed_stats": [
+      "dmg_mitigation"
+    ]
   }
 ]

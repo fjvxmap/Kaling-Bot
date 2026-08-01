@@ -3941,6 +3941,11 @@ class RPGCog(commands.Cog):
                 value=f"1회 {cost}G\n3회 {cost * 3}G",
                 inline=True,
             )
+            embed.add_field(
+                name=f"등급 상승 보장 · {grade}",
+                value=self.service.potential_tier_progress_text(profile, item.potential_grade),
+                inline=True,
+            )
         embed.set_footer(text=f"보유 골드 {profile.gold}G")
         return embed
 
@@ -3948,6 +3953,7 @@ class RPGCog(commands.Cog):
         self,
         result: PotentialResult,
         selected_index: int = 1,
+        message: str = "",
     ) -> discord.Embed:
         item = result.item
         color = 0xB56BFF
@@ -3955,7 +3961,7 @@ class RPGCog(commands.Cog):
             color = RARITY_COLORS.get(ITEM_BY_ID[item.template_id].rarity, color)
         embed = discord.Embed(
             title="장비 강화 · 잠재능력 메모리얼",
-            description=result.message,
+            description=message or result.message,
             color=color,
         )
         if item is None:
@@ -3968,8 +3974,9 @@ class RPGCog(commands.Cog):
         )
         before_label = self.service.potential_grade_label(result.before_grade)
         before_prefix = "선택 · " if selected_index == 0 else ""
+        before_unavailable = " · 선택 불가" if result.required_grade else ""
         embed.add_field(
-            name=f"{before_prefix}기존 잠재능력 · {before_label}",
+            name=f"{before_prefix}기존 잠재능력 · {before_label}{before_unavailable}",
             value=self.service.potential_lines_text(result.before_lines) or "없음",
             inline=False,
         )
@@ -3977,12 +3984,24 @@ class RPGCog(commands.Cog):
             selected = "선택 · " if selected_index == index else ""
             grade = self.service.potential_grade_label(candidate.grade)
             tier_up = " · 등급 상승" if candidate.tier_up else ""
+            unavailable = (
+                " · 선택 불가"
+                if result.required_grade and candidate.grade != result.required_grade
+                else ""
+            )
             embed.add_field(
-                name=f"{selected}새 잠재능력 {index} · {grade}{tier_up}",
+                name=f"{selected}새 잠재능력 {index} · {grade}{tier_up}{unavailable}",
                 value=self.service.potential_lines_text(candidate.lines) or "없음",
                 inline=False,
             )
         embed.add_field(name="사용 골드", value=f"{result.cost}G", inline=True)
+        progress_grade = result.required_grade or result.before_grade
+        progress_label = self.service.potential_grade_label(progress_grade)
+        embed.add_field(
+            name=f"등급 상승 보장 · {progress_label}",
+            value=self.service.potential_tier_progress_text(result.profile, progress_grade),
+            inline=True,
+        )
         embed.set_footer(text=f"보유 골드 {result.profile.gold}G")
         return embed
 
@@ -5867,15 +5886,15 @@ class PotentialRerollButton(discord.ui.Button):
                 ),
             )
             return
+        view = PotentialMemorialView(
+            self.view.cog,
+            self.view.user_id,
+            self.view.display_name,
+            result,
+        )
         await interaction.response.edit_message(
-            embed=self.view.cog._potential_memorial_embed(result, 1),
-            view=PotentialMemorialView(
-                self.view.cog,
-                self.view.user_id,
-                self.view.display_name,
-                result,
-                1,
-            ),
+            embed=self.view.cog._potential_memorial_embed(result, view.selected_index),
+            view=view,
         )
 
 
@@ -5886,23 +5905,37 @@ class PotentialMemorialView(discord.ui.View):
         user_id: int,
         display_name: str,
         result: PotentialResult,
-        selected_index: int = 1,
+        selected_index: int | None = None,
     ) -> None:
         super().__init__(timeout=180)
         self.cog = cog
         self.user_id = user_id
         self.display_name = display_name
         self.result = result
-        self.selected_index = max(0, min(selected_index, len(result.candidates)))
-        options = [
-            discord.SelectOption(
-                label="기존 잠재능력 유지",
-                value="0",
-                description=cog.service.potential_grade_label(result.before_grade),
-                default=self.selected_index == 0,
-            )
+        eligible_indices = [
+            index
+            for index, candidate in enumerate(result.candidates, start=1)
+            if not result.required_grade or candidate.grade == result.required_grade
         ]
+        if not result.required_grade:
+            eligible_indices.insert(0, 0)
+        preferred_index = 1 if selected_index is None else selected_index
+        self.selected_index = (
+            preferred_index if preferred_index in eligible_indices else eligible_indices[0]
+        )
+        options = []
+        if not result.required_grade:
+            options.append(
+                discord.SelectOption(
+                    label="기존 잠재능력 유지",
+                    value="0",
+                    description=cog.service.potential_grade_label(result.before_grade),
+                    default=self.selected_index == 0,
+                )
+            )
         for index, candidate in enumerate(result.candidates, start=1):
+            if index not in eligible_indices:
+                continue
             grade = cog.service.potential_grade_label(candidate.grade)
             detail = f"{grade} · 등급 상승" if candidate.tier_up else grade
             options.append(
@@ -5915,7 +5948,22 @@ class PotentialMemorialView(discord.ui.View):
             )
         self.add_item(PotentialMemorialSelect(options))
         self.add_item(PotentialApplySelectionButton())
-        self.add_item(PotentialKeepCurrentButton())
+        locked_to_upgrade = bool(result.required_grade)
+        self.add_item(PotentialKeepCurrentButton(disabled=locked_to_upgrade))
+        item = result.item
+        cost = cog.service.potential_reroll_cost(item) if item is not None else 0
+        can_reroll_once = (
+            not locked_to_upgrade
+            and item is not None
+            and result.profile.gold >= cost
+        )
+        can_reroll_three = (
+            not locked_to_upgrade
+            and item is not None
+            and result.profile.gold >= cost * 3
+        )
+        self.add_item(PotentialMemorialRerollButton(1, disabled=not can_reroll_once))
+        self.add_item(PotentialMemorialRerollButton(3, disabled=not can_reroll_three))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id == self.user_id:
@@ -5940,15 +5988,19 @@ class PotentialMemorialSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction) -> None:
         assert isinstance(self.view, PotentialMemorialView)
         selected_index = int(self.values[0])
+        view = PotentialMemorialView(
+            self.view.cog,
+            self.view.user_id,
+            self.view.display_name,
+            self.view.result,
+            selected_index,
+        )
         await interaction.response.edit_message(
-            embed=self.view.cog._potential_memorial_embed(self.view.result, selected_index),
-            view=PotentialMemorialView(
-                self.view.cog,
-                self.view.user_id,
-                self.view.display_name,
+            embed=self.view.cog._potential_memorial_embed(
                 self.view.result,
-                selected_index,
+                view.selected_index,
             ),
+            view=view,
         )
 
 
@@ -5961,6 +6013,15 @@ class PotentialApplySelectionButton(discord.ui.Button):
         result = self.view.result
         item_uid = result.item.uid if result.item is not None else 0
         if self.view.selected_index == 0:
+            if result.required_grade:
+                required_label = self.view.cog.service.potential_grade_label(
+                    result.required_grade
+                )
+                await interaction.response.send_message(
+                    f"등급이 상승했으므로 {required_label} 잠재능력을 반드시 적용해야 합니다.",
+                    ephemeral=True,
+                )
+                return
             profile = self.view.cog.service.get_profile(self.view.user_id, self.view.display_name)
             await interaction.response.edit_message(
                 embed=self.view.cog._potential_embed(
@@ -5984,6 +6045,7 @@ class PotentialApplySelectionButton(discord.ui.Button):
             result.before_grade,
             result.before_lines,
             candidate,
+            result.required_grade,
         )
         await interaction.response.edit_message(
             embed=self.view.cog._potential_embed(applied.profile, item_uid, applied.message),
@@ -5997,11 +6059,25 @@ class PotentialApplySelectionButton(discord.ui.Button):
 
 
 class PotentialKeepCurrentButton(discord.ui.Button):
-    def __init__(self) -> None:
-        super().__init__(label="기존 유지", style=discord.ButtonStyle.secondary, row=1)
+    def __init__(self, *, disabled: bool = False) -> None:
+        super().__init__(
+            label="기존 유지",
+            style=discord.ButtonStyle.secondary,
+            disabled=disabled,
+            row=1,
+        )
 
     async def callback(self, interaction: discord.Interaction) -> None:
         assert isinstance(self.view, PotentialMemorialView)
+        if self.view.result.required_grade:
+            required_label = self.view.cog.service.potential_grade_label(
+                self.view.result.required_grade
+            )
+            await interaction.response.send_message(
+                f"등급이 상승했으므로 {required_label} 잠재능력을 반드시 적용해야 합니다.",
+                ephemeral=True,
+            )
+            return
         item_uid = self.view.result.item.uid if self.view.result.item is not None else 0
         profile = self.view.cog.service.get_profile(self.view.user_id, self.view.display_name)
         await interaction.response.edit_message(
@@ -6016,6 +6092,67 @@ class PotentialKeepCurrentButton(discord.ui.Button):
                 self.view.display_name,
                 item_uid,
             ),
+        )
+
+
+class PotentialMemorialRerollButton(discord.ui.Button):
+    def __init__(self, count: int, *, disabled: bool = False) -> None:
+        self.count = count
+        super().__init__(
+            label=f"{count}회 재설정",
+            style=discord.ButtonStyle.secondary,
+            disabled=disabled,
+            row=1,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, PotentialMemorialView)
+        result = self.view.result
+        if result.required_grade:
+            required_label = self.view.cog.service.potential_grade_label(
+                result.required_grade
+            )
+            await interaction.response.send_message(
+                f"등급이 상승했으므로 {required_label} 잠재능력을 먼저 적용해야 합니다.",
+                ephemeral=True,
+            )
+            return
+        item_uid = result.item.uid if result.item is not None else 0
+        rerolled = self.view.cog.service.reroll_potential(
+            self.view.user_id,
+            self.view.display_name,
+            item_uid,
+            self.count,
+        )
+        if not rerolled.ok:
+            view = PotentialMemorialView(
+                self.view.cog,
+                self.view.user_id,
+                self.view.display_name,
+                result,
+                self.view.selected_index,
+            )
+            await interaction.response.edit_message(
+                embed=self.view.cog._potential_memorial_embed(
+                    result,
+                    view.selected_index,
+                    rerolled.message,
+                ),
+                view=view,
+            )
+            return
+        view = PotentialMemorialView(
+            self.view.cog,
+            self.view.user_id,
+            self.view.display_name,
+            rerolled,
+        )
+        await interaction.response.edit_message(
+            embed=self.view.cog._potential_memorial_embed(
+                rerolled,
+                view.selected_index,
+            ),
+            view=view,
         )
 
 
