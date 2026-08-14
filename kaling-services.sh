@@ -93,7 +93,7 @@ session_for() {
 command_for() {
   case "$1" in
     bot) echo "cd $ROOT_DIR_Q && $CONDA_ACTIVATE_CMD && python3 -m bot" ;;
-    backend) echo "cd $WEB_DIR_Q && $CONDA_ACTIVATE_CMD && gunicorn kaling_web.wsgi:application --bind 127.0.0.1:8000 --workers 1 --threads 8 --timeout 120 --access-logfile - --error-logfile -" ;;
+    backend) echo "cd $WEB_DIR_Q && $CONDA_ACTIVATE_CMD && python3 manage.py collectstatic --noinput && gunicorn kaling_web.wsgi:application --bind 127.0.0.1:8000 --workers 1 --threads 8 --timeout 120 --access-logfile - --error-logfile -" ;;
     cloudflare) echo "cd $ROOT_DIR_Q && ./run-cloudflare-tunnel.sh" ;;
   esac
 }

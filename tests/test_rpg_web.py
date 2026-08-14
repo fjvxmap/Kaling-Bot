@@ -101,6 +101,23 @@ class RPGWebTests(unittest.TestCase):
         self.assertTrue(payload["boss_session"]["started"])
         self.assertEqual(payload["boss_session"]["participant"]["turn"], 1)
 
+    def test_hard_boss_initial_stack_is_exposed_to_web_client(self) -> None:
+        response = self.post_action(
+            "boss_create",
+            boss_id="first_adversary_hard",
+            practice=True,
+        )
+        self.assertTrue(response.json()["ok"])
+
+        response = self.post_action("boss_start")
+        payload = response.json()
+
+        self.assertTrue(payload["ok"])
+        self.assertEqual(
+            payload["boss_session"]["participant"]["boss_stacks"],
+            "대적의 의지 lv.3",
+        )
+
     def test_waiting_boss_cancel_returns_to_selection(self) -> None:
         boss = next(
             boss
