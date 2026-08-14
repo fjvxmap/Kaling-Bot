@@ -392,7 +392,8 @@
           "participant_chance": 1.0
         }
       ]
-    }
+    },
+    "name": "데미안"
   },
   "description": "\"지옥을 보여주마.\"",
   "sort_order": 11,

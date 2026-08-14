@@ -427,7 +427,8 @@
           "participant_max": 4
         }
       ]
-    }
+    },
+    "name": "루시퍼"
   },
   "description": ".",
   "sort_order": 30,

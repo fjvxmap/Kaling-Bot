@@ -347,7 +347,8 @@
           "participant_chance": 1.0
         }
       ]
-    }
+    },
+    "name": "스우"
   },
   "description": "\"침입자를 확인했습니다. 목표, 제거하겠습니다.\"",
   "sort_order": 10,

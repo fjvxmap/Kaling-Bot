@@ -627,7 +627,8 @@
           "participant_chance": 0.02
         }
       ]
-    }
+    },
+    "name": "검은 마법사"
   },
   "description": "\"오너라, 너희의 모든 것을 걸고.\"",
   "sort_order": 16,

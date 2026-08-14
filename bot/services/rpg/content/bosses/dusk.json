@@ -217,7 +217,8 @@
           "participant_chance": 1.0
         }
       ]
-    }
+    },
+    "name": "더스크"
   },
   "description": "\"심연...\"",
   "sort_order": 13,

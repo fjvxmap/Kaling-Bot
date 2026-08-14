@@ -478,7 +478,8 @@
           "participant_max": 4
         }
       ]
-    }
+    },
+    "name": "벨제바브"
   },
   "description": ".",
   "sort_order": 25,

@@ -7,10 +7,10 @@
   "festivals": [
     {
       "id": "festival",
-      "name": "페스",
+      "name": "그랜드 페스",
       "description": "",
-      "starts_at": "2026-07-23T00:00",
-      "ends_at": "2026-07-26T18:00",
+      "starts_at": "2026-08-15T00:00",
+      "ends_at": "2026-08-18T18:00",
       "overrides": [
         {
           "type": "item_rarity",
@@ -19,17 +19,12 @@
         },
         {
           "type": "item",
-          "target_id": "clockwork_blade_kumogakure",
+          "target_id": "claiomh_solais_dion",
           "chance": 1.0
         },
         {
           "type": "item",
-          "target_id": "murgleis",
-          "chance": 1.0
-        },
-        {
-          "type": "item",
-          "target_id": "skeletal_eclipse",
+          "target_id": "harmonia",
           "chance": 1.0
         }
       ]
@@ -45,22 +40,19 @@
           "type": "item_rarity",
           "rarity": "rare",
           "chance": 69.0,
-          "stars": 0,
-          "item_ids": []
+          "stars": 0
         },
         {
           "type": "item_rarity",
           "rarity": "epic",
           "chance": 27.0,
-          "stars": 0,
-          "item_ids": []
+          "stars": 0
         },
         {
           "type": "item_rarity",
           "rarity": "unique",
           "chance": 3.0,
-          "stars": 0,
-          "item_ids": []
+          "stars": 0
         },
         {
           "type": "material",
@@ -83,8 +75,7 @@
               "id": "crystal",
               "amount": 3000
             }
-          ],
-          "item_ids": []
+          ]
         }
       ]
     }

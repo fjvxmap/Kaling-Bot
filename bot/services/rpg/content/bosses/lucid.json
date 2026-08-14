@@ -497,7 +497,8 @@
           "participant_chance": 1.0
         }
       ]
-    }
+    },
+    "name": "루시드"
   },
   "description": "\"후훗, 악몽은 이미 시작됐어요.\"",
   "sort_order": 12,
