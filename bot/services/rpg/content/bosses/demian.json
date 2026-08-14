@@ -327,17 +327,7 @@
     ]
   },
   "rewards": {
-    "items": [
-      {
-        "chance": 0.008,
-        "template_id": "magic_eyepatch",
-        "rarity": "unique",
-        "min": 1,
-        "max": 1,
-        "owner_chance": 0.02,
-        "stars": 0
-      }
-    ],
+    "items": [],
     "materials": [
       {
         "id": "boss_power_crystal",
@@ -357,6 +347,52 @@
         "participant_chance": 1.0
       }
     ]
+  },
+  "hard_mode": {
+    "enabled": true,
+    "level_req": 45,
+    "stats": {
+      "base_atk": 35,
+      "max_hp": 100000,
+      "defense": 0.75
+    },
+    "pattern_damage_multiplier": 1.15,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.4,
+    "gold": 8000,
+    "exp": 1,
+    "description": "낙인이 빠르게 번지고 검은 불꽃이 퇴로를 끊는 결전이다.",
+    "rewards": {
+      "items": [
+        {
+          "chance": 0.008,
+          "template_id": "magic_eyepatch",
+          "min": 1,
+          "max": 1,
+          "owner_chance": 0.02,
+          "stars": 0
+        }
+      ],
+      "materials": [
+        {
+          "id": "boss_power_crystal",
+          "chance": 1.0,
+          "min": 1,
+          "max": 1,
+          "participant_chance": 0.0,
+          "participant_min": 1,
+          "participant_max": 1
+        },
+        {
+          "id": "demian_liberation_trace",
+          "chance": 1.0,
+          "min": 1,
+          "max": 1,
+          "owner_chance": 1.0,
+          "participant_chance": 1.0
+        }
+      ]
+    }
   },
   "description": "\"지옥을 보여주마.\"",
   "sort_order": 11,

@@ -185,16 +185,7 @@
     ]
   },
   "rewards": {
-    "items": [
-      {
-        "chance": 0.008,
-        "min": 1,
-        "max": 1,
-        "template_id": "commanding_force_earring",
-        "owner_chance": 0.02,
-        "stars": 0
-      }
-    ],
+    "items": [],
     "materials": [
       {
         "id": "boss_power_crystal",
@@ -202,13 +193,6 @@
         "min": 1,
         "max": 1,
         "participant_chance": 0.0
-      },
-      {
-        "id": "gold_brick",
-        "chance": 0.01,
-        "min": 1,
-        "max": 1,
-        "owner_chance": 0.02
       },
       {
         "id": "dunkel_liberation_trace",
@@ -219,6 +203,57 @@
         "participant_chance": 1.0
       }
     ]
+  },
+  "hard_mode": {
+    "enabled": true,
+    "level_req": 50,
+    "stats": {
+      "base_atk": 60,
+      "max_hp": 80000,
+      "defense": 1.15
+    },
+    "pattern_damage_multiplier": 1.2,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.5,
+    "gold": 24000,
+    "exp": 1,
+    "description": "정예 친위대의 공세와 듄켈의 연속 공격이 동시에 몰아친다.",
+    "rewards": {
+      "items": [
+        {
+          "chance": 0.008,
+          "min": 1,
+          "max": 1,
+          "template_id": "commanding_force_earring",
+          "owner_chance": 0.02,
+          "stars": 0
+        }
+      ],
+      "materials": [
+        {
+          "id": "boss_power_crystal",
+          "chance": 1.0,
+          "min": 1,
+          "max": 1,
+          "participant_chance": 0.0
+        },
+        {
+          "id": "gold_brick",
+          "chance": 0.01,
+          "min": 1,
+          "max": 1,
+          "owner_chance": 0.02
+        },
+        {
+          "id": "dunkel_liberation_trace",
+          "chance": 1.0,
+          "min": 1,
+          "max": 1,
+          "owner_chance": 1.0,
+          "participant_chance": 1.0
+        }
+      ]
+    }
   },
   "description": "\"위대하신 그 분을 위하여.\"",
   "sort_order": 15,

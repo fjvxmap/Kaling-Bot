@@ -43,10 +43,10 @@
     0.05
   ],
   "reroll_costs": {
-    "rare": 600,
-    "epic": 1800,
-    "unique": 4500,
-    "legendary": 7500
+    "rare": 1000,
+    "epic": 3500,
+    "unique": 10000,
+    "legendary": 20000
   },
   "options": [
     {
@@ -56,9 +56,9 @@
       "values": {
         "normal": 1.0,
         "rare": 1.0,
-        "epic": 2.0,
-        "unique": 6.0,
-        "legendary": 30.0
+        "epic": 1.5,
+        "unique": 2.5,
+        "legendary": 4.0
       },
       "weights": {
         "normal": 14.0,
@@ -75,9 +75,9 @@
       "values": {
         "normal": 8.0,
         "rare": 12.0,
-        "epic": 22.0,
-        "unique": 70.0,
-        "legendary": 330.0
+        "epic": 18.0,
+        "unique": 35.0,
+        "legendary": 60.0
       },
       "weights": {
         "normal": 14.0,
@@ -93,10 +93,10 @@
       "stat": "hp_bonus",
       "values": {
         "normal": 0.01,
-        "rare": 0.02,
-        "epic": 0.035,
-        "unique": 0.1,
-        "legendary": 0.45
+        "rare": 0.015,
+        "epic": 0.025,
+        "unique": 0.04,
+        "legendary": 0.07
       },
       "weights": {
         "normal": 12.0,
@@ -112,10 +112,10 @@
       "stat": "atk",
       "values": {
         "normal": 0.01,
-        "rare": 0.02,
-        "epic": 0.035,
-        "unique": 0.1,
-        "legendary": 0.45
+        "rare": 0.015,
+        "epic": 0.025,
+        "unique": 0.04,
+        "legendary": 0.07
       },
       "weights": {
         "normal": 12.0,
@@ -131,10 +131,10 @@
       "stat": "defense",
       "values": {
         "normal": 0.02,
-        "rare": 0.03,
-        "epic": 0.05,
-        "unique": 0.14,
-        "legendary": 0.6
+        "rare": 0.025,
+        "epic": 0.04,
+        "unique": 0.06,
+        "legendary": 0.1
       },
       "weights": {
         "normal": 12.0,
@@ -151,9 +151,9 @@
       "values": {
         "normal": 0.0,
         "rare": 0.0,
-        "epic": 0.025,
-        "unique": 0.08,
-        "legendary": 0.36
+        "epic": 0.015,
+        "unique": 0.03,
+        "legendary": 0.05
       },
       "weights": {
         "normal": 0.0,
@@ -171,8 +171,8 @@
         "normal": 0.0,
         "rare": 0.0,
         "epic": 0.0,
-        "unique": 0.05,
-        "legendary": 0.24
+        "unique": 0.015,
+        "legendary": 0.025
       },
       "weights": {
         "normal": 0.0,
@@ -188,10 +188,10 @@
       "stat": "dmg_supplement",
       "values": {
         "normal": 2.0,
-        "rare": 4.0,
-        "epic": 7.0,
-        "unique": 20.0,
-        "legendary": 90.0
+        "rare": 3.0,
+        "epic": 5.0,
+        "unique": 8.0,
+        "legendary": 12.0
       },
       "weights": {
         "normal": 8.0,
@@ -207,10 +207,10 @@
       "stat": "skill_damage",
       "values": {
         "normal": 0.01,
-        "rare": 0.02,
-        "epic": 0.035,
-        "unique": 0.1,
-        "legendary": 0.45
+        "rare": 0.015,
+        "epic": 0.025,
+        "unique": 0.04,
+        "legendary": 0.07
       },
       "weights": {
         "normal": 10.0,
@@ -226,10 +226,10 @@
       "stat": "skill_dmg_supplement",
       "values": {
         "normal": 3.0,
-        "rare": 6.0,
-        "epic": 10.0,
-        "unique": 30.0,
-        "legendary": 132.0
+        "rare": 5.0,
+        "epic": 7.0,
+        "unique": 10.0,
+        "legendary": 18.0
       },
       "weights": {
         "normal": 8.0,
@@ -266,8 +266,8 @@
         "normal": 0.0,
         "rare": 0.0,
         "epic": 0.0,
-        "unique": 0.08,
-        "legendary": 0.36
+        "unique": 0.03,
+        "legendary": 0.05
       },
       "weights": {
         "normal": 0.0,
@@ -323,8 +323,8 @@
         "normal": 0.0,
         "rare": 0.0,
         "epic": 0.0,
-        "unique": 0.02,
-        "legendary": 0.12
+        "unique": 0.01,
+        "legendary": 0.015
       },
       "weights": {
         "normal": 0.0,
@@ -340,10 +340,10 @@
       "stat": "healing_bonus",
       "values": {
         "normal": 0.02,
-        "rare": 0.03,
-        "epic": 0.05,
-        "unique": 0.14,
-        "legendary": 0.6
+        "rare": 0.025,
+        "epic": 0.04,
+        "unique": 0.06,
+        "legendary": 0.1
       },
       "weights": {
         "normal": 7.0,

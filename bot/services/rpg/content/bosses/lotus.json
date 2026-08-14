@@ -280,16 +280,7 @@
     ]
   },
   "rewards": {
-    "items": [
-      {
-        "chance": 0.008,
-        "min": 1,
-        "max": 1,
-        "template_id": "loose_control_machine_mark",
-        "owner_chance": 0.02,
-        "stars": 0
-      }
-    ],
+    "items": [],
     "materials": [
       {
         "id": "boss_power_crystal",
@@ -309,6 +300,54 @@
         "participant_chance": 1.0
       }
     ]
+  },
+  "hard_mode": {
+    "enabled": true,
+    "level_req": 45,
+    "stats": {
+      "base_atk": 30,
+      "max_hp": 120000,
+      "defense": 0.45,
+      "triple_attack_rate": 0.65,
+      "double_attack_rate": 0.65
+    },
+    "pattern_damage_multiplier": 1.15,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.4,
+    "gold": 8000,
+    "exp": 1,
+    "description": "강화된 코어와 레이저 제어망이 전장을 빈틈없이 봉쇄한다.",
+    "rewards": {
+      "items": [
+        {
+          "chance": 0.008,
+          "min": 1,
+          "max": 1,
+          "template_id": "loose_control_machine_mark",
+          "owner_chance": 0.02,
+          "stars": 0
+        }
+      ],
+      "materials": [
+        {
+          "id": "boss_power_crystal",
+          "chance": 1.0,
+          "min": 1,
+          "max": 1,
+          "participant_chance": 0.0,
+          "participant_min": 1,
+          "participant_max": 1
+        },
+        {
+          "id": "lotus_liberation_trace",
+          "chance": 1.0,
+          "min": 1,
+          "max": 1,
+          "owner_chance": 1.0,
+          "participant_chance": 1.0
+        }
+      ]
+    }
   },
   "description": "\"침입자를 확인했습니다. 목표, 제거하겠습니다.\"",
   "sort_order": 10,

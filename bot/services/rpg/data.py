@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from math import ceil
 from pathlib import Path
 from typing import Any
 
@@ -671,6 +673,9 @@ class BossTemplate:
     pattern_by_id: dict[str, BossPattern] = field(default_factory=dict)
     warning_by_id: dict[str, BossWarningTemplate] = field(default_factory=dict)
     rewards: RewardTemplate = field(default_factory=RewardTemplate)
+    difficulty: str = "normal"
+    base_boss_id: str = ""
+    weekly_group_id: str = ""
 
 
 def _stats(raw: dict[str, Any] | None) -> dict[str, float]:
@@ -2162,7 +2167,91 @@ def _boss(raw: dict[str, Any]) -> BossTemplate:
         pattern_by_id=pattern_by_id,
         warning_by_id=warning_by_id,
         rewards=_reward(raw.get("rewards")),
+        difficulty=str(raw.get("difficulty", "normal") or "normal"),
+        base_boss_id=str(raw.get("base_boss_id", raw["id"]) or raw["id"]),
+        weekly_group_id=str(raw.get("weekly_group_id", raw.get("base_boss_id", raw["id"])) or raw["id"]),
     )
+
+
+def _scale_hard_pattern_damage(value: Any, multiplier: float, plain_multiplier: float) -> None:
+    if isinstance(value, list):
+        for child in value:
+            _scale_hard_pattern_damage(child, multiplier, plain_multiplier)
+        return
+    if not isinstance(value, dict):
+        return
+    for key, child in value.items():
+        if key == "damage_multiplier" and isinstance(child, (int, float)):
+            value[key] = round(float(child) * multiplier, 6)
+            continue
+        if key == "plain_damage" and isinstance(child, dict):
+            if child.get("mode") == "flat" and isinstance(child.get("value"), (int, float)):
+                child["value"] = round(float(child["value"]) * plain_multiplier, 6)
+        _scale_hard_pattern_damage(child, multiplier, plain_multiplier)
+
+
+def _scale_hard_warning_objectives(value: Any, multiplier: float) -> None:
+    if isinstance(value, list):
+        for child in value:
+            _scale_hard_warning_objectives(child, multiplier)
+        return
+    if not isinstance(value, dict):
+        return
+    objectives = value.get("objectives")
+    if isinstance(objectives, list):
+        for objective in objectives:
+            if not isinstance(objective, dict):
+                continue
+            objective_type = str(objective.get("type", objective.get("objective", "")))
+            if objective_type not in {"damage", "ability_damage", "hits"}:
+                continue
+            required = max(0, _safe_int(objective.get("required", objective.get("count", 0)), 0))
+            scaled = max(1, ceil(required * multiplier)) if required > 0 else 0
+            if "required" in objective or "count" not in objective:
+                objective["required"] = scaled
+            else:
+                objective["count"] = scaled
+    for child in value.values():
+        _scale_hard_warning_objectives(child, multiplier)
+
+
+def _hard_boss_raw(raw: dict[str, Any]) -> dict[str, Any] | None:
+    config = raw.get("hard_mode")
+    if not isinstance(config, dict) or not _safe_bool(config.get("enabled"), False):
+        return None
+    hard = deepcopy(raw)
+    hard.pop("hard_mode", None)
+    base_id = str(raw["id"])
+    hard["id"] = str(config.get("id", f"{base_id}_hard"))
+    hard["name"] = str(config.get("name", raw.get("name", base_id)))
+    hard["level_req"] = max(1, _safe_int(config.get("level_req"), _safe_int(raw.get("level_req"), 1)))
+    hard["stats"] = deepcopy(config.get("stats", raw.get("stats", {})))
+    hard["gold"] = max(0, _safe_int(config.get("gold"), _safe_int(raw.get("gold"), 0)))
+    hard["exp"] = max(0, _safe_int(config.get("exp"), _safe_int(raw.get("exp"), 0)))
+    hard["description"] = str(config.get("description", raw.get("description", "")))
+    hard["rewards"] = deepcopy(config.get("rewards", {}))
+    hard["difficulty"] = "hard"
+    hard["base_boss_id"] = base_id
+    hard["weekly_group_id"] = base_id
+    damage_multiplier = max(0.0, _safe_float(config.get("pattern_damage_multiplier"), 1.0))
+    plain_multiplier = max(0.0, _safe_float(config.get("plain_damage_multiplier"), 1.0))
+    objective_multiplier = max(0.0, _safe_float(config.get("objective_multiplier"), 1.0))
+    _scale_hard_pattern_damage(hard, damage_multiplier, plain_multiplier)
+    _scale_hard_warning_objectives(hard, objective_multiplier)
+    return hard
+
+
+def _boss_variants(raw: dict[str, Any]) -> list[BossTemplate]:
+    normal_raw = deepcopy(raw)
+    normal_raw.pop("hard_mode", None)
+    normal_raw["difficulty"] = "normal"
+    normal_raw["base_boss_id"] = str(raw["id"])
+    normal_raw["weekly_group_id"] = str(raw["id"])
+    variants = [_boss(normal_raw)]
+    hard_raw = _hard_boss_raw(raw)
+    if hard_raw is not None:
+        variants.append(_boss(hard_raw))
+    return variants
 
 
 _SETTINGS = CONTENT.get("settings", {})
@@ -2203,6 +2292,10 @@ EXPLORE_SKILL_DAMAGE_MULTIPLIER = _env_float(
 EXPLORE_PLAYER_DEFENSE_BONUS = _env_float(
     "KALING_EXPLORE_PLAYER_DEFENSE_BONUS",
     _safe_float(_EXPLORE_COMBAT.get("player_defense_bonus"), 0.0),
+)
+EXPLORE_GOLD_MULTIPLIER = _env_float(
+    "KALING_EXPLORE_GOLD_MULTIPLIER",
+    max(0.0, _safe_float(_SETTINGS.get("explore_gold_multiplier"), 1.0)),
 )
 _REWARD_MULTIPLIERS = _SETTINGS.get("reward_multipliers", {})
 if not isinstance(_REWARD_MULTIPLIERS, dict):
@@ -2347,8 +2440,15 @@ STACK_EFFECT_BY_ID = {effect.id: effect for effect in STACK_EFFECTS}
 DUNGEONS = [_dungeon(dungeon) for dungeon in CONTENT.get("dungeons", [])]
 DUNGEON_BY_ID = {dungeon.id: dungeon for dungeon in DUNGEONS}
 
-BOSSES = [_boss(boss) for boss in CONTENT.get("bosses", [])]
+BOSSES = [
+    boss
+    for raw_boss in CONTENT.get("bosses", [])
+    for boss in _boss_variants(raw_boss)
+]
 BOSS_BY_ID = {boss.id: boss for boss in BOSSES}
+BOSSES_BY_BASE_ID: dict[str, list[BossTemplate]] = {}
+for boss in BOSSES:
+    BOSSES_BY_BASE_ID.setdefault(boss.base_boss_id or boss.id, []).append(boss)
 
 
 def _validate_content() -> None:

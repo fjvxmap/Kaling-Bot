@@ -146,17 +146,7 @@
     ]
   },
   "rewards": {
-    "items": [
-      {
-        "chance": 0.02,
-        "template_id": "guardian_angel_ring",
-        "rarity": "epic",
-        "min": 1,
-        "max": 1,
-        "owner_chance": 0.05,
-        "stars": 0
-      }
-    ],
+    "items": [],
     "materials": [
       {
         "id": "boss_power_crystal",
@@ -177,6 +167,53 @@
         "owner_max": 5
       }
     ]
+  },
+  "hard_mode": {
+    "enabled": true,
+    "level_req": 45,
+    "stats": {
+      "base_atk": 45,
+      "max_hp": 125000,
+      "defense": 0.4
+    },
+    "pattern_damage_multiplier": 1.15,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.35,
+    "gold": 6000,
+    "exp": 1,
+    "description": "더 단단해진 가디언 엔젤 슬라임이 모든 패턴을 쏟아낸다.",
+    "rewards": {
+      "items": [
+        {
+          "chance": 0.02,
+          "template_id": "guardian_angel_ring",
+          "min": 1,
+          "max": 1,
+          "owner_chance": 0.05,
+          "stars": 0
+        }
+      ],
+      "materials": [
+        {
+          "id": "boss_power_crystal",
+          "chance": 1.0,
+          "min": 1,
+          "max": 1,
+          "participant_chance": 0.0,
+          "participant_min": 1,
+          "participant_max": 1
+        },
+        {
+          "id": "guardian_angel_slime_ball",
+          "chance": 1.0,
+          "min": 2,
+          "max": 4,
+          "owner_chance": 1.0,
+          "owner_min": 4,
+          "owner_max": 6
+        }
+      ]
+    }
   },
   "description": "감히 슬라임의 귀여움을 평가하려 한 그대에게 자격을 묻겠노라!",
   "sort_order": 9,

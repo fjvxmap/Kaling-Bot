@@ -354,16 +354,7 @@
     ]
   },
   "rewards": {
-    "items": [
-      {
-        "chance": 0.008,
-        "min": 1,
-        "max": 1,
-        "template_id": "source_of_suffering",
-        "owner_chance": 0.02,
-        "stars": 0
-      }
-    ],
+    "items": [],
     "materials": [
       {
         "id": "boss_power_crystal",
@@ -375,15 +366,6 @@
         "participant_max": 1
       },
       {
-        "id": "gold_brick",
-        "chance": 0.01,
-        "min": 1,
-        "max": 1,
-        "owner_chance": 0.02,
-        "owner_min": 1,
-        "owner_max": 1
-      },
-      {
         "id": "verus_hilla_liberation_trace",
         "chance": 1.0,
         "min": 1,
@@ -392,6 +374,62 @@
         "participant_chance": 1.0
       }
     ]
+  },
+  "hard_mode": {
+    "enabled": true,
+    "level_req": 50,
+    "stats": {
+      "base_atk": 55,
+      "max_hp": 85000,
+      "defense": 0.65,
+      "dmg_mitigation": 20
+    },
+    "pattern_damage_multiplier": 1.2,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.5,
+    "gold": 20000,
+    "exp": 1,
+    "description": "붉은 실과 영혼 수확의 압박이 끊임없이 이어지는 고난도 결전이다.",
+    "rewards": {
+      "items": [
+        {
+          "chance": 0.008,
+          "min": 1,
+          "max": 1,
+          "template_id": "source_of_suffering",
+          "owner_chance": 0.02,
+          "stars": 0
+        }
+      ],
+      "materials": [
+        {
+          "id": "boss_power_crystal",
+          "chance": 1.0,
+          "min": 1,
+          "max": 1,
+          "participant_chance": 0.0,
+          "participant_min": 1,
+          "participant_max": 1
+        },
+        {
+          "id": "gold_brick",
+          "chance": 0.01,
+          "min": 1,
+          "max": 1,
+          "owner_chance": 0.02,
+          "owner_min": 1,
+          "owner_max": 1
+        },
+        {
+          "id": "verus_hilla_liberation_trace",
+          "chance": 1.0,
+          "min": 1,
+          "max": 1,
+          "owner_chance": 1.0,
+          "participant_chance": 1.0
+        }
+      ]
+    }
   },
   "description": "\"더욱 깊은 늪에 빠진 채 영원을 헤매는 것, 그게 바로 네 운명의 끝이야.\"",
   "sort_order": 14,

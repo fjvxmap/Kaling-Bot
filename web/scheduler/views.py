@@ -126,12 +126,12 @@ def discord_callback(request: HttpRequest) -> HttpResponse:
         "global_name": user.get("global_name") or user.get("username", ""),
     }
 
-    return HttpResponseRedirect(reverse("calendar"))
+    return HttpResponseRedirect(reverse("rpg_home"))
 
 
 def discord_logout(request: HttpRequest) -> HttpResponse:
     request.session.pop("discord_user", None)
-    return HttpResponseRedirect(reverse("calendar"))
+    return HttpResponseRedirect(reverse("rpg_home"))
 
 
 def calendar_view(request: HttpRequest) -> HttpResponse:

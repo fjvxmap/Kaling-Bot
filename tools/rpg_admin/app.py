@@ -202,11 +202,40 @@ def normalize_content(content: dict[str, Any]) -> None:
                 if isinstance(pattern, dict):
                     normalize_pattern_effects(pattern, stat_order_index)
             normalize_reward(boss.get("rewards", {}))
+            normalize_boss_hard_mode(boss, stat_order_index)
     if not isinstance(content.get("gacha"), dict):
         content["gacha"] = {}
     normalize_gacha(content["gacha"])
     normalize_potential(content.setdefault("potential", {}), stat_order_index)
     normalize_liberation(content.setdefault("liberation", {}))
+
+
+def normalize_boss_hard_mode(
+    boss: dict[str, Any],
+    stat_order_index: dict[str, int],
+) -> None:
+    hard = boss.get("hard_mode")
+    if not isinstance(hard, dict):
+        boss.pop("hard_mode", None)
+        return
+    hard["enabled"] = bool(hard.get("enabled", False))
+    hard["level_req"] = max(1, safe_int(hard.get("level_req"), safe_int(boss.get("level_req"), 1)))
+    hard["gold"] = max(0, safe_int(hard.get("gold"), safe_int(boss.get("gold"), 0)))
+    hard["exp"] = max(0, safe_int(hard.get("exp"), safe_int(boss.get("exp"), 0)))
+    for key in (
+        "pattern_damage_multiplier",
+        "plain_damage_multiplier",
+        "objective_multiplier",
+    ):
+        hard[key] = max(0.0, safe_float(hard.get(key), 1.0))
+    hard["name"] = str(hard.get("name", boss.get("name", "")))
+    hard["description"] = str(hard.get("description", ""))
+    normalize_stats_map(hard, "stats", stat_order_index)
+    rewards = hard.get("rewards")
+    if not isinstance(rewards, dict):
+        rewards = {}
+        hard["rewards"] = rewards
+    normalize_reward(rewards)
 
 
 def normalize_stack_effect(effect: dict[str, Any], stat_order_index: dict[str, int]) -> None:
@@ -1602,6 +1631,27 @@ def validate_content(content: dict[str, Any]) -> list[str]:
             errors,
         )
         validate_reward(boss.get("rewards", {}), items, materials, rarities, f"boss {boss.get('id')} rewards", errors)
+        hard = boss.get("hard_mode")
+        if isinstance(hard, dict) and hard.get("enabled"):
+            if safe_int(hard.get("level_req"), 0) < 1:
+                errors.append(f"boss {boss.get('id')} hard mode level must be at least 1")
+            if safe_float(hard.get("stats", {}).get("max_hp"), 0.0) <= 0:
+                errors.append(f"boss {boss.get('id')} hard mode max hp must be positive")
+            for key in (
+                "pattern_damage_multiplier",
+                "plain_damage_multiplier",
+                "objective_multiplier",
+            ):
+                if safe_float(hard.get(key), -1.0) < 0:
+                    errors.append(f"boss {boss.get('id')} hard mode {key} must be non-negative")
+            validate_reward(
+                hard.get("rewards", {}),
+                items,
+                materials,
+                rarities,
+                f"boss {boss.get('id')} hard mode rewards",
+                errors,
+            )
     validate_gacha(content.get("gacha", {}), items, materials, rarities, errors)
 
     for label, ids in (("skills", skills), ("recipes", recipes), ("dungeons", dungeons), ("bosses", bosses)):

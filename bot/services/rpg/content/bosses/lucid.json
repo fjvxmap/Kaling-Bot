@@ -426,19 +426,9 @@
       {
         "chance": 0.025,
         "template_id": "twilight_mark",
-        "rarity": "unique",
         "min": 1,
         "max": 1,
         "owner_chance": 0.06,
-        "stars": 0
-      },
-      {
-        "chance": 0.008,
-        "template_id": "dreamy_belt",
-        "rarity": "unique",
-        "min": 1,
-        "max": 1,
-        "owner_chance": 0.02,
         "stars": 0
       }
     ],
@@ -461,6 +451,53 @@
         "participant_chance": 1.0
       }
     ]
+  },
+  "hard_mode": {
+    "enabled": true,
+    "level_req": 47,
+    "stats": {
+      "base_atk": 28,
+      "max_hp": 110000,
+      "defense": 0.5,
+      "dmg_supplement": 8
+    },
+    "pattern_damage_multiplier": 1.15,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.45,
+    "gold": 12000,
+    "exp": 1,
+    "description": "꿈의 층위가 겹쳐지며 환영과 나비가 더 촘촘하게 몰아친다.",
+    "rewards": {
+      "items": [
+        {
+          "chance": 0.008,
+          "template_id": "dreamy_belt",
+          "min": 1,
+          "max": 1,
+          "owner_chance": 0.02,
+          "stars": 0
+        }
+      ],
+      "materials": [
+        {
+          "id": "boss_power_crystal",
+          "chance": 1.0,
+          "min": 1,
+          "max": 1,
+          "participant_chance": 0.0,
+          "participant_min": 1,
+          "participant_max": 1
+        },
+        {
+          "id": "lucid_liberation_trace",
+          "chance": 1.0,
+          "min": 1,
+          "max": 1,
+          "owner_chance": 1.0,
+          "participant_chance": 1.0
+        }
+      ]
+    }
   },
   "description": "\"후훗, 악몽은 이미 시작됐어요.\"",
   "sort_order": 12,

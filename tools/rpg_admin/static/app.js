@@ -172,6 +172,8 @@ const JOB_LEVEL_BY_TIER = {
 };
 
 const DEFAULT_LEVEL_DAMAGE_MULTIPLIERS = [1, 1.05, 1.1, 1.15, 1.2, 1.25];
+const UI_SESSION_KEY = "kaling-rpg-admin-ui-v2";
+const SEARCHABLE_SELECT_THRESHOLD = 14;
 
 const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 
@@ -240,22 +242,32 @@ const state = {
   query: "",
   queryByTab: {},
   itemRarityFilter: "",
+  filtersByTab: {},
   listScroll: {},
   openDetails: {},
   pendingFocusMove: null,
   dirty: false,
   saving: false,
+  activeEditor: null,
 };
+
+restoreUiSession();
 
 const nav = document.getElementById("nav");
 const main = document.getElementById("main");
 const dirtyState = document.getElementById("dirtyState");
 const statusText = document.getElementById("statusText");
 const toast = document.getElementById("toast");
+const globalSearchDialog = document.getElementById("globalSearchDialog");
+const globalSearchInput = document.getElementById("globalSearchInput");
+const globalSearchResults = document.getElementById("globalSearchResults");
 
 document.getElementById("reloadBtn").addEventListener("click", loadContent);
 document.getElementById("validateBtn").addEventListener("click", validateContent);
 document.getElementById("saveBtn").addEventListener("click", saveContent);
+document.getElementById("globalSearchBtn").addEventListener("click", openGlobalSearch);
+document.getElementById("globalSearchClose").addEventListener("click", () => globalSearchDialog.close());
+globalSearchInput.addEventListener("input", renderGlobalSearchResults);
 
 document.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
@@ -263,6 +275,11 @@ document.addEventListener("keydown", (event) => {
     if (!event.repeat) {
       saveContent();
     }
+    return;
+  }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    openGlobalSearch();
     return;
   }
   if (event.key === "Tab") {
@@ -273,6 +290,15 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+document.addEventListener("toggle", (event) => {
+  const key = event.target?.dataset?.detailKey;
+  if (!key) {
+    return;
+  }
+  state.openDetails[key] = event.target.open;
+  persistUiSession();
+}, true);
+
 window.addEventListener("beforeunload", (event) => {
   if (!state.dirty) {
     return;
@@ -282,6 +308,71 @@ window.addEventListener("beforeunload", (event) => {
 });
 
 loadContent();
+
+function openGlobalSearch() {
+  if (!state.content) {
+    return;
+  }
+  globalSearchInput.value = "";
+  renderGlobalSearchResults();
+  globalSearchDialog.showModal();
+  requestAnimationFrame(() => globalSearchInput.focus());
+}
+
+function renderGlobalSearchResults() {
+  const query = globalSearchInput.value.trim();
+  const tabLabels = new Map(TABS.map((tab) => [tab.id, tab.label]));
+  const rows = [];
+  for (const tab of TABS) {
+    const contentRows = state.content?.[tab.id];
+    if (!Array.isArray(contentRows)) {
+      continue;
+    }
+    for (const row of contentRows) {
+      const text = `${row.name || ""} ${row.id || ""} ${row.description || ""} ${row.note || ""}`;
+      if (query && !searchMatches(text, query)) {
+        continue;
+      }
+      rows.push({
+        tab: tab.id,
+        tabLabel: tabLabels.get(tab.id) || tab.id,
+        row,
+        score: query ? searchScore(text, query) : 0,
+      });
+    }
+  }
+  rows.sort((left, right) => (
+    right.score - left.score
+    || left.tabLabel.localeCompare(right.tabLabel)
+    || String(left.row.name || left.row.id).localeCompare(String(right.row.name || right.row.id))
+  ));
+  const limited = rows.slice(0, query ? 100 : 40);
+  const nodes = limited.map((result) => el("button", {
+    type: "button",
+    className: "command-result",
+    onclick: () => {
+      sortActiveEditorStats();
+      state.queryByTab[state.tab] = state.query;
+      state.tab = result.tab;
+      state.selected[result.tab] = result.row.id;
+      state.query = state.queryByTab[result.tab] || "";
+      persistUiSession();
+      globalSearchDialog.close();
+      render({ preserveScroll: false });
+    },
+  }, [
+    el("span", { className: "command-kind" }, result.tabLabel),
+    el("span", { className: "command-name" }, result.row.name || result.row.id),
+    el("span", { className: "command-id" }, result.row.id || ""),
+  ]));
+  if (!nodes.length) {
+    nodes.push(el("div", { className: "empty" }, "일치하는 콘텐츠가 없습니다."));
+  }
+  if (rows.length > limited.length) {
+    nodes.push(el("div", { className: "command-more" }, `결과 ${rows.length - limited.length}개 더 있음`));
+  }
+  globalSearchResults.replaceChildren(...nodes);
+}
 
 async function loadContent() {
   setStatus("불러오는 중...");
@@ -297,10 +388,10 @@ async function loadContent() {
     state.content = payload.content;
     normalizeContentForUi(state.content);
     state.dirty = false;
-    state.query = "";
-    state.queryByTab = {};
-    state.itemRarityFilter = "";
-    state.openDetails = {};
+    if (!TABS.some((tab) => tab.id === state.tab)) {
+      state.tab = "items";
+    }
+    state.query = state.queryByTab[state.tab] || "";
     ensureSelections();
     setStatus("콘텐츠를 불러왔습니다.");
     render({ preserveScroll: false });
@@ -368,6 +459,7 @@ function render(options = {}) {
     return;
   }
   ensureSelections();
+  state.activeEditor = null;
   if (state.tab === "items") {
     renderItems();
   } else if (state.tab === "materials") {
@@ -569,6 +661,7 @@ function renderNav() {
         state.queryByTab[state.tab] = state.query;
         state.tab = tab.id;
         state.query = state.queryByTab[tab.id] || "";
+        persistUiSession();
         render({ preserveScroll: false });
       },
     }, [
@@ -580,6 +673,7 @@ function renderNav() {
 }
 
 function renderItems() {
+  const filters = tabFilters("items");
   renderEntityEditor({
     key: "items",
     title: "장비",
@@ -595,8 +689,12 @@ function renderItems() {
     summary: (item) => `${rarityLabel(item.rarity)}${item.excluded_from_gacha ? " · 가챠 제외" : ""}`,
     listTools: () => [
       selectField("등급 필터", state, "itemRarityFilter", [["", "전체"], ...rarityOptions()], {
-        rerender: true,
+        rerender: "list",
         controlId: "items:rarity-filter",
+      }),
+      selectField("가챠", filters, "gacha", [["", "전체"], ["included", "가챠 포함"], ["excluded", "가챠 제외"]], {
+        rerender: "list",
+        controlId: "items:gacha-filter",
       }),
     ],
     detail: renderItemDetail,
@@ -624,6 +722,7 @@ function renderItemDetail(item) {
 }
 
 function renderMaterials() {
+  const filters = tabFilters("materials");
   renderEntityEditor({
     key: "materials",
     title: "재료",
@@ -635,6 +734,12 @@ function renderMaterials() {
       description: "",
     }),
     summary: (material) => `${material.rarity ?? ""}${material.emoji ? ` · ${material.emoji}` : ""}`,
+    listTools: () => [
+      selectField("등급 필터", filters, "rarity", [["", "전체"], ...rarityOptions()], {
+        rerender: "list",
+        controlId: "materials:rarity-filter",
+      }),
+    ],
     detail: renderMaterialDetail,
   });
 }
@@ -1613,6 +1718,7 @@ function renderDungeonDetail(dungeon) {
 }
 
 function renderBosses() {
+  const filters = tabFilters("bosses");
   renderEntityEditor({
     key: "bosses",
     title: "보스",
@@ -1634,6 +1740,12 @@ function renderBosses() {
       sort_order: nextSort(state.content.bosses),
     }),
     summary: (boss) => `전투 Lv.${boss.level_req ?? 1} · HP ${boss.stats?.max_hp ?? 0}`,
+    listTools: () => [
+      selectField("하드 모드", filters, "hard", [["", "전체"], ["enabled", "하드 있음"], ["disabled", "하드 없음"]], {
+        rerender: "list",
+        controlId: "bosses:hard-filter",
+      }),
+    ],
     detail: renderBossDetail,
   });
 }
@@ -1652,6 +1764,7 @@ function renderBossDetail(boss) {
   delete boss.skull_system;
   normalizeBossStackEffects(boss);
   boss.rewards ||= blankReward();
+  normalizeBossHardModeForUi(boss);
   const body = el("div", { className: "panel-body" }, [
     el("div", { className: "form-grid three" }, [
       idField("bosses", boss),
@@ -1663,6 +1776,7 @@ function renderBossDetail(boss) {
       textAreaField("설명", boss, "description", { full: true }),
     ]),
     statsEditor(boss, "stats", "보스 스탯"),
+    bossHardModeEditor(boss),
     bossStackEffectEditor(boss),
     bossHpLockEditor(boss),
     bossHpEffectEditor(boss),
@@ -1672,6 +1786,54 @@ function renderBossDetail(boss) {
     rewardEditor(boss, "rewards", "드랍 보상"),
   ]);
   mainDetail("보스 편집", boss, body);
+}
+
+function normalizeBossHardModeForUi(boss) {
+  const hard = boss.hard_mode && typeof boss.hard_mode === "object"
+    ? boss.hard_mode
+    : (boss.hard_mode = {});
+  hard.enabled = Boolean(hard.enabled);
+  hard.name ??= boss.name || "";
+  hard.description ??= "";
+  hard.level_req ??= Math.max(1, Number(boss.level_req || 1));
+  hard.gold ??= Math.max(0, Number(boss.gold || 0));
+  hard.exp ??= Math.max(0, Number(boss.exp || 0));
+  hard.pattern_damage_multiplier ??= 1;
+  hard.plain_damage_multiplier ??= 1;
+  hard.objective_multiplier ??= 1;
+  hard.stats = hard.stats && typeof hard.stats === "object" && !Array.isArray(hard.stats)
+    ? hard.stats
+    : structuredClone(boss.stats || {});
+  hard.rewards ||= blankReward();
+  normalizeReward(hard.rewards);
+  return hard;
+}
+
+function bossHardModeEditor(boss) {
+  const hard = normalizeBossHardModeForUi(boss);
+  return el("section", { className: "section themed hard-mode-section" }, [
+    el("div", { className: "section-head" }, [
+      el("div", { className: "section-title-copy" }, [
+        el("h3", {}, "하드 모드"),
+        el("span", { className: "muted" }, "일반 패턴을 상속하고 별도 능력치·보상을 적용합니다."),
+      ]),
+      checkboxField("사용", hard, "enabled", { rerender: true }),
+    ]),
+    ...(hard.enabled ? [
+      el("div", { className: "form-grid three" }, [
+        textField("표시 이름", hard, "name"),
+        numberField("전투 레벨", hard, "level_req", { step: 1 }),
+        numberField("기본 골드", hard, "gold", { step: 1 }),
+        numberField("기본 경험치", hard, "exp", { step: 1 }),
+        numberField("패턴 피해 배율", hard, "pattern_damage_multiplier", { step: 0.05 }),
+        numberField("고정 피해 배율", hard, "plain_damage_multiplier", { step: 0.05 }),
+        numberField("전조 요구량 배율", hard, "objective_multiplier", { step: 0.05 }),
+        textAreaField("설명", hard, "description", { full: true }),
+      ]),
+      statsEditor(hard, "stats", "하드 전용 스탯"),
+      rewardEditor(hard, "rewards", "하드 드랍 보상"),
+    ] : [el("div", { className: "empty compact-empty" }, "하드 모드를 사용하면 전용 스탯과 보상을 편집할 수 있습니다.")]),
+  ]);
 }
 
 function normalizeBossStackEffects(boss) {
@@ -2072,6 +2234,7 @@ function renderJobDetail(job) {
 }
 
 function renderSkills() {
+  const filters = tabFilters("skills");
   renderEntityEditor({
     key: "skills",
     title: "스킬",
@@ -2102,6 +2265,16 @@ function renderSkills() {
       };
     },
     summary: (skill) => `${skill.special ? "특수 · " : ""}${skill.role ?? ""} · Lv.${skill.unlock_level ?? 1}`,
+    listTools: () => [
+      selectField("구분", filters, "kind", [["", "전체"], ["normal", "일반 어빌리티"], ["special", "특수 어빌리티"]], {
+        rerender: "list",
+        controlId: "skills:kind-filter",
+      }),
+      selectField("역할", filters, "role", [["", "전체"], ...SKILL_ROLES.map((role) => [role, role])], {
+        rerender: "list",
+        controlId: "skills:role-filter",
+      }),
+    ],
     listContent: renderSkillTreeList,
     detail: renderSkillDetail,
   });
@@ -2184,6 +2357,7 @@ function settingsControls() {
   settings.explore_combat.basic_attack_multiplier ??= 1.0;
   settings.explore_combat.skill_damage_multiplier ??= 1.0;
   settings.explore_combat.player_defense_bonus ??= 0;
+  settings.explore_gold_multiplier ??= 1;
   settings.level_damage_multipliers = normalizeLevelDamageMultipliers(settings.level_damage_multipliers);
   settings.max_equipped_skills ??= 4;
   return el("section", { className: "panel" }, [
@@ -2204,6 +2378,7 @@ function settingsControls() {
         numberField("탐색 평타 배율", settings.explore_combat, "basic_attack_multiplier", { step: 0.01 }),
         numberField("탐색 어빌 피해 배율", settings.explore_combat, "skill_damage_multiplier", { step: 0.01 }),
         numberField("탐색 방어 보너스", settings.explore_combat, "player_defense_bonus", { step: 0.01 }),
+        numberField("탐색 골드 배율", settings, "explore_gold_multiplier", { step: 0.01 }),
         ...settings.level_damage_multipliers.map((_, index) => (
           numberField(
             index >= DEFAULT_LEVEL_DAMAGE_MULTIPLIERS.length - 1 ? "레벨 차 5+ 배율" : `레벨 차 ${index} 배율`,
@@ -2247,13 +2422,18 @@ function renderEntityEditor(config) {
     markDirty();
     render();
   };
+  state.activeEditor = { config, rows, addRow };
   const selectedId = state.selected[config.key] || rows[0]?.id;
   const selected = rows.find((row) => row.id === selectedId) || rows[0];
   state.selected[config.key] = selected?.id;
 
-  const listPanel = el("section", { className: "panel" }, [
+  const visibleRows = filteredRows(rows, config);
+  const listPanel = el("section", { className: "panel entity-panel" }, [
     el("div", { className: "panel-header" }, [
-      el("h2", {}, config.title),
+      el("div", { className: "panel-title" }, [
+        el("h2", {}, config.title),
+        el("span", { className: "result-count", "data-result-count": config.key }, `${visibleRows.length}/${rows.length}`),
+      ]),
       el("button", {
         type: "button",
         onclick: () => addRow(),
@@ -2269,13 +2449,15 @@ function renderEntityEditor(config) {
           state.query = event.target.value;
           state.queryByTab[config.key] = state.query;
           if (!event.isComposing) {
-            render();
+            refreshActiveEntityList({ resetScroll: true });
           }
+          persistUiSession();
         },
         oncompositionend: (event) => {
           state.query = event.target.value;
           state.queryByTab[config.key] = state.query;
-          render();
+          refreshActiveEntityList({ resetScroll: true });
+          persistUiSession();
         },
       }),
       ...(config.listTools?.() || []),
@@ -2285,6 +2467,7 @@ function renderEntityEditor(config) {
       "data-key": config.key,
       onscroll: (event) => {
         state.listScroll[config.key] = event.currentTarget.scrollTop;
+        persistUiSession();
       },
     }, config.listContent
       ? config.listContent(rows, config, addRow)
@@ -2303,18 +2486,16 @@ function renderEntityEditor(config) {
   if (selected) {
     config.detail(selected);
   }
+  persistUiSession();
 }
 
 function entityButton(config, row) {
   return el("button", {
     type: "button",
     className: `entity-row ${state.selected[config.key] === row.id ? "active" : ""}`,
+    "data-entity-id": row.id,
     onclick: () => {
-      if (state.selected[config.key] !== row.id) {
-        sortActiveEditorStats(config.key);
-      }
-      state.selected[config.key] = row.id;
-      render();
+      selectEntity(config, row);
     },
   }, [
     el("span", {}, [
@@ -2323,6 +2504,76 @@ function entityButton(config, row) {
     ]),
     el("span", { className: "badge" }, config.summary(row)),
   ]);
+}
+
+function selectEntity(config, row) {
+  if (state.selected[config.key] !== row.id) {
+    sortActiveEditorStats(config.key);
+  }
+  state.selected[config.key] = row.id;
+  for (const button of main.querySelectorAll("[data-entity-id]")) {
+    button.classList.toggle("active", button.dataset.entityId === String(row.id));
+  }
+  persistUiSession();
+  renderActiveEntityDetail({ resetScroll: true });
+}
+
+function renderActiveEntityDetail(options = {}) {
+  const active = state.activeEditor;
+  if (!active || active.config.key !== state.tab) {
+    render();
+    return;
+  }
+  const selected = active.rows.find((row) => row.id === state.selected[active.config.key]);
+  if (!selected) {
+    return;
+  }
+  const snapshot = captureScrollSnapshot();
+  if (options.resetScroll) {
+    snapshot.detailTop = 0;
+    snapshot.detailLeft = 0;
+  }
+  active.config.detail(selected);
+  restoreScrollSnapshot(snapshot);
+}
+
+function refreshActiveEntityList(options = {}) {
+  const active = state.activeEditor;
+  if (!active || active.config.key !== state.tab) {
+    render();
+    return;
+  }
+  const list = main.querySelector(`.entity-list[data-key="${cssEscape(active.config.key)}"]`);
+  if (!list) {
+    render();
+    return;
+  }
+  const previousTop = list.scrollTop;
+  const visibleRows = filteredRows(active.rows, active.config);
+  const content = active.config.listContent
+    ? active.config.listContent(active.rows, active.config, active.addRow)
+    : visibleRows.map((row) => entityButton(active.config, row));
+  list.replaceChildren(...(Array.isArray(content) ? content : [content]));
+  const count = main.querySelector(`[data-result-count="${cssEscape(active.config.key)}"]`);
+  if (count) {
+    count.textContent = `${visibleRows.length}/${active.rows.length}`;
+  }
+  const nextTop = options.resetScroll ? 0 : previousTop;
+  list.scrollTop = nextTop;
+  state.listScroll[active.config.key] = nextTop;
+  persistUiSession();
+}
+
+function requestRerender(scope = true) {
+  if (scope === "list") {
+    refreshActiveEntityList();
+    return;
+  }
+  if (state.activeEditor?.config?.key === state.tab) {
+    renderActiveEntityDetail();
+    return;
+  }
+  render();
 }
 
 function renderJobTreeList(rows, config, addRow) {
@@ -2335,6 +2586,7 @@ function renderJobTreeList(rows, config, addRow) {
 }
 
 function renderSkillTreeList(rows, config, addRow) {
+  rows = facetFilteredRows(rows, config);
   const query = state.query.trim().toLowerCase();
   const publicSkills = rows
     .filter((skill) => !skill.special && skillDisplayJobIds(skill).length === 0)
@@ -2493,9 +2745,9 @@ function treeEntitySummary(config, row, depth) {
     type: "button",
     className: `entity-row tree-entity ${state.selected[config.key] === row.id ? "active" : ""}`,
     style: `--depth:${depth}`,
+    "data-entity-id": row.id,
     onclick: () => {
-      state.selected[config.key] = row.id;
-      render();
+      selectEntity(config, row);
     },
   }, [
     el("span", {}, [
@@ -2518,7 +2770,7 @@ function entityMatchesQuery(row, query) {
   if (!query) {
     return true;
   }
-  return `${row.id} ${row.name} ${row.description ?? ""} ${row.note ?? ""}`.toLowerCase().includes(query);
+  return searchMatches(`${row.id} ${row.name} ${row.description ?? ""} ${row.note ?? ""}`, query);
 }
 
 function normalizeBossWarnings(boss) {
@@ -5721,6 +5973,9 @@ function allRewards() {
     if (boss.rewards) {
       rewards.push(boss.rewards);
     }
+    if (boss.hard_mode?.rewards) {
+      rewards.push(boss.hard_mode.rewards);
+    }
   }
   return rewards;
 }
@@ -5806,20 +6061,28 @@ function optionalNumberField(label, obj, key, options = {}) {
   return fieldWrap(label, input, options.full);
 }
 
-function checkboxField(label, obj, key) {
+function checkboxField(label, obj, key, options = {}) {
   const input = el("input", {
     type: "checkbox",
     checked: Boolean(obj[key]),
     onchange: (event) => {
       obj[key] = event.target.checked;
       markDirty();
+      options.onChange?.(obj[key]);
+      if (options.rerender) {
+        requestRerender(options.rerender);
+      }
     },
   });
-  return fieldWrap(label, input);
+  return fieldWrap(label, input, options.full);
 }
 
 function selectField(label, obj, key, options, config = {}) {
   const value = obj[key] ?? "";
+  const normalizedOptions = optionsWithCurrent(options, value);
+  if (config.searchable !== false && (config.searchable || normalizedOptions.length >= SEARCHABLE_SELECT_THRESHOLD)) {
+    return searchableSelectField(label, obj, key, normalizedOptions, config);
+  }
   const select = el("select", {
     value,
     "data-control-id": config.controlId || "",
@@ -5835,14 +6098,149 @@ function selectField(label, obj, key, options, config = {}) {
       }
       markDirty();
       if (config.rerender) {
-        render();
+        requestRerender(config.rerender);
       }
     },
-  }, optionsWithCurrent(options, value).map(([optionValue, optionLabel]) => el("option", {
+  }, normalizedOptions.map(([optionValue, optionLabel]) => el("option", {
     value: optionValue,
     selected: String(optionValue) === String(value),
   }, optionLabel)));
   return fieldWrap(label, select, config.full);
+}
+
+function searchableSelectField(label, obj, key, options, config = {}) {
+  const currentValue = String(obj[key] ?? "");
+  const current = options.find(([optionValue]) => String(optionValue) === currentValue);
+  const trigger = el("button", {
+    type: "button",
+    className: "combo-trigger",
+    "data-control-id": config.controlId || "",
+    "aria-haspopup": "listbox",
+    "aria-expanded": "false",
+  }, [
+    el("span", { className: `combo-value ${current ? "" : "placeholder"}` }, current?.[1] || config.placeholder || "선택"),
+    el("span", { className: "combo-chevron", "aria-hidden": "true" }, "⌄"),
+  ]);
+  const search = el("input", {
+    type: "search",
+    className: "combo-search",
+    placeholder: "이름 또는 ID 검색",
+    autocomplete: "off",
+  });
+  const resultList = el("div", {
+    className: "combo-options",
+    role: "listbox",
+    tabindex: "-1",
+  });
+  const popover = el("div", { className: "combo-popover", hidden: true }, [search, resultList]);
+  const combo = el("div", { className: "combo" }, [trigger, popover]);
+  let visibleOptions = [];
+  let activeIndex = -1;
+
+  const choose = (optionValue) => {
+    const previousValue = obj[key] ?? "";
+    const nextValue = String(optionValue);
+    obj[key] = nextValue;
+    const accepted = config.onChange?.(nextValue, previousValue);
+    if (accepted === false) {
+      obj[key] = previousValue;
+      close();
+      return;
+    }
+    markDirty();
+    close();
+    if (config.rerender) {
+      requestRerender(config.rerender);
+      return;
+    }
+    const selected = options.find(([candidate]) => String(candidate) === nextValue);
+    trigger.querySelector(".combo-value").textContent = selected?.[1] || nextValue;
+    trigger.querySelector(".combo-value").classList.remove("placeholder");
+  };
+
+  const drawOptions = () => {
+    const query = search.value;
+    visibleOptions = options.filter(([optionValue, optionLabel]) => (
+      searchMatches(`${optionLabel} ${optionValue}`, query)
+    ));
+    const limited = visibleOptions.slice(0, 100);
+    activeIndex = Math.max(-1, Math.min(activeIndex, limited.length - 1));
+    const nodes = limited.map(([optionValue, optionLabel], index) => el("button", {
+      type: "button",
+      className: `combo-option ${String(optionValue) === String(obj[key] ?? "") ? "selected" : ""} ${index === activeIndex ? "active" : ""}`,
+      role: "option",
+      "aria-selected": String(optionValue) === String(obj[key] ?? "") ? "true" : "false",
+      onpointerdown: (event) => {
+        event.preventDefault();
+        choose(optionValue);
+      },
+    }, [
+      el("span", {}, optionLabel),
+      ...(String(optionValue) === String(obj[key] ?? "") ? [el("span", { className: "combo-check", "aria-hidden": "true" }, "✓")] : []),
+    ]));
+    if (!nodes.length) {
+      nodes.push(el("div", { className: "combo-empty" }, "일치하는 항목이 없습니다."));
+    } else if (visibleOptions.length > limited.length) {
+      nodes.push(el("div", { className: "combo-more" }, `결과 ${visibleOptions.length - limited.length}개 더 있음`));
+    }
+    resultList.replaceChildren(...nodes);
+    const active = resultList.querySelector(".combo-option.active");
+    active?.scrollIntoView({ block: "nearest" });
+  };
+
+  const onOutsidePointer = (event) => {
+    if (!combo.contains(event.target)) {
+      close();
+    }
+  };
+  const open = () => {
+    for (const other of document.querySelectorAll(".combo.open")) {
+      if (other !== combo) {
+        other.dispatchEvent(new CustomEvent("combo-close"));
+      }
+    }
+    combo.classList.add("open");
+    popover.hidden = false;
+    trigger.setAttribute("aria-expanded", "true");
+    search.value = "";
+    activeIndex = Math.max(0, options.findIndex(([optionValue]) => String(optionValue) === String(obj[key] ?? "")));
+    drawOptions();
+    requestAnimationFrame(() => search.focus({ preventScroll: true }));
+    document.addEventListener("pointerdown", onOutsidePointer, true);
+  };
+  const close = () => {
+    combo.classList.remove("open");
+    popover.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
+    document.removeEventListener("pointerdown", onOutsidePointer, true);
+  };
+
+  trigger.addEventListener("click", () => (combo.classList.contains("open") ? close() : open()));
+  combo.addEventListener("combo-close", close);
+  search.addEventListener("input", () => {
+    activeIndex = 0;
+    drawOptions();
+  });
+  search.addEventListener("keydown", (event) => {
+    const count = Math.min(visibleOptions.length, 100);
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      activeIndex = Math.min(count - 1, activeIndex + 1);
+      drawOptions();
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      activeIndex = Math.max(0, activeIndex - 1);
+      drawOptions();
+    } else if (event.key === "Enter" && activeIndex >= 0 && visibleOptions[activeIndex]) {
+      event.preventDefault();
+      choose(visibleOptions[activeIndex][0]);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+      trigger.focus({ preventScroll: true });
+    }
+  });
+  return fieldWrap(label, combo, config.full);
 }
 
 function fieldWrap(label, input, full = false) {
@@ -5887,15 +6285,143 @@ function el(tag, attrs = {}, children = []) {
 }
 
 function filteredRows(rows, config = {}) {
-  const query = state.query.trim().toLowerCase();
-  let result = rows;
+  const query = state.query.trim();
+  let result = facetFilteredRows(rows, config);
   if (query) {
-    result = result.filter((row) => `${row.id} ${row.name} ${row.description ?? ""}`.toLowerCase().includes(query));
-  }
-  if (config.key === "items" && state.itemRarityFilter) {
-    result = result.filter((row) => row.rarity === state.itemRarityFilter);
+    result = result
+      .filter((row) => searchMatches(entitySearchText(row, config), query))
+      .sort((left, right) => (
+        searchScore(entitySearchText(right, config), query) - searchScore(entitySearchText(left, config), query)
+        || String(left.name || left.id).localeCompare(String(right.name || right.id))
+      ));
   }
   return result;
+}
+
+function tabFilters(tab) {
+  if (!state.filtersByTab[tab] || typeof state.filtersByTab[tab] !== "object") {
+    state.filtersByTab[tab] = {};
+  }
+  return state.filtersByTab[tab];
+}
+
+function facetFilteredRows(rows, config = {}) {
+  const filters = tabFilters(config.key || state.tab);
+  let result = rows;
+  if (config.key === "items") {
+    if (state.itemRarityFilter) {
+      result = result.filter((row) => row.rarity === state.itemRarityFilter);
+    }
+    if (filters.gacha === "included") {
+      result = result.filter((row) => !row.excluded_from_gacha);
+    } else if (filters.gacha === "excluded") {
+      result = result.filter((row) => row.excluded_from_gacha);
+    }
+  } else if (config.key === "materials" && filters.rarity) {
+    result = result.filter((row) => row.rarity === filters.rarity);
+  } else if (config.key === "bosses" && filters.hard) {
+    const enabled = filters.hard === "enabled";
+    result = result.filter((row) => Boolean(row.hard_mode?.enabled) === enabled);
+  } else if (config.key === "skills") {
+    if (filters.kind === "normal") {
+      result = result.filter((row) => !row.special);
+    } else if (filters.kind === "special") {
+      result = result.filter((row) => row.special);
+    }
+    if (filters.role) {
+      result = result.filter((row) => row.role === filters.role);
+    }
+  }
+  return result;
+}
+
+function entitySearchText(row, config = {}) {
+  return [
+    row.id,
+    row.name,
+    row.description,
+    row.note,
+    config.summary?.(row),
+  ].filter(Boolean).join(" ");
+}
+
+function normalizeSearchText(value) {
+  const raw = String(value ?? "");
+  const normalized = typeof raw.normalize === "function" ? raw.normalize("NFKD") : raw;
+  return normalized
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("ko-KR")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function searchTokens(query) {
+  return normalizeSearchText(query).split(" ").filter(Boolean);
+}
+
+function searchMatches(text, query) {
+  const haystack = normalizeSearchText(text);
+  return searchTokens(query).every((token) => haystack.includes(token));
+}
+
+function searchScore(text, query) {
+  const haystack = normalizeSearchText(text);
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) {
+    return 0;
+  }
+  let score = haystack === normalizedQuery ? 1000 : 0;
+  if (haystack.startsWith(normalizedQuery)) {
+    score += 400;
+  }
+  const index = haystack.indexOf(normalizedQuery);
+  if (index >= 0) {
+    score += Math.max(0, 250 - index);
+  }
+  score += searchTokens(query).reduce((total, token) => {
+    const tokenIndex = haystack.indexOf(token);
+    return total + (tokenIndex >= 0 ? Math.max(10, 100 - tokenIndex) : 0);
+  }, 0);
+  return score;
+}
+
+function restoreUiSession() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(UI_SESSION_KEY) || "null");
+    if (!saved || typeof saved !== "object") {
+      return;
+    }
+    state.tab = typeof saved.tab === "string" ? saved.tab : state.tab;
+    state.selected = saved.selected && typeof saved.selected === "object" ? saved.selected : {};
+    state.queryByTab = saved.queryByTab && typeof saved.queryByTab === "object" ? saved.queryByTab : {};
+    state.itemRarityFilter = typeof saved.itemRarityFilter === "string" ? saved.itemRarityFilter : "";
+    state.filtersByTab = saved.filtersByTab && typeof saved.filtersByTab === "object" ? saved.filtersByTab : {};
+    state.listScroll = saved.listScroll && typeof saved.listScroll === "object" ? saved.listScroll : {};
+    state.openDetails = saved.openDetails && typeof saved.openDetails === "object" ? saved.openDetails : {};
+    state.query = state.queryByTab[state.tab] || "";
+  } catch (_error) {
+    sessionStorage.removeItem(UI_SESSION_KEY);
+  }
+}
+
+function persistUiSession() {
+  clearTimeout(persistUiSession.timer);
+  persistUiSession.timer = setTimeout(() => {
+    try {
+      sessionStorage.setItem(UI_SESSION_KEY, JSON.stringify({
+        tab: state.tab,
+        selected: state.selected,
+        queryByTab: state.queryByTab,
+        itemRarityFilter: state.itemRarityFilter,
+        filtersByTab: state.filtersByTab,
+        listScroll: state.listScroll,
+        openDetails: state.openDetails,
+      }));
+    } catch (_error) {
+      // UI state persistence is best-effort and must never block editing.
+    }
+  }, 80);
 }
 
 function ensureSelections() {
@@ -6017,6 +6543,7 @@ function round(value, digits) {
 function markDirty() {
   state.dirty = true;
   updateDirty();
+  persistUiSession();
 }
 
 function updateDirty() {

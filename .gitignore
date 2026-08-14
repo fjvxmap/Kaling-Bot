@@ -64,6 +64,9 @@ db.sqlite3-journal
 # Bot runtime state
 bot/data/*.json
 bot/data/*.tmp
+server_rpg_state*.json
+bot/data/*.lock
+web/staticfiles/
 
 # Flask stuff:
 instance/

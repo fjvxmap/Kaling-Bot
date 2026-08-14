@@ -1,36 +1,37 @@
 # Kaling-Bot
 
-Kaling-Bot is a Discord bot and companion Django web service for a private game/community server. It combines conversational Discord features, MapleStory combat-power lookup, schedule access through a web dashboard, and a persistent button-driven RPG system.
+Kaling-Bot is a persistent Korean RPG that can be played through Discord or its companion web client. Both clients use the same combat engine and player-state file, so equipment, jobs, abilities, exploration, bosses, enhancement, gacha, crafting, and Genesis liberation remain synchronized.
 
-The repository is designed to run as three cooperating local services:
+The repository runs three services:
 
-- `bot`: the Discord bot process.
-- `backend`: the Django schedule/dashboard server under `web/`.
-- `cloudflare`: a Cloudflare Tunnel process for exposing the local backend.
+- `bot`: the Discord bot and interactive Discord RPG UI.
+- `backend`: the Django RPG client served at `theory-cta.com`.
+- `cloudflare`: the Cloudflare Tunnel that publishes the backend.
+
+The former schedule page is no longer connected to the public root URL. Its database models remain in the project only for compatibility.
 
 ## Features
 
-- Discord slash commands built with `discord.py`.
-- OpenAI-assisted Korean intent parsing and casual replies.
-- Nexon Open API integration for MapleStory combat-power lookup.
-- Number baseball mini-game.
-- Django schedule dashboard with optional Discord OAuth login.
-- Persistent RPG mode with dungeons, bosses, jobs, skills, equipment, crafting, enhancement, gacha, and admin-editable content.
-- RPG admin web UI for editing content JSON files.
-- tmux-based service management for local or Lightsail operation.
-- GitHub Actions friendly deployment through `deploy.sh`.
+- Shared Discord and web RPG progression.
+- Jobs, regular and special abilities, equipment, potentials, Starforce, restoration, and Genesis liberation.
+- Exploration with multi-run combat, crafting, auto-sell, gacha, and scheduled festivals.
+- Party bosses, practice mode, solo-clear skips, shared normal/hard weekly entry groups, and per-participant combat state.
+- Hard variants for every boss with separate rewards and mechanics.
+- Local content administration with fast search, filters, preserved navigation state, validation, and bounded backups.
+- A deterministic balance simulator plus live-state and real boss-engine reports.
+- Atomic runtime-state merging so the Discord bot and web process can safely update different players.
+- tmux service management and a GitHub Actions friendly deployment script.
 
 ## Requirements
 
-- Linux or WSL2 is recommended.
-- Python 3.11 is recommended. Python 3.10+ should work.
-- `pip`
-- `tmux` for service scripts.
-- `git`
-- `cloudflared` if you use Cloudflare Tunnel.
-- Miniconda or Anaconda if you want to use the provided conda-based service scripts.
+- Linux or WSL2
+- Python 3.11 recommended
+- Git and `pip`
+- `tmux` for `kaling-services.sh`
+- Miniconda or Anaconda for the provided service scripts
+- `cloudflared` when exposing the backend through Cloudflare Tunnel
 
-Python packages are listed in [requirements.txt](requirements.txt):
+Install Python dependencies from [requirements.txt](requirements.txt):
 
 ```bash
 pip install -r requirements.txt
@@ -38,9 +39,7 @@ pip install -r requirements.txt
 
 ## Configuration
 
-Create a local `.env` file at the repository root. It is intentionally not committed.
-
-Common keys:
+Create `.env` at the repository root. It is ignored by Git and must not be committed.
 
 ```env
 DISCORD_TOKEN=
@@ -48,10 +47,14 @@ OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
 
 DJANGO_SECRET_KEY=
-DJANGO_DEBUG=true
-DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost
-DJANGO_CSRF_TRUSTED_ORIGINS=
-DJANGO_BASE_URL=http://127.0.0.1:8000/
+DJANGO_DEBUG=false
+DJANGO_ALLOWED_HOSTS=theory-cta.com,127.0.0.1,localhost
+DJANGO_CSRF_TRUSTED_ORIGINS=https://theory-cta.com
+DJANGO_BASE_URL=https://theory-cta.com/
+
+DISCORD_CLIENT_ID=
+DISCORD_CLIENT_SECRET=
+DISCORD_OAUTH_REDIRECT_URI=https://theory-cta.com/auth/discord/callback/
 
 NEXON_API_BASE_URL=
 NEXON_API_KEY=
@@ -59,278 +62,202 @@ NEXON_MAPLE_OCID_PATH=
 NEXON_MAPLE_CHARACTER_STAT_PATH=
 NEXON_MAPLE_COMBAT_POWER_JSON_PATH=final_stat.전투력
 
-DISCORD_CLIENT_ID=
-DISCORD_CLIENT_SECRET=
-DISCORD_OAUTH_REDIRECT_URI=
-
-KALING_CONDA_ENV=myenv
-KALING_EXPLORE_LIMIT_ENABLED=false
-KALING_BOSS_WEEKLY_REWARD_LIMIT_ENABLED=false
-```
-
-Production can override behavior without changing tracked JSON files:
-
-```env
 KALING_CONDA_ENV=bot
 KALING_EXPLORE_LIMIT_ENABLED=true
 KALING_BOSS_WEEKLY_REWARD_LIMIT_ENABLED=true
 ```
 
+Optional runtime overrides:
+
+```env
+# Store bot and web progression in a different file.
+KALING_RPG_STATE_PATH=/absolute/path/to/rpg_state.json
+
+# Development login only; ignored when DJANGO_DEBUG=false.
+KALING_WEB_DEV_USER_ID=
+KALING_WEB_DEV_USER_NAME=Web Tester
+```
+
+The Discord application OAuth redirect URL must exactly match `DISCORD_OAUTH_REDIRECT_URI`. Production and local settings belong in `.env`; do not edit tracked content JSON merely to change server policy.
+
 ## Installation
 
 ```bash
-git clone <repo-url>
+git clone <repository-url>
 cd Kaling-Bot
-pip install -r requirements.txt
-```
-
-If you use conda:
-
-```bash
 conda create -n myenv python=3.11
 conda activate myenv
 pip install -r requirements.txt
-```
-
-Initialize the Django database:
-
-```bash
 cd web
 python manage.py migrate
+python manage.py collectstatic --noinput
 ```
 
-## Running Locally
+## Running
 
-Run the Discord bot:
+Run each service directly:
 
 ```bash
+# Repository root
 python -m bot
-```
 
-Run the Django backend:
-
-```bash
+# Repository root (development)
 cd web
 python manage.py runserver
-```
 
-Run the Cloudflare Tunnel:
-
-```bash
+# Repository root
 ./run-cloudflare-tunnel.sh
 ```
 
-## Service Management
-
-`kaling-services.sh` manages the three services in persistent tmux sessions. It reads `KALING_CONDA_ENV` from `.env`.
-
-Start all services:
+Or manage all three in persistent tmux sessions:
 
 ```bash
 ./kaling-services.sh start
-```
-
-Start selected services:
-
-```bash
-./kaling-services.sh start bot backend
-```
-
-Stop selected services while keeping tmux sessions alive:
-
-```bash
+./kaling-services.sh status
+./kaling-services.sh restart bot backend
 ./kaling-services.sh shutdown bot cloudflare
 ```
 
-Restart all services:
+`shutdown` stops the process with `Ctrl-C` but keeps its tmux session. The conda environment is read from `KALING_CONDA_ENV` and activated inside each session.
 
-```bash
-./kaling-services.sh restart
-```
+The local web client is available at `http://127.0.0.1:8000/`. Production is intended to use `https://theory-cta.com/` through Cloudflare Tunnel.
 
-Check status:
+## Web RPG
 
-```bash
-./kaling-services.sh status
-```
+The root page is the actual RPG client, not a marketing page. Sign in through Discord to load the same profile used by the bot. The client includes:
 
-Compatibility wrappers are also available:
+- Dashboard, complete profile summary, and material inventory
+- Searchable exploration and boss selectors
+- Normal/hard difficulty switching and party lobbies
+- Equipment, auto-equip, sale, and auto-sale controls
+- Regular and special ability loadouts
+- Starforce, special-material enhancement, memorial potentials, and trace restoration
+- Gacha festivals, crafting, job advancement, and Genesis liberation
 
-```bash
-./start-services.sh
-./shutdown-services.sh
-```
+Boss sessions are intentionally process-local, like Discord interaction sessions. `kaling-services.sh` therefore runs Gunicorn with one worker and eight threads; persistent player rewards and inventory are written to the shared state store.
 
-## Discord Usage
+## Discord RPG
 
-Core checks:
+Common commands:
 
-- `/ping`: verify that the bot is alive.
+- `/rpg 시작`, `/rpg 프로필`
+- `/rpg 탐색`, `/rpg 던전목록`
+- `/보스`, `/rpg 보스`, `/rpg 보스목록`
+- `/rpg 인벤토리`, `/rpg 장착`, `/rpg 판매`, `/rpg 자동판매`
+- `/rpg 어빌리티`, `/rpg 강화`, `/rpg 복구`
+- `/rpg 가챠`, `/rpg 전직`, `/rpg 전직목록`
 
-RPG commands:
+The bot also includes MapleStory combat-power lookup, conversational replies, and number baseball.
 
-- `/rpg 시작`: create or view your RPG profile.
-- `/rpg 프로필`: show level, job, stats, resources, and equipment.
-- `/rpg 던전목록`: list available dungeons.
-- `/rpg 탐색`: open dungeon exploration UI or run a selected dungeon.
-- `/rpg 보스목록`: list bosses and start availability.
-- `/보스` or `/rpg 보스`: open the boss selection panel.
-- `/rpg 전직목록`: show jobs and advancement information.
-- `/rpg 전직`: open job advancement UI.
-- `/rpg 인벤토리`: open inventory/equipment UI.
-- `/rpg 장착`: open equipment UI directly.
-- `/rpg 판매`: sell selected unequipped equipment.
-- `/rpg 자동판매`: configure automatic sale rules.
-- `/rpg 가챠`: open gacha UI.
-- `/rpg 어빌리티`: equip boss/dungeon abilities.
-- `/rpg 강화`: open enhancement and restoration UI.
-- `/rpg 복구`: open restoration UI for destroyed equipment traces.
+## Content Admin
 
-Natural-language features:
-
-- MapleStory combat-power lookup through Korean requests addressed to Kaling.
-- Number baseball sessions through Korean natural-language prompts.
-- Schedule-related replies when the Django backend is unavailable.
-
-## RPG Admin UI
-
-The RPG content editor is a local admin tool for JSON content under `bot/services/rpg/content/`.
-
-Run it with:
+The local admin edits tracked JSON under `bot/services/rpg/content/`:
 
 ```bash
 python -m tools.rpg_admin --host 127.0.0.1 --port 8787
 ```
 
-Open:
+Open `http://127.0.0.1:8787`. This command is local-only; the admin is not started by the service manager or deploy script.
 
-```text
-http://127.0.0.1:8787
+Useful controls:
+
+- `Ctrl+K`: global content search
+- `Ctrl+S`: validate and save
+- Per-section search and filters for large item, material, job, skill, dungeon, and boss lists
+- Searchable relation pickers instead of unbounded native dropdowns
+- Session-preserved filters, expanded groups, selections, and scroll positions
+
+Successful saves create bounded backups in `.rpg_content_backups/`. See [the admin reference](tools/rpg_admin/README.md).
+
+## Balance Analysis
+
+Run the synthetic job and equipment matrix:
+
+```bash
+python -m tools.rpg_balance --details
 ```
 
-The admin UI can edit:
+Analyze a read-only production snapshot without copying it into tracked content:
 
-- Items and item stats
-- Materials
-- Jobs and job trees
-- Skills and effects
-- Stack effects
-- Dungeons and enemies
-- Bosses, warnings, HP effects, HP locks, CT rules, rewards
-- Gacha pools
-- Global RPG settings
+```bash
+python -m tools.rpg_balance \
+  --state /path/to/server_rpg_state.json \
+  --enemy-level 50 --enemy-defense 0.85 --turns 30
+```
 
-Backups are written under `.rpg_content_backups/`.
+Run those profiles through every hard boss with the actual boss engine:
 
-## RPG Data And State
+```bash
+python -m tools.rpg_balance \
+  --state /path/to/server_rpg_state.json \
+  --hard-report --trials 10
+```
 
-Tracked RPG content:
+State files matching `server_rpg_state*.json` are ignored. See [the balance tool reference](tools/rpg_balance/README.md).
+
+## State Safety
+
+Tracked game definitions live in:
 
 ```text
 bot/services/rpg/content/
 ```
 
-Runtime player state:
+Runtime player state defaults to:
 
 ```text
 bot/data/rpg_state.json
 ```
 
-Runtime state is ignored by Git. Do not overwrite production state with local test state.
-
-Useful content references:
-
-- [bot/services/rpg/content/README.md](bot/services/rpg/content/README.md)
-- [tools/rpg_admin/README.md](tools/rpg_admin/README.md)
-- [tools/rpg_balance/README.md](tools/rpg_balance/README.md)
-
-## Django Dashboard
-
-Run migrations:
-
-```bash
-cd web
-python manage.py migrate
-```
-
-Start the server:
-
-```bash
-python manage.py runserver
-```
-
-Open:
-
-```text
-http://127.0.0.1:8000/
-```
-
-Create an admin user:
-
-```bash
-python manage.py createsuperuser
-```
-
-Open:
-
-```text
-http://127.0.0.1:8000/admin
-```
+Runtime state and lock files are ignored by Git. Item identifiers are collision-resistant, and writes use an OS file lock plus a three-way merge so independent bot and web updates are not silently discarded. Keep the backend and bot pointed at the same `KALING_RPG_STATE_PATH` when using an override.
 
 ## Deployment
 
-The repository includes a deployment script for a persistent Linux server such as AWS Lightsail:
+On a persistent Linux host such as AWS Lightsail:
 
 ```bash
 cd ~/Kaling-Bot
 ./deploy.sh
 ```
 
-`deploy.sh` performs these steps:
+The script:
 
-1. Backs up `bot/data/rpg_state.json` and `web/db.sqlite3` into `.deploy_backups/`.
-2. Runs `git pull --ff-only`.
-3. Activates the conda environment from `KALING_CONDA_ENV`.
-4. Installs Python requirements.
-5. Runs Python compile checks.
-6. Runs Django migrations.
-7. Restarts `bot`, `backend`, and `cloudflare` through `kaling-services.sh`.
+1. Backs up RPG state and the Django database to `.deploy_backups/`.
+2. Pulls the current branch with `git pull --ff-only`.
+3. Activates `KALING_CONDA_ENV` and installs requirements.
+4. Compiles core Python modules.
+5. Runs Django migrations and `collectstatic`.
+6. Restarts `bot`, `backend`, and `cloudflare` through tmux.
 
-For GitHub Actions deployment, configure repository secrets for the SSH host, username, and private key. The private key secret must include the full PEM header and footer.
+For GitHub Actions SSH deployment, keep the server host, user, and full private key in repository Actions secrets. Secrets are not exposed merely because the repository is public, but workflow files and command output are public, so never echo them.
 
 ## Development Checks
 
-Run Python compile checks:
-
 ```bash
-python -m py_compile bot/services/rpg/data.py bot/services/rpg/manager.py bot/cogs/rpg.py tools/rpg_admin/app.py
+python -m unittest discover -s tests -v
+python -m py_compile bot/services/rpg/data.py bot/services/rpg/manager.py bot/cogs/rpg.py tools/rpg_admin/app.py web/rpg_web/views.py
+node --check tools/rpg_admin/static/app.js
+node --check web/rpg_web/static/rpg_web/app.js
+cd web && python manage.py check
 ```
 
-Validate RPG content through the admin app helpers:
+Validate all RPG content without starting the admin server:
 
 ```bash
-python -c "from tools.rpg_admin.app import read_content, normalize_content, validate_content; c=read_content(); normalize_content(c); e=validate_content(c); print(f'errors={len(e)}'); print('\n'.join(e[:30]))"
+python -c "from tools.rpg_admin.app import read_content, normalize_content, validate_content; c=read_content(); normalize_content(c); e=validate_content(c); print(f'errors={len(e)}'); print('\\n'.join(e[:30]))"
 ```
 
 ## Repository Layout
 
 ```text
-bot/                         Discord bot package and RPG runtime
-bot/cogs/                    Discord cogs
-bot/services/rpg/            RPG data models, content loader, manager, store
-bot/services/rpg/content/    Tracked RPG content JSON
-bot/data/                    Runtime RPG state
-web/                         Django dashboard
-tools/rpg_admin/             RPG content admin UI
-tools/rpg_balance/           RPG balance analysis tools
-docs/                        Reference documents
-img/                         Reaction images
+bot/                         Discord bot and shared RPG runtime
+bot/services/rpg/content/    Tracked RPG definitions
+bot/data/                    Ignored runtime player state
+web/rpg_web/                 Django RPG client and API
+web/scheduler/               OAuth and retained schedule compatibility code
+tools/rpg_admin/             Local content administration UI
+tools/rpg_balance/           Balance and live-state analysis
+tests/                       RPG, store, hard-mode, potential, and web tests
+deploy.sh                    Server update workflow
 kaling-services.sh           tmux service manager
-deploy.sh                    Server deployment script
 ```
-
-## Notes
-
-- Keep secrets and server-specific toggles in `.env`.
-- Keep production runtime state out of Git.
-- Prefer changing RPG content through the admin UI when possible.

@@ -13,6 +13,7 @@
         <p>장비, 재료, 제작식, 던전, 보스, 직업, 스킬 데이터를 편집합니다.</p>
       </div>
       <div class="actions">
+        <button id="globalSearchBtn" type="button">빠른 찾기</button>
         <button id="reloadBtn" type="button">다시 불러오기</button>
         <button id="validateBtn" type="button">검증</button>
         <button id="saveBtn" type="button" class="primary">저장</button>
@@ -32,6 +33,13 @@
     </div>
 
     <div id="toast" class="toast" hidden></div>
+    <dialog id="globalSearchDialog" class="command-dialog">
+      <div class="command-head">
+        <input id="globalSearchInput" type="search" placeholder="전체 콘텐츠에서 이름 또는 ID 검색" autocomplete="off">
+        <button id="globalSearchClose" type="button" aria-label="닫기">닫기</button>
+      </div>
+      <div id="globalSearchResults" class="command-results"></div>
+    </dialog>
     <script src="/static/app.js"></script>
   </body>
 </html>

@@ -11,6 +11,7 @@ from discord.ext import commands
 from bot.services.rpg.data import (
     BOSS_BY_ID,
     BOSSES,
+    BOSSES_BY_BASE_ID,
     CRAFTING_RECIPES,
     DAILY_EXPLORES,
     DUNGEONS,
@@ -59,10 +60,6 @@ from bot.services.rpg.models import PlayerProfile
 DUNGEON_CHOICES = [
     app_commands.Choice(name=f"{dungeon.name} · Lv.{dungeon.level_req}"[:100], value=dungeon.id)
     for dungeon in DUNGEONS
-]
-BOSS_CHOICES = [
-    app_commands.Choice(name=boss.name[:100], value=boss.id)
-    for boss in BOSSES
 ]
 CRAFT_CHOICES = [
     app_commands.Choice(name=recipe.name[:100], value=recipe.id)
@@ -280,11 +277,20 @@ class RPGCog(commands.Cog):
     async def boss_list(self, interaction: discord.Interaction) -> None:
         profile = self.service.get_profile(interaction.user.id, interaction.user.display_name)
         lines = []
-        for boss in self.service.bosses():
-            start_limit = self._boss_start_limit_text(profile, boss.id)
+        for variants in BOSSES_BY_BASE_ID.values():
+            normal = next((boss for boss in variants if boss.difficulty == "normal"), variants[0])
+            start_limit = self._boss_start_limit_text(profile, normal.id)
+            variant_lines = [
+                (
+                    f"{self._boss_difficulty_label(boss)} Lv.{boss.level_req}: "
+                    f"{self.service.reward_summary(boss.rewards, base_gold=boss.gold, base_exp=boss.exp)}"
+                )
+                for boss in variants
+            ]
+            variant_text = "\n".join(variant_lines)
             lines.append(
-                f"**{boss.name}** · Lv.{boss.level_req} · 자발 {start_limit}\n"
-                f"보상 {self.service.reward_summary(boss.rewards, base_gold=boss.gold, base_exp=boss.exp)} · {boss.description}"
+                f"**{normal.name}** · 자발 {start_limit}\n"
+                f"{variant_text}\n{normal.description}"
             )
         embed = discord.Embed(
             title="보스 목록",
@@ -573,7 +579,7 @@ class RPGCog(commands.Cog):
             return True, "이미 참가 중입니다."
         active_session = self._active_boss_session_for_user(user_id, exclude_session_id=session.id)
         if active_session is not None:
-            return False, f"이미 {active_session.boss.name} 보스전에 참가 중입니다."
+            return False, f"이미 {self._boss_display_name(active_session.boss)} 보스전에 참가 중입니다."
         profile = self.service.get_profile(user_id, display_name)
         stats = self.service.profile_stats(profile)
         participant = BossParticipant(
@@ -613,6 +619,13 @@ class RPGCog(commands.Cog):
             return "무제한"
         return f"{remaining}/1"
 
+    @staticmethod
+    def _boss_difficulty_label(boss: BossTemplate) -> str:
+        return "하드" if boss.difficulty == "hard" else "일반"
+
+    def _boss_display_name(self, boss: BossTemplate) -> str:
+        return f"{boss.name} [{self._boss_difficulty_label(boss)}]"
+
     def _boss_reward_summary(self, boss: BossTemplate) -> str:
         parts: list[str] = []
         if boss.gold:
@@ -639,12 +652,20 @@ class RPGCog(commands.Cog):
         return "장비"
 
     def _boss_batch_skip_candidates(self, profile: PlayerProfile) -> list[BossTemplate]:
-        return [
-            boss
-            for boss in self.service.bosses()
-            if self.service.has_boss_clear_history(profile, boss.id)
-            and self.service.boss_start_remaining(profile, boss.id) != 0
-        ]
+        candidates: list[BossTemplate] = []
+        for variants in BOSSES_BY_BASE_ID.values():
+            if not variants:
+                continue
+            if self.service.boss_start_remaining(profile, variants[0].id) == 0:
+                continue
+            ordered = sorted(variants, key=lambda boss: boss.difficulty == "hard", reverse=True)
+            selected = next(
+                (boss for boss in ordered if self.service.has_boss_clear_history(profile, boss.id)),
+                None,
+            )
+            if selected is not None:
+                candidates.append(selected)
+        return candidates
 
     def _boss_batch_skip_embed(
         self,
@@ -655,7 +676,7 @@ class RPGCog(commands.Cog):
         if active_session is not None:
             return False, discord.Embed(
                 title="보스 일괄 스킵",
-                description=f"이미 {active_session.boss.name} 보스전에 참가 중입니다.",
+                description=f"이미 {self._boss_display_name(active_session.boss)} 보스전에 참가 중입니다.",
                 color=0xED4245,
             )
         profile = self.service.get_profile(user_id, display_name)
@@ -683,7 +704,7 @@ class RPGCog(commands.Cog):
                 record_clear_history=True,
             )
             skipped += 1
-            lines.append(f"**{boss.name}**: {self._reward_text(reward).replace(chr(10), ', ')}")
+            lines.append(f"**{self._boss_display_name(boss)}**: {self._reward_text(reward).replace(chr(10), ', ')}")
 
         profile = self.service.get_profile(user_id, display_name)
         embed = discord.Embed(
@@ -707,21 +728,30 @@ class RPGCog(commands.Cog):
             title="보스 선택",
             color=0xFFB84D,
         )
+        selected_template = BOSS_BY_ID.get(selected_boss_id or "")
+        selected_base_id = selected_template.base_boss_id if selected_template is not None else ""
         lines = []
-        for boss in self.service.bosses():
-            selected = " ← 선택됨" if boss.id == selected_boss_id else ""
+        for base_id, variants in BOSSES_BY_BASE_ID.items():
+            if not variants:
+                continue
+            normal = next((boss for boss in variants if boss.difficulty == "normal"), variants[0])
+            levels = " / ".join(
+                f"{self._boss_difficulty_label(boss)} Lv.{boss.level_req}"
+                for boss in variants
+            )
+            selected = " ← 선택됨" if base_id == selected_base_id else ""
             lines.append(
-                f"**{boss.name}** · Lv.{boss.level_req} · 자발 {self._boss_start_limit_text(profile, boss.id)}{selected}"
+                f"**{normal.name}** · {levels} · 자발 {self._boss_start_limit_text(profile, normal.id)}{selected}"
             )
         embed.add_field(name="목록", value=self._trim("\n".join(lines), 1200), inline=False)
-        selected = BOSS_BY_ID.get(selected_boss_id or "")
-        if selected is not None:
+        if selected_template is not None:
             embed.add_field(
                 name="선택한 보스",
                 value=(
-                    f"**{selected.name}** · Lv.{selected.level_req} · 자발 {self._boss_start_limit_text(profile, selected.id)}\n"
-                    f"보상 {self._boss_reward_summary(selected)}\n"
-                    f"{selected.description or '설명 없음'}"
+                    f"**{self._boss_display_name(selected_template)}** · Lv.{selected_template.level_req} · "
+                    f"자발 {self._boss_start_limit_text(profile, selected_template.id)}\n"
+                    f"보상 {self._boss_reward_summary(selected_template)}\n"
+                    f"{selected_template.description or '설명 없음'}"
                 ),
                 inline=False,
             )
@@ -739,7 +769,7 @@ class RPGCog(commands.Cog):
         active_session = self._active_boss_session_for_user(user_id)
         if active_session is not None:
             return None, (
-                f"이미 {active_session.boss.name} 보스전에 참가 중입니다. "
+                f"이미 {self._boss_display_name(active_session.boss)} 보스전에 참가 중입니다. "
                 "완료되거나 실패한 뒤 다른 보스전에 참가할 수 있습니다."
             )
         if not practice and self.service.boss_start_remaining(profile, template.id) == 0:
@@ -2983,7 +3013,7 @@ class RPGCog(commands.Cog):
             return discord.Embed(title="보스 도전 실패", description=result.message, color=0xED4245)
         assert result.boss is not None
         embed = self._battle_result_embed(
-            title=f"{result.boss.name} 도전",
+            title=f"{self._boss_display_name(result.boss)} 도전",
             result=result,
             color=0x57F287 if result.battle and result.battle.won else 0xED4245,
         )
@@ -3011,9 +3041,10 @@ class RPGCog(commands.Cog):
         ct_text = f" · CT {ct_max}" if ct_max > 0 else ""
         owner = session.participants.get(session.owner_id)
         owner_name = owner.display_name if owner is not None else "알 수 없음"
-        mode_text = "연습" if session.practice else "일반"
+        mode_text = "연습" if session.practice else "자발"
+        difficulty_text = self._boss_difficulty_label(session.boss)
         embed = discord.Embed(
-            title=f"{session.boss.name} 보스전",
+            title=f"{session.boss.name} [{difficulty_text}] 보스전",
             description=f"상태: **{status}** · {mode_text} · 자발자 {owner_name}{ct_text}",
             color=color,
         )
@@ -4989,10 +5020,23 @@ class BossPanelView(discord.ui.View):
         self.selected_boss_id = selected_boss_id
         profile = self.cog.service.get_profile(user_id, display_name)
         has_batch_skips = bool(self.cog._boss_batch_skip_candidates(profile))
-        self.add_item(BossPanelSelect())
-        self.add_item(BossPanelOpenButton(practice=False, disabled=selected_boss_id is None))
-        self.add_item(BossPanelOpenButton(practice=True, disabled=selected_boss_id is None))
-        self.add_item(BossPanelBatchSkipButton(disabled=not has_batch_skips))
+        selected = BOSS_BY_ID.get(selected_boss_id or "")
+        self.add_item(BossPanelSelect(selected_boss_id))
+        variants = BOSSES_BY_BASE_ID.get(selected.base_boss_id, []) if selected is not None else []
+        available = {boss.difficulty for boss in variants}
+        self.add_item(BossDifficultyButton(
+            "normal",
+            selected=selected is not None and selected.difficulty == "normal",
+            disabled=selected is None or "normal" not in available,
+        ))
+        self.add_item(BossDifficultyButton(
+            "hard",
+            selected=selected is not None and selected.difficulty == "hard",
+            disabled=selected is None or "hard" not in available,
+        ))
+        self.add_item(BossPanelOpenButton(practice=False, disabled=selected_boss_id is None, row=1))
+        self.add_item(BossPanelOpenButton(practice=True, disabled=selected_boss_id is None, row=1))
+        self.add_item(BossPanelBatchSkipButton(disabled=not has_batch_skips, row=2))
 
     async def _reject_other_user(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id == self.user_id:
@@ -5009,31 +5053,72 @@ class BossPanelView(discord.ui.View):
 
 
 class BossPanelSelect(discord.ui.Select):
-    def __init__(self) -> None:
-        options = [
-            discord.SelectOption(
-                label=f"{boss.name} · Lv.{boss.level_req}"[:100],
-                value=boss.id,
-                description=boss.description[:100],
+    def __init__(self, selected_boss_id: str | None = None) -> None:
+        selected = BOSS_BY_ID.get(selected_boss_id or "")
+        selected_base_id = selected.base_boss_id if selected is not None else ""
+        options = []
+        for base_id, variants in list(BOSSES_BY_BASE_ID.items())[:25]:
+            if not variants:
+                continue
+            normal = next((boss for boss in variants if boss.difficulty == "normal"), variants[0])
+            levels = " / ".join(
+                f"{('하드' if boss.difficulty == 'hard' else '일반')} Lv.{boss.level_req}"
+                for boss in variants
             )
-            for boss in BOSSES[:25]
-        ]
+            options.append(discord.SelectOption(
+                label=normal.name[:100],
+                value=base_id,
+                description=levels[:100],
+                default=base_id == selected_base_id,
+            ))
         super().__init__(placeholder="보스 선택", min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction) -> None:
         assert isinstance(self.view, BossPanelView)
         if await self.view._reject_other_user(interaction):
             return
-        self.view.selected_boss_id = self.values[0]
+        variants = BOSSES_BY_BASE_ID.get(self.values[0], [])
+        normal = next((boss for boss in variants if boss.difficulty == "normal"), variants[0] if variants else None)
+        self.view.selected_boss_id = normal.id if normal is not None else None
+        await self.view._edit_panel(interaction)
+
+
+class BossDifficultyButton(discord.ui.Button):
+    def __init__(self, difficulty: str, *, selected: bool = False, disabled: bool = False) -> None:
+        self.difficulty = difficulty
+        label = "하드" if difficulty == "hard" else "일반"
+        style = discord.ButtonStyle.primary if selected else discord.ButtonStyle.secondary
+        super().__init__(label=label, style=style, disabled=disabled, row=1)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert isinstance(self.view, BossPanelView)
+        if await self.view._reject_other_user(interaction):
+            return
+        selected = BOSS_BY_ID.get(self.view.selected_boss_id or "")
+        if selected is None:
+            await interaction.response.send_message("보스를 먼저 선택하세요.", ephemeral=True)
+            return
+        variant = next(
+            (
+                boss
+                for boss in BOSSES_BY_BASE_ID.get(selected.base_boss_id, [])
+                if boss.difficulty == self.difficulty
+            ),
+            None,
+        )
+        if variant is None:
+            await interaction.response.send_message("선택할 수 없는 난이도입니다.", ephemeral=True)
+            return
+        self.view.selected_boss_id = variant.id
         await self.view._edit_panel(interaction)
 
 
 class BossPanelOpenButton(discord.ui.Button):
-    def __init__(self, *, practice: bool, disabled: bool = False) -> None:
+    def __init__(self, *, practice: bool, disabled: bool = False, row: int | None = None) -> None:
         self.practice = practice
         label = "연습 준비" if practice else "자발 준비"
         style = discord.ButtonStyle.secondary if practice else discord.ButtonStyle.primary
-        super().__init__(label=label, style=style, disabled=disabled)
+        super().__init__(label=label, style=style, disabled=disabled, row=row)
 
     async def callback(self, interaction: discord.Interaction) -> None:
         assert isinstance(self.view, BossPanelView)
@@ -5061,8 +5146,8 @@ class BossPanelOpenButton(discord.ui.Button):
 
 
 class BossPanelBatchSkipButton(discord.ui.Button):
-    def __init__(self, *, disabled: bool = False) -> None:
-        super().__init__(label="일괄 스킵", style=discord.ButtonStyle.success, disabled=disabled)
+    def __init__(self, *, disabled: bool = False, row: int | None = None) -> None:
+        super().__init__(label="일괄 스킵", style=discord.ButtonStyle.success, disabled=disabled, row=row)
 
     async def callback(self, interaction: discord.Interaction) -> None:
         assert isinstance(self.view, BossPanelView)

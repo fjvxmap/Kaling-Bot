@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
+from copy import deepcopy
+from dataclasses import dataclass, field, fields as dataclass_fields, replace
 from datetime import date, datetime, timedelta
 from random import Random
+import secrets
 from zoneinfo import ZoneInfo
 
 from .data import (
@@ -19,6 +21,7 @@ from .data import (
     EffectAction,
     ENHANCEMENT_METHODS,
     EXPLORE_BASIC_ATTACK_MULTIPLIER,
+    EXPLORE_GOLD_MULTIPLIER,
     EXPLORE_LIMIT_ENABLED,
     EXPLORE_PLAYER_DEFENSE_BONUS,
     EXPLORE_SKILL_DAMAGE_MULTIPLIER,
@@ -389,6 +392,17 @@ class RPGService:
             self._save()
 
     def start_profile(self, user_id: int, display_name: str) -> tuple[PlayerProfile, bool]:
+        load_profile = getattr(self.store, "load_profile", None)
+        is_dirty = getattr(self.store, "profile_is_dirty", None)
+        cached = self._profiles.get(user_id)
+        has_unsaved_changes = bool(callable(is_dirty) and cached is not None and is_dirty(cached))
+        if callable(load_profile) and not has_unsaved_changes:
+            latest = load_profile(user_id)
+            if latest is not None:
+                if cached is None:
+                    self._profiles[user_id] = latest
+                elif cached.to_dict() != latest.to_dict():
+                    self._copy_profile_state(cached, latest)
         if user_id in self._profiles:
             profile = self._profiles[user_id]
             profile.display_name = display_name or profile.display_name
@@ -429,7 +443,14 @@ class RPGService:
         if not BOSS_WEEKLY_REWARD_LIMIT_ENABLED:
             return -1
         weekly_key = self._week_key()
-        return 0 if profile.weekly_boss_clears.get(boss_id) == weekly_key else 1
+        group_id = self.boss_weekly_group_id(boss_id)
+        return 0 if profile.weekly_boss_clears.get(group_id) == weekly_key else 1
+
+    def boss_weekly_group_id(self, boss_id: str) -> str:
+        boss = BOSS_BY_ID.get(str(boss_id))
+        if boss is None:
+            return str(boss_id)
+        return boss.weekly_group_id or boss.base_boss_id or boss.id
 
     def has_boss_clear_history(self, profile: PlayerProfile, boss_id: str) -> bool:
         return str(boss_id) in set(profile.solo_cleared_boss_ids)
@@ -932,9 +953,21 @@ class RPGService:
         reward = RewardReport()
         if battle.won:
             profile.dungeon_clear_count += 1
-            reward = self._grant_reward(profile, enemy.gold, enemy.exp, enemy.rewards, victory=True)
+            reward = self._grant_reward(
+                profile,
+                round(enemy.gold * EXPLORE_GOLD_MULTIPLIER),
+                enemy.exp,
+                enemy.rewards,
+                victory=True,
+            )
         else:
-            reward = self._grant_reward(profile, enemy.gold, enemy.exp, None, victory=False)
+            reward = self._grant_reward(
+                profile,
+                round(enemy.gold * EXPLORE_GOLD_MULTIPLIER),
+                enemy.exp,
+                None,
+                victory=False,
+            )
         return ExploreResult(
             True,
             "탐색 완료",
@@ -1011,15 +1044,17 @@ class RPGService:
     def _consume_boss_start_for_profile(self, profile: PlayerProfile, boss_id: str, weekly_key: str) -> bool:
         if not BOSS_WEEKLY_REWARD_LIMIT_ENABLED:
             return True
-        if profile.weekly_boss_clears.get(boss_id) == weekly_key:
+        group_id = self.boss_weekly_group_id(boss_id)
+        if profile.weekly_boss_clears.get(group_id) == weekly_key:
             return False
-        profile.weekly_boss_clears[boss_id] = weekly_key
+        profile.weekly_boss_clears[group_id] = weekly_key
         return True
 
     def _boss_start_locked(self, profile: PlayerProfile, boss_id: str, weekly_key: str) -> bool:
+        group_id = self.boss_weekly_group_id(boss_id)
         return (
             BOSS_WEEKLY_REWARD_LIMIT_ENABLED
-            and profile.weekly_boss_clears.get(boss_id) == weekly_key
+            and profile.weekly_boss_clears.get(group_id) == weekly_key
         )
 
     def _grant_boss_reward_to_profile(
@@ -1045,16 +1080,25 @@ class RPGService:
         )
         if victory:
             profile.boss_clear_count += 1
-            if boss.id and boss.id not in profile.cleared_boss_ids:
-                profile.cleared_boss_ids.append(boss.id)
+            clear_ids = [boss.id]
+            if boss.base_boss_id and boss.base_boss_id != boss.id:
+                clear_ids.append(boss.base_boss_id)
+            for clear_id in clear_ids:
+                if clear_id and clear_id not in profile.cleared_boss_ids:
+                    profile.cleared_boss_ids.append(clear_id)
             if record_clear_history:
                 self._mark_boss_solo_clear_history_for_profile(profile, boss.id)
         return reward
 
     def _mark_boss_solo_clear_history_for_profile(self, profile: PlayerProfile, boss_id: str) -> None:
         boss_id = str(boss_id)
-        if boss_id and boss_id not in profile.solo_cleared_boss_ids:
-            profile.solo_cleared_boss_ids.append(boss_id)
+        boss = BOSS_BY_ID.get(boss_id)
+        history_ids = [boss_id]
+        if boss is not None and boss.base_boss_id and boss.base_boss_id != boss_id:
+            history_ids.append(boss.base_boss_id)
+        for history_id in history_ids:
+            if history_id and history_id not in profile.solo_cleared_boss_ids:
+                profile.solo_cleared_boss_ids.append(history_id)
 
     def _enhancement_costs(
         self,
@@ -4474,7 +4518,11 @@ class RPGService:
     def _grant_item(self, profile: PlayerProfile, template_id: str, stars: int = 0) -> ItemInstance | None:
         if template_id not in ITEM_BY_ID:
             return None
-        item = ItemInstance(profile.next_item_uid, template_id, stars=max(0, int(stars)))
+        used_uids = {owned.uid for owned in profile.inventory}
+        item_uid = secrets.randbits(51) | (1 << 50)
+        while item_uid in used_uids:
+            item_uid = secrets.randbits(51) | (1 << 50)
+        item = ItemInstance(item_uid, template_id, stars=max(0, int(stars)))
         profile.next_item_uid += 1
         profile.inventory.append(item)
         self._ensure_item_potential(profile, item)
@@ -4672,7 +4720,26 @@ class RPGService:
                     break
 
     def _save(self) -> None:
-        self.store.save_profiles(self._profiles)
+        saved = self.store.save_profiles(self._profiles)
+        if not isinstance(saved, dict):
+            return
+        for user_id, fresh in saved.items():
+            current = self._profiles.get(user_id)
+            if current is None:
+                self._profiles[user_id] = fresh
+                continue
+            if current.to_dict() == fresh.to_dict():
+                continue
+            self._copy_profile_state(current, fresh)
+
+    @staticmethod
+    def _copy_profile_state(target: PlayerProfile, source: PlayerProfile) -> None:
+        for profile_field in dataclass_fields(PlayerProfile):
+            setattr(
+                target,
+                profile_field.name,
+                deepcopy(getattr(source, profile_field.name)),
+            )
 
     def _trim_log(self, log: list[str]) -> list[str]:
         if len(log) <= 8:

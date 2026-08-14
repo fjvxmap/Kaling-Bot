@@ -23,6 +23,7 @@
     "skill_damage_multiplier": 0.85,
     "player_defense_bonus": 0
   },
+  "explore_gold_multiplier": 0.05,
   "reward_multipliers": {
     "win_min": 1,
     "win_max": 1.2,

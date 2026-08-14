@@ -572,16 +572,7 @@
     ]
   },
   "rewards": {
-    "items": [
-      {
-        "chance": 0.02,
-        "min": 1,
-        "max": 1,
-        "template_id": "genesis_badge",
-        "participant_chance": 0.008,
-        "stars": 0
-      }
-    ],
+    "items": [],
     "materials": [
       {
         "id": "boss_power_crystal",
@@ -589,15 +580,54 @@
         "min": 1,
         "max": 1,
         "participant_chance": 0.0
-      },
-      {
-        "id": "gold_brick",
-        "chance": 0.04,
-        "min": 1,
-        "max": 1,
-        "participant_chance": 0.02
       }
     ]
+  },
+  "hard_mode": {
+    "enabled": true,
+    "level_req": 52,
+    "stats": {
+      "base_atk": 42,
+      "max_hp": 85000,
+      "defense": 0.85,
+      "dmg_mitigation": 12,
+      "triple_attack_rate": 0.35,
+      "double_attack_rate": 0.25
+    },
+    "pattern_damage_multiplier": 1.2,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.55,
+    "gold": 30000,
+    "exp": 1,
+    "description": "창조와 파괴의 저주가 더 빠르게 교차하는 최종 결전이다.",
+    "rewards": {
+      "items": [
+        {
+          "chance": 0.02,
+          "min": 1,
+          "max": 1,
+          "template_id": "genesis_badge",
+          "participant_chance": 0.008,
+          "stars": 0
+        }
+      ],
+      "materials": [
+        {
+          "id": "boss_power_crystal",
+          "chance": 1.0,
+          "min": 1,
+          "max": 1,
+          "participant_chance": 0.0
+        },
+        {
+          "id": "gold_brick",
+          "chance": 0.04,
+          "min": 1,
+          "max": 1,
+          "participant_chance": 0.02
+        }
+      ]
+    }
   },
   "description": "\"오너라, 너희의 모든 것을 걸고.\"",
   "sort_order": 16,

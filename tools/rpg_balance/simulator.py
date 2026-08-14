@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 import argparse
+import json
 from dataclasses import dataclass
 from itertools import combinations
+from pathlib import Path
 from random import Random
+from statistics import mean, median
 from typing import Iterable, Sequence
 
 from bot.services.rpg.data import (
+    BOSS_BY_ID,
+    BOSSES,
     ITEMS_BY_RARITY,
     JOBS,
     JOB_BY_ID,
+    MAX_EQUIPPED_SKILLS,
     SKILLS,
     SkillTemplate,
 )
@@ -36,6 +42,8 @@ class SimConfig:
     enemy_defense: float
     enemy_damage_cut: float
     enemy_mitigation: float
+    enemy_level: int
+    enemy_hp: int
 
 
 @dataclass(frozen=True)
@@ -44,9 +52,27 @@ class BalanceResult:
     job_name: str
     set_name: str
     dpt: float
+    basic_dpt: float
+    skill_dpt: float
     survival: float
     items: tuple[str, ...]
     skills: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class RotationResult:
+    dpt: float
+    basic_dpt: float
+    skill_dpt: float
+    total_damage: float
+
+
+@dataclass(frozen=True)
+class BossTrialResult:
+    won: bool
+    turns: int
+    player_hp: int
+    boss_hp: int
 
 
 class BalanceSimulator:
@@ -70,14 +96,16 @@ class BalanceSimulator:
         for item_ids in item_combos:
             skill_combos = self._skill_combos(job_id, item_ids, skill_candidates)
             for skills in skill_combos:
-                dpt = self._simulate(job_id, item_ids, skills)
-                if best is None or dpt > best.dpt:
+                rotation = self._simulate(job_id, item_ids, skills)
+                if best is None or rotation.dpt > best.dpt:
                     profile = self._profile(job_id, item_ids)
                     best = BalanceResult(
                         job_id=job.id,
                         job_name=job.name,
                         set_name=set_name,
-                        dpt=dpt,
+                        dpt=rotation.dpt,
+                        basic_dpt=rotation.basic_dpt,
+                        skill_dpt=rotation.skill_dpt,
                         survival=self._survival_score(profile),
                         items=tuple(item_ids),
                         skills=tuple(skill.id for skill in skills),
@@ -91,15 +119,26 @@ class BalanceSimulator:
         job_id: str,
         item_ids: Sequence[str],
         skills: Sequence[SkillTemplate],
-    ) -> float:
+    ) -> RotationResult:
         profile = self._profile(job_id, item_ids)
+        return self.simulate_profile(profile, skills)
+
+    def simulate_profile(
+        self,
+        profile: PlayerProfile,
+        skills: Sequence[SkillTemplate] | None = None,
+        enemy_stats: CombatStats | None = None,
+    ) -> RotationResult:
+        profile = PlayerProfile.from_dict(profile.to_dict())
+        skills = tuple(skills if skills is not None else self.service.combat_skills(profile))
         base_stats = self.service._player_stats(profile)
-        enemy_base = self._enemy_stats()
+        enemy_base = enemy_stats or self._enemy_stats()
         player_effects = self.service._permanent_effects(profile)
         enemy_effects = []
         cooldowns: dict[str, int] = {}
         uses_left = {skill.id: skill.uses for skill in skills if skill.uses > 0}
-        total = 0.0
+        basic_total = 0.0
+        skill_total = 0.0
 
         def ready(skill: SkillTemplate) -> bool:
             if cooldowns.get(skill.id, 0) > 0:
@@ -107,18 +146,10 @@ class BalanceSimulator:
             return skill.uses <= 0 or uses_left.get(skill.id, 0) > 0
 
         def use_skill(skill: SkillTemplate) -> None:
-            nonlocal total
+            nonlocal skill_total
             player_stats = self.service._stats_with_effects(base_stats, player_effects)
             enemy_stats = self.service._stats_with_effects(enemy_base, enemy_effects)
-            total += self.service._estimated_skill_damage(
-                skill,
-                player_stats,
-                player_stats.final_hp,
-                enemy_stats,
-                enemy_stats.final_hp,
-                player_effects,
-            )
-            self.service._use_player_skill(
+            result = self.service._use_player_skill(
                 skill,
                 player_stats,
                 enemy_stats,
@@ -127,6 +158,16 @@ class BalanceSimulator:
                 player_effects,
                 enemy_effects,
             )
+            player_stats = self.service._stats_with_effects(base_stats, player_effects)
+            enemy_stats = self.service._stats_with_effects(enemy_base, enemy_effects)
+            skill_total += self.service._estimated_skill_damage(
+                skill,
+                player_stats,
+                player_stats.final_hp,
+                enemy_stats,
+                enemy_stats.final_hp,
+                player_effects,
+            ) * max(1, result.activations)
             if skill.uses > 0:
                 uses_left[skill.id] = max(0, uses_left.get(skill.id, 0) - 1)
             if skill.cooldown > 0:
@@ -151,7 +192,7 @@ class BalanceSimulator:
 
             player_stats = self.service._stats_with_effects(base_stats, player_effects)
             enemy_stats = self.service._stats_with_effects(enemy_base, enemy_effects)
-            total += self.service._estimated_basic_attack_damage(
+            basic_total += self.service._estimated_basic_attack_damage(
                 player_stats,
                 player_stats.final_hp,
                 enemy_stats,
@@ -162,7 +203,14 @@ class BalanceSimulator:
             enemy_effects = self.service._tick_effects(enemy_effects)
             self.service._tick_cooldowns(cooldowns)
 
-        return total / max(1, self.config.turns)
+        turns = max(1, self.config.turns)
+        total = basic_total + skill_total
+        return RotationResult(
+            dpt=total / turns,
+            basic_dpt=basic_total / turns,
+            skill_dpt=skill_total / turns,
+            total_damage=total,
+        )
 
     def _item_combos(
         self,
@@ -209,17 +257,21 @@ class BalanceSimulator:
             player_effects,
         )
         skill_scores = [
-            self.service._estimated_skill_damage(
+            (
+                self._skill_candidate_score(
+                    skill,
+                    player_stats,
+                    enemy_stats,
+                    player_effects,
+                    [],
+                ),
                 skill,
-                player_stats,
-                player_stats.final_hp,
-                enemy_stats,
-                enemy_stats.final_hp,
-                player_effects,
-            ) + self._support_score(skill)
+            )
             for skill in self._available_skills(job_id)
         ]
-        return basic + sum(sorted(skill_scores, reverse=True)[:4]) / max(1, self.config.turns)
+        normal = sorted((score for score, skill in skill_scores if not skill.special), reverse=True)[:MAX_EQUIPPED_SKILLS]
+        special = sorted((score for score, skill in skill_scores if skill.special), reverse=True)[:1]
+        return basic + sum([*normal, *special]) / max(1, self.config.turns)
 
     def _skill_combos(
         self,
@@ -239,20 +291,46 @@ class BalanceSimulator:
             (
                 max(
                     self._support_score(skill),
-                    self._skill_damage_estimate(base_stats, enemy_base, player_effects, enemy_effects, skill)
-                    / max(1, self.config.turns),
+                    self._skill_candidate_score(
+                        skill,
+                        base_stats,
+                        enemy_base,
+                        player_effects,
+                        enemy_effects,
+                    ),
                 ),
                 skill,
             )
             for skill in skills
         ]
-        candidates = [
-            skill for _score, skill
-            in sorted(scored, key=lambda row: row[0], reverse=True)[:max(1, candidate_count)]
-        ]
-        if len(candidates) <= 4:
-            return [tuple(candidates)]
-        return list(combinations(candidates, 4))
+        ranked = sorted(scored, key=lambda row: row[0], reverse=True)
+        normal_candidates = [
+            skill for _score, skill in ranked if not skill.special
+        ][:max(1, candidate_count)]
+        special_candidates = [skill for _score, skill in ranked if skill.special]
+        normal_count = min(MAX_EQUIPPED_SKILLS, len(normal_candidates))
+        normal_combos = (
+            [tuple(normal_candidates)]
+            if len(normal_candidates) <= normal_count
+            else list(combinations(normal_candidates, normal_count))
+        )
+        if not special_candidates:
+            return normal_combos or [()]
+        special_scored = sorted(
+            special_candidates,
+            key=lambda skill: max(
+                self._support_score(skill),
+                self._skill_candidate_score(
+                    skill,
+                    base_stats,
+                    enemy_base,
+                    player_effects,
+                    enemy_effects,
+                ),
+            ),
+            reverse=True,
+        )[:max(1, min(candidate_count, len(special_candidates)))]
+        return [tuple([*normal, special]) for normal in normal_combos for special in special_scored]
 
     def _skill_damage_estimate(
         self,
@@ -272,6 +350,24 @@ class BalanceSimulator:
             enemy_stats.final_hp,
             player_effects,
         )
+
+    def _skill_candidate_score(
+        self,
+        skill: SkillTemplate,
+        player_base: CombatStats,
+        enemy_base: CombatStats,
+        player_effects: list[object],
+        enemy_effects: list[object],
+    ) -> float:
+        damage = self._skill_damage_estimate(
+            player_base,
+            enemy_base,
+            player_effects,
+            enemy_effects,
+            skill,
+        )
+        cadence = self.config.turns if skill.uses > 0 else max(1, skill.cooldown)
+        return damage / max(1, cadence) + self._support_score(skill)
 
     def _available_skills(self, job_id: str) -> list[SkillTemplate]:
         chain = self._job_chain_ids(job_id)
@@ -310,7 +406,8 @@ class BalanceSimulator:
     def _enemy_stats(self) -> CombatStats:
         return CombatStats(
             base_atk=1,
-            max_hp=10_000_000,
+            max_hp=self.config.enemy_hp,
+            level=self.config.enemy_level,
             defense=self.config.enemy_defense,
             damage_cut=self.config.enemy_damage_cut,
             dmg_mitigation=self.config.enemy_mitigation,
@@ -391,6 +488,92 @@ class BalanceSimulator:
             return [tuple(values)]
         return list(combinations(values, size))
 
+    def simulate_boss_trial(
+        self,
+        profile: PlayerProfile,
+        boss_id: str,
+        *,
+        seed: int,
+        max_turns: int = 120,
+    ) -> BossTrialResult:
+        from bot.cogs.rpg import RPGCog
+
+        boss = BOSS_BY_ID[boss_id]
+        service = RPGService(store=_MemoryStore(), rng=Random(seed))
+        trial_profile = PlayerProfile.from_dict(profile.to_dict())
+        service._profiles[trial_profile.user_id] = trial_profile
+        engine = RPGCog.__new__(RPGCog)
+        engine.bot = None
+        engine.service = service
+        engine.boss_sessions = {}
+        engine._boss_damage_detail_messages = {}
+        engine._next_boss_session_id = 1
+        session, message = engine._create_boss_session(
+            boss,
+            trial_profile.user_id,
+            trial_profile.display_name,
+            practice=True,
+        )
+        if session is None:
+            raise RuntimeError(message)
+        ok, message = engine._start_boss_session(session, trial_profile.user_id)
+        if not ok:
+            raise RuntimeError(message)
+
+        role_order = {"debuff": 0, "buff": 1, "heal": 2, "attack": 3}
+        actions = 0
+        while not (session.completed or session.failed or session.cancelled) and actions < max_turns:
+            participant = session.participants.get(trial_profile.user_id)
+            if participant is None or not participant.alive:
+                break
+            skills = sorted(
+                service.combat_skills(trial_profile),
+                key=lambda skill: (role_order.get(skill.role, 4), skill.cooldown, skill.id),
+            )
+            for skill in skills:
+                if participant.ability_cooldowns.get(skill.id, 0) > 0:
+                    continue
+                if engine._ability_used_out(participant, skill):
+                    continue
+                if skill.role == "heal" and participant.hp >= participant.max_hp * 0.8:
+                    continue
+                engine._boss_use_ability(
+                    session,
+                    trial_profile.user_id,
+                    trial_profile.display_name,
+                    skill.id,
+                )
+                if session.completed or session.failed or not participant.alive:
+                    break
+            if session.completed or session.failed or not participant.alive:
+                break
+            warning = participant.pending_warning
+            if (
+                warning is not None
+                and warning.remaining_turns <= 1
+                and not engine._warning_complete(warning)
+            ):
+                engine._boss_guard(
+                    session,
+                    trial_profile.user_id,
+                    trial_profile.display_name,
+                )
+            else:
+                engine._boss_attack(
+                    session,
+                    trial_profile.user_id,
+                    trial_profile.display_name,
+                )
+            actions += 1
+
+        participant = session.participants.get(trial_profile.user_id)
+        return BossTrialResult(
+            won=session.completed,
+            turns=actions,
+            player_hp=participant.hp if participant is not None else 0,
+            boss_hp=session.boss_hp,
+        )
+
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run RPG balance simulations.")
@@ -405,8 +588,151 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--enemy-defense", type=float, default=0.85)
     parser.add_argument("--enemy-damage-cut", type=float, default=0.0)
     parser.add_argument("--enemy-mitigation", type=float, default=0.0)
+    parser.add_argument("--enemy-level", type=int, default=30)
+    parser.add_argument("--enemy-hp", type=int, default=10_000_000)
+    parser.add_argument("--state", type=Path, help="Read-only RPG state JSON to analyze.")
+    parser.add_argument("--profiles", nargs="*", default=[], help="Profile IDs or display names to include.")
+    parser.add_argument("--boss", choices=sorted(BOSS_BY_ID), help="Use an actual boss as the target.")
+    parser.add_argument("--hard-report", action="store_true", help="Run the live boss engine against every hard boss.")
+    parser.add_argument("--trials", type=int, default=5, help="Trials per profile and hard boss.")
     parser.add_argument("--details", action="store_true")
     return parser.parse_args(argv)
+
+
+def load_state_profiles(path: Path) -> list[PlayerProfile]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    raw_profiles = payload.get("profiles", {}) if isinstance(payload, dict) else {}
+    if not isinstance(raw_profiles, dict):
+        raise ValueError("state JSON does not contain a profiles object")
+    profiles: list[PlayerProfile] = []
+    for user_id, raw in raw_profiles.items():
+        if not isinstance(raw, dict):
+            continue
+        profile = PlayerProfile.from_dict(raw)
+        profile.user_id = int(user_id)
+        profiles.append(profile)
+    return profiles
+
+
+def print_state_report(
+    simulator: BalanceSimulator,
+    profiles: Sequence[PlayerProfile],
+    selected_profiles: Sequence[str],
+    boss_id: str | None,
+) -> int:
+    selected = {str(value) for value in selected_profiles}
+    if selected:
+        profiles = [
+            profile for profile in profiles
+            if str(profile.user_id) in selected or profile.display_name in selected
+        ]
+    if not profiles:
+        raise SystemExit("no matching profiles in state file")
+
+    boss = BOSS_BY_ID.get(boss_id or "")
+    enemy = (
+        simulator.service._enemy_stats(boss.stats, level=boss.level_req)
+        if boss is not None
+        else simulator._enemy_stats()
+    )
+    target_name = f"{boss.name} [{boss.difficulty}]" if boss is not None else "synthetic target"
+    print(
+        f"state profiles={len(profiles)} turns={simulator.config.turns} "
+        f"target={target_name} hp={enemy.final_hp:.0f} defense={enemy.defense:.2f}"
+    )
+    print(
+        f"{'profile':18s} {'job':14s} {'lv':>3s} {'dpt':>9s} {'basic':>9s} "
+        f"{'skills':>9s} {'kill':>7s} {'hp':>7s} {'inc':>7s} {'hits':>6s}"
+    )
+    print("-" * 105)
+    for profile in sorted(profiles, key=lambda row: (row.display_name, row.user_id)):
+        rotation = simulator.simulate_profile(profile, enemy_stats=enemy)
+        stats = simulator.service.profile_stats(profile)
+        incoming = simulator.service._estimated_basic_attack_damage(
+            enemy,
+            enemy.final_hp,
+            stats,
+            stats.final_hp,
+            [],
+        )
+        target_hp = enemy.final_hp
+        kill_turns = target_hp / rotation.dpt if rotation.dpt > 0 else float("inf")
+        survival_hits = stats.final_hp / incoming if incoming > 0 else float("inf")
+        job = JOB_BY_ID.get(profile.job_id)
+        print(
+            f"{profile.display_name[:18]:18s} {(job.name if job else profile.job_id)[:14]:14s} "
+            f"{profile.level:3d} {rotation.dpt:9.0f} {rotation.basic_dpt:9.0f} "
+            f"{rotation.skill_dpt:9.0f} {kill_turns:7.1f} {stats.final_hp:7d} "
+            f"{incoming:7.0f} {survival_hits:6.1f}"
+        )
+        print(
+            "  stats: "
+            f"base_atk={stats.base_atk} atk={stats.atk:.3f} def={stats.defense:.3f} "
+            f"ignore={stats.defense_ignore:.3f} amp={stats.dmg_amplification:.3f} "
+            f"supp={stats.dmg_supplement:.0f} skill={stats.skill_damage:.3f} "
+            f"skill_supp={stats.skill_dmg_supplement:.0f} crit={stats.critical_rate:.3f}"
+        )
+        item_names = [simulator.service.item_title(item) for item in simulator.service.equipped_items(profile)]
+        skill_names = [skill.name for skill in simulator.service.combat_skills(profile)]
+        print(f"  items: {', '.join(item_names) or '(none)'}")
+        print(f"  skills: {', '.join(skill_names) or '(none)'}")
+    return 0
+
+
+def print_hard_boss_report(
+    simulator: BalanceSimulator,
+    profiles: Sequence[PlayerProfile],
+    selected_profiles: Sequence[str],
+    trials: int,
+) -> int:
+    selected = {str(value) for value in selected_profiles}
+    if selected:
+        profiles = [
+            profile for profile in profiles
+            if str(profile.user_id) in selected or profile.display_name in selected
+        ]
+    if not profiles:
+        raise SystemExit("no matching profiles in state file")
+    hard_bosses = [boss for boss in BOSSES if boss.difficulty == "hard"]
+    trial_count = max(1, min(50, int(trials)))
+    print(f"hard boss engine report profiles={len(profiles)} trials={trial_count}")
+    print(
+        f"{'boss':22s} {'profile':18s} {'win':>7s} {'turns':>7s} "
+        f"{'calc':>7s} {'basic in':>9s} {'hits':>6s} {'boss left':>10s}"
+    )
+    print("-" * 105)
+    for boss_index, boss in enumerate(hard_bosses):
+        for profile_index, profile in enumerate(profiles):
+            rows = [
+                simulator.simulate_boss_trial(
+                    profile,
+                    boss.id,
+                    seed=20260814 + boss_index * 1000 + profile_index * 100 + trial,
+                )
+                for trial in range(trial_count)
+            ]
+            wins = [row for row in rows if row.won]
+            win_rate = len(wins) / len(rows)
+            turn_text = f"{median(row.turns for row in rows):.0f}"
+            boss_left = mean(row.boss_hp for row in rows if not row.won) if len(wins) < len(rows) else 0
+            enemy = simulator.service._enemy_stats(boss.stats, level=boss.level_req)
+            rotation = simulator.simulate_profile(profile, enemy_stats=enemy)
+            stats = simulator.service.profile_stats(profile)
+            incoming = simulator.service._estimated_basic_attack_damage(
+                enemy,
+                enemy.final_hp,
+                stats,
+                stats.final_hp,
+                [],
+            )
+            calculated_turns = enemy.final_hp / rotation.dpt if rotation.dpt > 0 else float("inf")
+            survival_hits = stats.final_hp / incoming if incoming > 0 else float("inf")
+            print(
+                f"{boss.name[:22]:22s} {profile.display_name[:18]:18s} "
+                f"{win_rate:6.0%} {turn_text:>7s} {calculated_turns:7.1f} "
+                f"{incoming:9.0f} {survival_hits:6.1f} {boss_left:10.0f}"
+            )
+    return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -418,7 +744,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         enemy_defense=args.enemy_defense,
         enemy_damage_cut=args.enemy_damage_cut,
         enemy_mitigation=args.enemy_mitigation,
+        enemy_level=max(1, args.enemy_level),
+        enemy_hp=max(1, args.enemy_hp),
     )
+    simulator = BalanceSimulator(config)
+    if args.state is not None:
+        profiles = load_state_profiles(args.state)
+        if args.hard_report:
+            return print_hard_boss_report(
+                simulator,
+                profiles,
+                args.profiles,
+                args.trials,
+            )
+        return print_state_report(
+            simulator,
+            profiles,
+            args.profiles,
+            args.boss,
+        )
     job_ids = list(args.jobs) if args.jobs else [
         job.id for job in JOBS
         if job.tier >= args.tier
@@ -427,7 +771,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     if unknown_jobs:
         raise SystemExit(f"unknown jobs: {', '.join(unknown_jobs)}")
 
-    simulator = BalanceSimulator(config)
     results: list[BalanceResult] = []
     for job_id in job_ids:
         for set_name in args.sets:
@@ -449,15 +792,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"level={config.level} turns={config.turns} stars={config.stars} "
         f"enemy_defense={config.enemy_defense:.2f}"
     )
-    print(f"{'job':14s} {'set':12s} {'dpt':>9s} {'vs_epic':>8s} {'survival':>9s}")
-    print("-" * 58)
+    print(f"{'job':14s} {'set':12s} {'dpt':>9s} {'basic':>9s} {'skills':>9s} {'vs_epic':>8s} {'survival':>9s}")
+    print("-" * 78)
     for result in sorted(results, key=lambda row: (row.job_id, row.set_name)):
         baseline = baselines.get(result.job_id)
         ratio = result.dpt / baseline if baseline else 0.0
         ratio_text = f"{ratio:.2f}" if baseline else "-"
         print(
             f"{result.job_id:14s} {result.set_name:12s} "
-            f"{result.dpt:9.0f} {ratio_text:>8s} {result.survival:9.0f}"
+            f"{result.dpt:9.0f} {result.basic_dpt:9.0f} {result.skill_dpt:9.0f} "
+            f"{ratio_text:>8s} {result.survival:9.0f}"
         )
         if args.details:
             items = ", ".join(result.items) if result.items else "(none)"

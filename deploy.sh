@@ -70,11 +70,19 @@ git pull --ff-only
 
 activate_conda
 pip install -r requirements.txt
-python3 -m py_compile bot/services/rpg/data.py bot/services/rpg/manager.py bot/cogs/rpg.py tools/rpg_admin/app.py
+python3 -m py_compile \
+  bot/services/rpg/data.py \
+  bot/services/rpg/manager.py \
+  bot/cogs/rpg.py \
+  tools/rpg_admin/app.py \
+  web/rpg_web/runtime.py \
+  web/rpg_web/views.py
 
 (
   cd "$ROOT_DIR/web"
+  python3 manage.py check
   python3 manage.py migrate --noinput
+  python3 manage.py collectstatic --noinput
 )
 
 "$ROOT_DIR/kaling-services.sh" restart bot backend cloudflare

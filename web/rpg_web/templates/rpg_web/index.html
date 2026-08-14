@@ -1,0 +1,99 @@
+{% load static %}
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#15181d">
+  <title>Kaling RPG</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="{% static 'rpg_web/app.css' %}">
+</head>
+<body>
+  {% if not signed_in %}
+  <main class="login-shell">
+    <div class="login-backdrop" aria-hidden="true"></div>
+    <section class="login-content">
+      <p class="brand-kicker">KALING</p>
+      <h1>Kaling RPG</h1>
+      <p>Discord 캐릭터 그대로 웹에서 이어서 플레이합니다.</p>
+      <a class="button button-primary login-button" href="{% url 'discord_login' %}">Discord로 로그인</a>
+    </section>
+  </main>
+  {% else %}
+  <div id="app" class="app-shell" data-ready="false">
+    <header class="topbar">
+      <button class="brand-button" type="button" data-nav="home" aria-label="홈으로 이동">
+        <span class="brand-mark">K</span>
+        <span>Kaling RPG</span>
+      </button>
+      <div id="quick-status" class="quick-status" aria-live="polite"></div>
+      <div class="topbar-actions">
+        <button class="icon-button" type="button" id="refresh-button" title="새로고침" aria-label="새로고침">↻</button>
+        <a class="text-link" href="{% url 'discord_logout' %}">로그아웃</a>
+      </div>
+    </header>
+
+    <aside class="sidebar" aria-label="게임 메뉴">
+      <nav id="primary-nav" class="primary-nav">
+        <button type="button" data-nav="home"><span>홈</span></button>
+        <button type="button" data-nav="explore"><span>탐색</span></button>
+        <button type="button" data-nav="boss"><span>보스</span></button>
+        <button type="button" data-nav="equipment"><span>장비</span></button>
+        <button type="button" data-nav="abilities"><span>어빌리티</span></button>
+        <button type="button" data-nav="enhance"><span>강화</span></button>
+        <button type="button" data-nav="gacha"><span>가챠</span></button>
+        <button type="button" data-nav="craft"><span>제작</span></button>
+        <button type="button" data-nav="jobs"><span>전직</span></button>
+        <button type="button" data-nav="liberation"><span>해방</span></button>
+      </nav>
+    </aside>
+
+    <main id="main" class="main-content" tabindex="-1">
+      <div class="initial-loader">
+        <span class="spinner" aria-hidden="true"></span>
+        <p>캐릭터를 불러오는 중</p>
+      </div>
+    </main>
+
+    <nav id="mobile-nav" class="mobile-nav" aria-label="모바일 게임 메뉴">
+      <button type="button" data-nav="home">홈</button>
+      <button type="button" data-nav="explore">탐색</button>
+      <button type="button" data-nav="boss">보스</button>
+      <button type="button" data-nav="equipment">장비</button>
+      <button type="button" data-nav="more">더보기</button>
+    </nav>
+  </div>
+
+  <dialog id="more-dialog" class="sheet-dialog">
+    <form method="dialog" class="dialog-head">
+      <strong>메뉴</strong>
+      <button class="icon-button" aria-label="닫기">×</button>
+    </form>
+    <div class="menu-grid">
+      <button type="button" data-nav="abilities">어빌리티</button>
+      <button type="button" data-nav="enhance">강화</button>
+      <button type="button" data-nav="gacha">가챠</button>
+      <button type="button" data-nav="craft">제작</button>
+      <button type="button" data-nav="jobs">전직</button>
+      <button type="button" data-nav="liberation">해방</button>
+    </div>
+  </dialog>
+
+  <dialog id="confirm-dialog" class="confirm-dialog">
+    <form method="dialog">
+      <h2 id="confirm-title">확인</h2>
+      <p id="confirm-message"></p>
+      <div class="dialog-actions">
+        <button value="cancel" class="button">취소</button>
+        <button value="confirm" class="button button-danger">확인</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <script src="{% static 'rpg_web/app.js' %}" defer></script>
+  {% endif %}
+</body>
+</html>

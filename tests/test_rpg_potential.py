@@ -111,6 +111,7 @@ class PotentialTests(unittest.TestCase):
         )
         profile.inventory = [item]
         profile.equipped_item_uids = [item.uid]
+        profile.dmg_supplement = 95
 
         self.assertEqual(service.profile_stats(profile).dmg_supplement, 100.0)
 

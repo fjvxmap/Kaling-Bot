@@ -161,9 +161,9 @@
     "level_req": 50,
     "parent_id": "crusader",
     "stats": {
-      "base_atk": 60,
-      "hp_bonus": 0.5,
-      "atk": 0.5,
+      "base_atk": 50,
+      "hp_bonus": 0.45,
+      "atk": 0.32,
       "defense": 0.35,
       "life_steal": 0.02,
       "life_steal_cap": 0.02

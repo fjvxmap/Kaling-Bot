@@ -56,8 +56,8 @@
     "name": "에덴",
     "rarity": "unique",
     "stats": {
-      "atk": 0.28,
-      "strength": 0.14
+      "atk": 0.18,
+      "strength": 0.08
     },
     "base_price": 1,
     "description": "샛별이자 빛의 인도자, 금단의 어둠으로 추락하노라.\n한때 새벽의 자식이었던 그는, 이제 금기를 범한 죄로 몸을 씻었다.\n그러나 더럽혀진 날개일지라도, 끝내 그는 어리석은 자의 심연을 밝히리라.",
@@ -2100,15 +2100,15 @@
     "name": "카라쿠리토우・쿠모가쿠레",
     "rarity": "unique",
     "stats": {
-      "atk": 0.24,
-      "critical_rate": 0.06,
-      "triple_attack_rate": 0.16
+      "atk": 0.14,
+      "critical_rate": 0.04,
+      "triple_attack_rate": 0.08
     },
     "base_price": 1,
     "effects": {
       "bonus_damage": [
         {
-          "ratio": 0.1,
+          "ratio": 0.06,
           "target": "self",
           "duration": -1,
           "undispellable": true
@@ -2218,15 +2218,16 @@
     "name": "매버릭 에테리얼",
     "rarity": "unique",
     "stats": {
-      "atk": 0.05,
-      "defense_ignore": 0.06,
-      "skill_damage": 0.1,
-      "skill_dmg_supplement": 30
+      "atk": 0.04,
+      "defense_ignore": 0.05,
+      "skill_damage": 0.07,
+      "skill_dmg_supplement": 18
     },
     "base_price": 1,
     "description": "마법을 화살로 엮고, 화살로 춤을 수놓는다.\n쏘아진 화살마다 새벽빛에 반짝이는 꽃잎처럼 눈부시고 덧없이 흩날리나,\n그 끝에 꿰뚫린 자에게만큼은 더없이 선명한 현실이 된다.",
     "fixed_stats": [
-      "defense_ignore"
+      "defense_ignore",
+      "skill_dmg_supplement"
     ],
     "enhancement_disabled": false,
     "unsellable": false,
@@ -2914,9 +2915,9 @@
     "name": "창세의 뱃지",
     "rarity": "unique",
     "stats": {
-      "base_atk": 75,
-      "garrison": 0.8,
-      "dmg_mitigation": -25
+      "base_atk": 35,
+      "garrison": 0.35,
+      "dmg_mitigation": -12
     },
     "base_price": 1,
     "excluded_from_gacha": true,
@@ -2924,7 +2925,7 @@
     "effects": {
       "final_damage": [
         {
-          "ratio": 0.08,
+          "ratio": 0.05,
           "target": "self",
           "duration": -1,
           "undispellable": true

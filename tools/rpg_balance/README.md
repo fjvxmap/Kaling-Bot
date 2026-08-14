@@ -1,35 +1,62 @@
 # RPG Balance Simulator
 
-RPG combat balance checker for `bot/services/rpg/content`.
+Balance analysis for the shared RPG combat engine. The tool never writes the state file passed to `--state`.
 
-## Run
+## Synthetic Matrix
 
 ```bash
 python -m tools.rpg_balance
-```
-
-Useful examples:
-
-```bash
-# Show detailed best items and skills for every tier 5 job.
 python -m tools.rpg_balance --details
-
-# Check only one job.
-python -m tools.rpg_balance --jobs archmage_fp --details
-
-# Compare item grades at level 60 with 5-star equipment.
+python -m tools.rpg_balance --jobs hero bowmaster --details
 python -m tools.rpg_balance --level 60 --stars 5 --details
-
-# Use deeper search. Slower, but useful before major balance changes.
 python -m tools.rpg_balance --item-candidates 10 --skill-candidates 8 --details
 ```
 
-## Notes
+The default report searches tier-5 jobs across epic, unique, and `unique-plus` loadouts. `unique-plus` permits up to one legendary weapon with unique equipment.
 
-- The simulator uses the real RPG service damage functions.
-- A turn uses ready support/buff/debuff abilities first, then ready damage abilities, then a normal attack.
-- `uses` and cooldowns are respected. For example, `uses: 1` skills are used once.
-- Finite item effects are applied once at battle start and expire normally.
-- `unique-plus` means up to one legendary item plus unique items.
-- The result is deterministic expected damage, not random combat logs.
+## Live-State Analysis
 
+Analyze real profiles against a synthetic target:
+
+```bash
+python -m tools.rpg_balance \
+  --state /path/to/server_rpg_state.json \
+  --turns 30 --enemy-level 50 --enemy-defense 0.85
+```
+
+Filter profiles by user ID or exact display name:
+
+```bash
+python -m tools.rpg_balance \
+  --state /path/to/server_rpg_state.json \
+  --profiles 123456789 "Display Name"
+```
+
+Use an actual boss as the target:
+
+```bash
+python -m tools.rpg_balance \
+  --state /path/to/server_rpg_state.json \
+  --boss lotus_hard --turns 30
+```
+
+## Hard Boss Engine Report
+
+```bash
+python -m tools.rpg_balance \
+  --state /path/to/server_rpg_state.json \
+  --hard-report --trials 10
+```
+
+This mode creates isolated practice sessions and runs the real boss engine for every hard boss. It reports win rate, median action turns, expected static kill turns, incoming basic damage, survival hits, and average remaining boss HP on losses.
+
+The automated pilot uses every ready ability in debuff, buff, heal, and damage order before its normal attack. It guards unresolved warnings on their final turn. A failed automatic trial can therefore identify a mechanical or survivability pressure point, but does not prove that a human strategy cannot clear it.
+
+## Model Notes
+
+- Damage, healing, cooldown, use-limit, buff, debuff, special-ability, and equipment calculations call the production RPG service.
+- Each simulated turn uses all ready support abilities, all ready damage abilities, then one normal attack.
+- One-use abilities are consumed once; cooldowns and finite effects expire normally.
+- Special abilities occupy their separate `5+1` slot.
+- Synthetic reports use expected damage and are deterministic. Engine reports use seeded combat trials.
+- Potential and Starforce values are read from current tracked content, so balance edits appear immediately.

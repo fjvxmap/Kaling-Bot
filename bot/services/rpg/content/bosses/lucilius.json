@@ -373,13 +373,6 @@
         "participant_max": 1
       },
       {
-        "id": "gold_brick",
-        "chance": 0.05,
-        "min": 1,
-        "max": 1,
-        "participant_chance": 0.025
-      },
-      {
         "id": "tears_of_the_apocalypse",
         "chance": 1.0,
         "min": 3,
@@ -389,6 +382,52 @@
         "participant_max": 3
       }
     ]
+  },
+  "hard_mode": {
+    "enabled": true,
+    "level_req": 54,
+    "stats": {
+      "base_atk": 45,
+      "max_hp": 95000,
+      "defense": 0.65,
+      "triple_attack_rate": 0.4
+    },
+    "pattern_damage_multiplier": 1.2,
+    "plain_damage_multiplier": 0.7,
+    "objective_multiplier": 1.6,
+    "gold": 40000,
+    "exp": 1,
+    "description": "파라다이스 로스트와 궤도 흑색이 연속으로 전장을 압박한다.",
+    "rewards": {
+      "items": [],
+      "materials": [
+        {
+          "id": "boss_power_crystal",
+          "chance": 1.0,
+          "min": 1,
+          "max": 1,
+          "participant_chance": 0.0,
+          "participant_min": 1,
+          "participant_max": 1
+        },
+        {
+          "id": "gold_brick",
+          "chance": 0.05,
+          "min": 1,
+          "max": 1,
+          "participant_chance": 0.025
+        },
+        {
+          "id": "tears_of_the_apocalypse",
+          "chance": 1.0,
+          "min": 4,
+          "max": 6,
+          "participant_chance": 1.0,
+          "participant_min": 2,
+          "participant_max": 4
+        }
+      ]
+    }
   },
   "description": ".",
   "sort_order": 30,
