@@ -26,6 +26,7 @@
     enhancementPreview: null,
     busy: false,
   };
+  let busyControl = null;
 
   const esc = (value) => String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -94,19 +95,29 @@
     const region = document.querySelector("#toast-region");
     const element = document.createElement("div");
     element.className = `toast${ok ? "" : " is-error"}`;
-    element.textContent = message;
+    element.innerHTML = `<span class="toast-mark" aria-hidden="true">${ok ? "✓" : "!"}</span><span>${esc(message)}</span>`;
     region.append(element);
-    setTimeout(() => element.remove(), 4200);
+    setTimeout(() => element.classList.add("is-leaving"), 3600);
+    setTimeout(() => element.remove(), 4000);
   }
 
-  function setBusy(value) {
+  function setBusy(value, control = null) {
     state.busy = value;
     main.classList.toggle("is-busy", value);
     document.querySelector("#refresh-button")?.toggleAttribute("disabled", value);
+    if (value) {
+      busyControl = control instanceof HTMLElement ? control : null;
+      busyControl?.classList.add("is-loading");
+      busyControl?.setAttribute("aria-busy", "true");
+      return;
+    }
+    busyControl?.classList.remove("is-loading");
+    busyControl?.removeAttribute("aria-busy");
+    busyControl = null;
   }
 
-  async function fetchBootstrap({ quiet = false } = {}) {
-    if (!quiet) setBusy(true);
+  async function fetchBootstrap({ quiet = false, trigger = null } = {}) {
+    if (!quiet) setBusy(true, trigger);
     try {
       const response = await fetch("/api/bootstrap/", { headers: { Accept: "application/json" } });
       const payload = await response.json();
@@ -116,6 +127,9 @@
       state.bossSession = payload.boss_session;
       state.joinableSessions = payload.joinable_sessions || [];
       state.result = null;
+      if (state.bossSession && !state.bossSession.completed && !state.bossSession.failed && !state.bossSession.cancelled) {
+        state.tab = "boss";
+      }
       render();
     } catch (error) {
       main.innerHTML = `<div class="empty-state"><div><strong>불러오지 못했습니다.</strong><p>${esc(error.message)}</p><button class="button" data-action="refresh">다시 시도</button></div></div>`;
@@ -124,8 +138,9 @@
     }
   }
 
-  async function perform(type, data = {}, { keepResult = false } = {}) {
-    setBusy(true);
+  async function perform(type, data = {}, { keepResult = false, trigger = null } = {}) {
+    const control = trigger || document.activeElement?.closest?.("button, [data-action]");
+    setBusy(true, control);
     try {
       const response = await fetch("/api/action/", {
         method: "POST",
@@ -286,24 +301,40 @@
     return base?.variants.find((variant) => variant.difficulty === difficulty) || base?.variants[0] || null;
   }
 
+  function effectText(...values) {
+    const lines = values
+      .map((value) => String(value || "").trim())
+      .filter((value) => value && value !== "없음");
+    return lines.join("\n") || "없음";
+  }
+
   function renderBossSession(session) {
     const player = session.participant;
     const terminal = session.completed || session.failed || session.cancelled;
-    const hpWidth = clamp(session.boss_hp_ratio * 100, 0, 100);
+    const bossHpPercent = clamp(session.boss_hp_ratio * 100, 0, 100);
+    const playerHpRatio = player ? clamp(player.hp / Math.max(1, player.max_hp), 0, 1) : 0;
+    const playerHpPercent = playerHpRatio * 100;
+    const playerHpTone = playerHpRatio <= 0.25 ? "danger" : playerHpRatio <= 0.55 ? "warning" : "healthy";
+    const bossState = player ? effectText(player.boss_effects, player.boss_stacks) : "없음";
+    const playerState = player ? effectText(player.player_effects, player.player_stacks) : "없음";
+    const battleState = session.completed ? "클리어" : session.failed ? "패배" : session.cancelled ? "취소" : session.started ? `${player?.turn || 1}턴` : "준비";
     return `<div class="boss-combat">
-      <div class="boss-title-row"><div><h2>${esc(session.boss_name)} <span class="tag">${esc(session.difficulty_label)}</span></h2><span class="section-copy">Lv.${session.boss_level}${session.practice ? " · 연습" : ""}</span></div><span class="status-pill ${session.completed ? "success" : session.failed || session.cancelled ? "danger" : "warning"}">${session.completed ? "클리어" : session.failed ? "패배" : session.cancelled ? "취소" : session.started ? `${player?.turn || 1}턴` : "준비"}</span></div>
-      <div class="boss-hp"><div class="boss-hp-label"><span>보스 HP</span><strong>${number(session.boss_hp)} / ${number(session.boss_max_hp)}</strong></div><div class="hp-track"><span style="width:${hpWidth}%"></span></div></div>
+      <div class="boss-title-row"><div><div class="boss-name-line"><h2>${esc(session.boss_name)}</h2><span class="tag">${esc(session.difficulty_label)}</span>${session.practice ? `<span class="status-pill">연습</span>` : ""}</div><span class="section-copy">Lv.${session.boss_level}${player?.ct !== null && player?.ct !== undefined ? ` · CT ${player.ct}/${player.ct_max}` : ""}</span></div><span class="status-pill ${session.completed ? "success" : session.failed || session.cancelled ? "danger" : "warning"}">${battleState}</span></div>
+      <div class="boss-hp vital-block"><div class="vital-label"><span>보스 HP</span><strong>${number(session.boss_hp)} / ${number(session.boss_max_hp)} <small>${bossHpPercent.toFixed(1)}%</small></strong></div><div class="hp-track boss-health" role="progressbar" aria-label="보스 체력" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${bossHpPercent.toFixed(1)}"><span style="width:${bossHpPercent}%"></span></div></div>
+      ${session.started && player ? `<div class="boss-state-strip"><span>보스 상태</span><p>${esc(bossState)}</p>${player.hp_lock ? `<small>${esc(player.hp_lock)}</small>` : ""}</div>` : ""}
       ${!session.started && !terminal ? `<section class="section"><div class="entity-list">${session.participants.map((member) => `<div class="entity-card"><div><h3>${esc(member.name)} Lv.${member.level}</h3></div><span class="status-pill">참전</span></div>`).join("")}</div><div class="button-row" style="margin-top:12px">${session.is_owner ? `<button class="button button-primary" data-action="boss_start">시작</button><button class="button" data-action="boss_skip">스킵</button>` : ""}<button class="button button-danger" data-action="boss_cancel">취소</button></div></section>` : ""}
       ${session.started && !terminal && player ? `<div class="combat-columns">
-        <div>
-          <div class="combat-status"><strong>${esc(state.profile.display_name)} Lv.${state.profile.level}</strong><span>HP ${number(player.hp)}/${number(player.max_hp)}${player.ct !== null ? ` · CT ${player.ct}/${player.ct_max}` : ""}</span></div>
-          ${player.warning ? `<div class="warning-box">${esc(player.warning)}</div>` : `<div class="warning-box">전조: 없음</div>`}
-          ${player.hp_lock ? `<p class="combat-copy">${esc(player.hp_lock)}</p>` : ""}
-          <section class="section"><div class="button-row"><button class="button button-primary" data-action="boss_attack" ${player.alive ? "" : "disabled"}>공격</button><button class="button" data-action="boss_guard" ${player.alive ? "" : "disabled"}>가드</button><button class="button button-danger" data-confirm-action="boss_leave" data-confirm-title="보스전 포기" data-confirm-message="현재 보스전에서 나갑니다. 보상은 받을 수 없습니다.">포기</button></div></section>
-          <section class="section"><div class="section-head"><h2>어빌리티</h2></div><div class="ability-grid">${session.skills.map((skill) => `<button class="ability-button" data-action="boss_ability" data-skill-id="${esc(skill.id)}" ${skill.ready ? "" : "disabled"}><strong>${esc(skill.name)}</strong><small>${esc(skill.state)}</small></button>`).join("") || `<p class="combat-copy">장착 어빌리티 없음</p>`}</div></section>
-          <section class="section"><div class="section-head"><h2>상태</h2></div><p class="combat-copy">${esc([player.boss_effects !== "없음" ? `보스: ${player.boss_effects}` : "", player.boss_stacks, player.player_effects !== "없음" ? `나: ${player.player_effects}` : "", player.player_stacks].filter(Boolean).join("\n") || "효과 없음")}</p></section>
+        <div class="combat-main">
+          <div class="player-vitals vital-block">
+            <div class="vital-label"><span><strong>${esc(state.profile.display_name)}</strong> · Lv.${state.profile.level}</span><strong>${number(player.hp)} / ${number(player.max_hp)} <small>${playerHpPercent.toFixed(1)}%</small></strong></div>
+            <div class="hp-track player-health ${playerHpTone}" role="progressbar" aria-label="내 체력" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${playerHpPercent.toFixed(1)}"><span style="width:${playerHpPercent}%"></span></div>
+          </div>
+          <div class="omen-panel${player.warning ? " is-active" : ""}"><div class="omen-heading"><strong>전조</strong><span>${player.warning ? "해제 조건 확인" : "없음"}</span></div><p>${esc(player.warning || "현재 발동 중인 전조가 없습니다.")}</p></div>
+          <div class="player-state-block"><span>내 상태</span><p>${esc(playerState)}</p></div>
+          <section class="combat-action-section"><div class="combat-primary-actions"><button class="button button-primary combat-command" data-action="boss_attack" ${player.alive ? "" : "disabled"}>공격</button><button class="button combat-command" data-action="boss_guard" ${player.alive ? "" : "disabled"}>가드</button></div><button class="button button-quiet combat-leave" data-confirm-action="boss_leave" data-confirm-title="보스전 포기" data-confirm-message="현재 보스전에서 나갑니다. 보상은 받을 수 없습니다.">전투 포기</button></section>
+          <section class="combat-abilities"><div class="section-head"><div><h2>어빌리티</h2><p class="section-copy">효과와 재사용 상태를 확인하고 사용하세요.</p></div></div><div class="ability-grid">${session.skills.map((skill) => `<button class="ability-button ${skill.ready ? "is-ready" : "is-cooling"}" data-action="boss_ability" data-skill-id="${esc(skill.id)}" ${skill.ready ? "" : "disabled"}><span class="ability-button-head"><strong>${esc(skill.name)}</strong><span class="ability-state">${esc(skill.state)}</span></span><span class="ability-summary">${esc(skill.summary || "효과 정보 없음")}</span></button>`).join("") || `<p class="combat-copy">장착 어빌리티 없음</p>`}</div></section>
         </div>
-        <aside><div class="section-head"><h2>전투 로그</h2></div><div class="log-list">${session.log.slice().reverse().map((line) => `<div class="log-line">${esc(line)}</div>`).join("")}</div>${session.damage_detail ? `<section class="section"><div class="section-head"><h2>딜 상세</h2></div><p class="combat-copy">${esc([session.damage_detail.action, session.damage_detail.summary, ...(session.damage_detail.detail_lines || []), session.damage_detail.received_summary, ...(session.damage_detail.received_detail_lines || [])].filter(Boolean).join("\n"))}</p></section>` : ""}</aside>
+        <aside class="combat-sidebar"><div class="section-head"><div><h2>전투 로그</h2><p class="section-copy">최신 기록이 위에 표시됩니다.</p></div></div><div class="log-list">${session.log.slice().reverse().map((line, index) => `<div class="log-line${index === 0 ? " is-latest" : ""}">${esc(line)}</div>`).join("") || `<p class="combat-copy">아직 전투 기록이 없습니다.</p>`}</div>${session.damage_detail ? `<details class="damage-details"><summary>최근 피해 상세</summary><p class="combat-copy">${esc([session.damage_detail.action, session.damage_detail.summary, ...(session.damage_detail.detail_lines || []), session.damage_detail.received_summary, ...(session.damage_detail.received_detail_lines || [])].filter(Boolean).join("\n"))}</p></details>` : ""}</aside>
       </div>` : ""}
       ${terminal ? `<section class="section"><div class="result-panel"><h3>${session.completed ? "클리어" : session.failed ? "패배" : "종료"}</h3><pre>${esc(session.rewards[state.profile.user_id] || session.log.at(-1) || "보상 없음")}</pre></div><div class="button-row" style="margin-top:12px"><button class="button" data-action="boss_panel_reset">보스 목록으로</button></div></section>` : ""}
     </div>`;
@@ -311,7 +342,7 @@
 
   function renderBoss() {
     if (state.bossSession) {
-      return `<div class="page">${pageHeader("보스", "")}${renderBossSession(state.bossSession)}</div>`;
+      return `<div class="page boss-page">${renderBossSession(state.bossSession)}</div>`;
     }
     const query = filterValue("boss.query");
     const rows = state.content.bosses.filter((boss) => matches([boss.name, ...boss.variants.map((variant) => variant.description)], query));
@@ -511,41 +542,64 @@
   }
 
   async function runAction(action, element) {
-    if (action === "refresh") return fetchBootstrap();
-    if (action === "explore") return perform("explore", { dungeon_id: element.dataset.dungeonId, count: Number(element.dataset.count) });
-    if (action === "boss_create" || action === "boss_practice") return perform("boss_create", { boss_id: element.dataset.bossId, practice: action === "boss_practice" });
-    if (action === "boss_join") return perform("boss_join", { session_id: Number(element.dataset.sessionId) });
-    if (["boss_start", "boss_skip", "boss_attack", "boss_guard", "boss_cancel", "boss_leave", "boss_batch_skip"].includes(action)) return perform(action);
-    if (action === "boss_ability") return perform("boss_ability", { skill_id: element.dataset.skillId });
+    const request = (type, data = {}, options = {}) => perform(type, data, { ...options, trigger: element });
+    if (action === "refresh") return fetchBootstrap({ trigger: element });
+    if (action === "explore") return request("explore", { dungeon_id: element.dataset.dungeonId, count: Number(element.dataset.count) });
+    if (action === "boss_create" || action === "boss_practice") return request("boss_create", { boss_id: element.dataset.bossId, practice: action === "boss_practice" });
+    if (action === "boss_join") return request("boss_join", { session_id: Number(element.dataset.sessionId) });
+    if (["boss_start", "boss_skip", "boss_attack", "boss_guard", "boss_cancel", "boss_leave", "boss_batch_skip"].includes(action)) return request(action);
+    if (action === "boss_ability") return request("boss_ability", { skill_id: element.dataset.skillId });
     if (action === "boss_panel_reset") { state.bossSession = null; state.result = null; return fetchBootstrap({ quiet: true }); }
     if (action === "equipment_toggle") {
       const uid = Number(element.dataset.itemUid);
       const selected = new Set(state.profile.equipped_item_uids);
       selected.has(uid) ? selected.delete(uid) : selected.add(uid);
-      return perform("equipment_set", { uids: [...selected] });
+      return request("equipment_set", { uids: [...selected] });
     }
-    if (action === "equipment_auto") return perform("equipment_auto");
-    if (action === "sell_one") return perform("sell", { uids: [Number(element.dataset.itemUid)] });
+    if (action === "equipment_auto") return request("equipment_auto");
+    if (action === "sell_one") return request("sell", { uids: [Number(element.dataset.itemUid)] });
     if (action === "sell_filtered") {
       const uids = equipmentRows()
         .filter((item) => !item.equipped && !item.destroyed && !item.unsellable)
         .map((item) => item.uid);
-      return perform("sell", { uids });
+      return request("sell", { uids });
     }
-    if (action === "auto_sell_now") return perform("auto_sell_now");
-    if (action === "gacha") return perform("gacha", { pool_id: element.dataset.poolId, draws: Number(element.dataset.draws) });
-    if (action === "craft") return perform("craft", { recipe_id: element.dataset.recipeId });
-    if (action === "job_advance" || action === "job_free_advance") return perform(action, { job_id: element.dataset.jobId });
-    if (action === "liberation_claim" || action === "liberation_advance") return perform(action);
-    if (action === "enhancement_preview") return perform("enhancement_preview", { item_uid: Number(element.dataset.itemUid), method_id: state.selected.enhanceMethod || state.content.enhancement_methods[0]?.id });
-    if (action === "enhance") return perform("enhance", { item_uid: Number(element.dataset.itemUid), method_id: state.selected.enhanceMethod || state.content.enhancement_methods[0]?.id });
-    if (action === "restore_preview") return perform("restore_preview", { item_uid: Number(element.dataset.itemUid), spare_uid: Number(element.dataset.spareUid || state.selected.restoreSpareUid || 0) });
-    if (action === "restore") return perform("restore", { item_uid: Number(element.dataset.itemUid), spare_uid: Number(element.dataset.spareUid || state.selected.restoreSpareUid || 0) });
-    if (action === "potential_roll") return perform("potential_roll", { item_uid: Number(element.dataset.itemUid), count: Number(element.dataset.count) });
-    if (action === "potential_apply") return perform("potential_apply", { candidate_index: Number(element.dataset.candidateIndex) });
+    if (action === "auto_sell_now") return request("auto_sell_now");
+    if (action === "gacha") return request("gacha", { pool_id: element.dataset.poolId, draws: Number(element.dataset.draws) });
+    if (action === "craft") return request("craft", { recipe_id: element.dataset.recipeId });
+    if (action === "job_advance" || action === "job_free_advance") return request(action, { job_id: element.dataset.jobId });
+    if (action === "liberation_claim" || action === "liberation_advance") return request(action);
+    if (action === "enhancement_preview") return request("enhancement_preview", { item_uid: Number(element.dataset.itemUid), method_id: state.selected.enhanceMethod || state.content.enhancement_methods[0]?.id });
+    if (action === "enhance") return request("enhance", { item_uid: Number(element.dataset.itemUid), method_id: state.selected.enhanceMethod || state.content.enhancement_methods[0]?.id });
+    if (action === "restore_preview") return request("restore_preview", { item_uid: Number(element.dataset.itemUid), spare_uid: Number(element.dataset.spareUid || state.selected.restoreSpareUid || 0) });
+    if (action === "restore") return request("restore", { item_uid: Number(element.dataset.itemUid), spare_uid: Number(element.dataset.spareUid || state.selected.restoreSpareUid || 0) });
+    if (action === "potential_roll") return request("potential_roll", { item_uid: Number(element.dataset.itemUid), count: Number(element.dataset.count) });
+    if (action === "potential_apply") return request("potential_apply", { candidate_index: Number(element.dataset.candidateIndex) });
+  }
+
+  function addPressEffect(element, event) {
+    if (!(element instanceof HTMLElement) || element.matches(":disabled")) return;
+    const bounds = element.getBoundingClientRect();
+    const ripple = document.createElement("span");
+    const size = Math.max(bounds.width, bounds.height) * 1.5;
+    const x = event.clientX ? event.clientX - bounds.left : bounds.width / 2;
+    const y = event.clientY ? event.clientY - bounds.top : bounds.height / 2;
+    ripple.className = "interaction-ripple";
+    ripple.style.width = `${size}px`;
+    ripple.style.height = `${size}px`;
+    ripple.style.left = `${x - size / 2}px`;
+    ripple.style.top = `${y - size / 2}px`;
+    element.append(ripple);
+    setTimeout(() => ripple.remove(), 520);
   }
 
   document.addEventListener("click", async (event) => {
+    const pressed = event.target.closest("button, .button, .action-tile, .master-row");
+    if (pressed) addPressEffect(pressed, event);
+    if (state.busy && pressed) {
+      event.preventDefault();
+      return;
+    }
     const nav = event.target.closest("[data-nav]");
     if (nav) {
       event.preventDefault();

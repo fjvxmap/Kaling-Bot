@@ -266,6 +266,8 @@ a {
 .icon-button,
 .segmented button,
 .menu-grid button {
+  position: relative;
+  overflow: hidden;
   min-height: 36px;
   border: 1px solid var(--line-strong);
   border-radius: 5px;
@@ -273,6 +275,7 @@ a {
   color: var(--text);
   cursor: pointer;
   font-weight: 650;
+  transition: transform 120ms ease, border-color 160ms ease, background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
 
 .button {
@@ -286,6 +289,14 @@ a {
 .menu-grid button:hover {
   border-color: #697480;
   background: var(--surface-3);
+  transform: translateY(-1px);
+}
+
+.button:active,
+.icon-button:active,
+.segmented button:active,
+.menu-grid button:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .button:disabled,
@@ -293,6 +304,16 @@ a {
 .segmented button:disabled {
   cursor: not-allowed;
   opacity: 0.42;
+  transform: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
 }
 
 .button-primary {
@@ -373,6 +394,7 @@ a {
   outline: none;
   background: #14181d;
   padding: 0 11px;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
 .input:focus,
@@ -420,6 +442,8 @@ a {
 }
 
 .master-row {
+  position: relative;
+  overflow: hidden;
   width: 100%;
   min-height: 58px;
   display: grid;
@@ -432,6 +456,7 @@ a {
   color: var(--text);
   cursor: pointer;
   text-align: left;
+  transition: background-color 150ms ease, box-shadow 150ms ease, color 150ms ease;
 }
 
 .master-row:last-child {
@@ -591,7 +616,7 @@ a {
 .progress-track,
 .hp-track {
   width: 100%;
-  height: 7px;
+  height: 8px;
   overflow: hidden;
   margin-top: 10px;
   border-radius: 3px;
@@ -603,6 +628,7 @@ a {
   display: block;
   height: 100%;
   background: var(--blue);
+  transition: width 420ms ease, background-color 220ms ease;
 }
 
 .hp-track > span {
@@ -626,6 +652,8 @@ a {
 }
 
 .action-tile {
+  position: relative;
+  overflow: hidden;
   min-height: 126px;
   display: grid;
   align-content: space-between;
@@ -634,11 +662,19 @@ a {
   color: inherit;
   cursor: pointer;
   text-align: left;
+  transition: transform 150ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
 }
 
 .action-tile:hover {
   border-color: var(--line-strong);
   background: var(--surface-2);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+  transform: translateY(-2px);
+}
+
+.action-tile:active {
+  box-shadow: none;
+  transform: translateY(0) scale(0.99);
 }
 
 .action-tile strong {
@@ -687,6 +723,7 @@ a {
   justify-content: space-between;
   gap: 14px;
   padding: 14px;
+  transition: border-color 160ms ease, background-color 160ms ease;
 }
 
 .entity-card h3 {
@@ -751,6 +788,16 @@ a {
   padding: 16px;
 }
 
+.boss-page,
+.boss-combat,
+.combat-main,
+.combat-sidebar,
+.vital-block,
+.ability-button {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .result-panel h3,
 .boss-combat h2 {
   margin: 0 0 10px;
@@ -773,30 +820,210 @@ a {
   border-top: 1px solid var(--line);
 }
 
-.boss-title-row,
-.combat-status {
+.boss-title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
 }
 
-.boss-hp {
-  margin: 14px 0 16px;
+.boss-name-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.boss-hp-label {
+.boss-name-line h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.boss-hp {
+  margin: 18px 0 12px;
+}
+
+.vital-block {
+  min-width: 0;
+}
+
+.vital-label {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: 12px;
   color: var(--muted);
+  font-size: 13px;
+}
+
+.vital-label strong {
+  color: var(--text);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.vital-label small {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.vital-block .hp-track {
+  height: 11px;
+  margin-top: 8px;
+  border: 1px solid #303740;
+  border-radius: 5px;
+}
+
+.boss-health > span {
+  background: var(--red);
+}
+
+.player-health.healthy > span {
+  background: var(--green);
+}
+
+.player-health.warning > span {
+  background: var(--accent);
+}
+
+.player-health.danger > span {
+  background: var(--red);
+}
+
+.boss-state-strip {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 6px 12px;
+  padding: 11px 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.boss-state-strip > span,
+.player-state-block > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.boss-state-strip p,
+.player-state-block p {
+  margin: 0;
+  color: #d7dce1;
   font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.boss-state-strip small {
+  grid-column: 2;
+  color: var(--accent);
+  font-size: 11px;
 }
 
 .combat-columns {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.85fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 24px;
+  margin-top: 20px;
+  align-items: start;
+}
+
+.combat-main {
+  min-width: 0;
+}
+
+.player-vitals {
+  padding: 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: #171d1d;
+}
+
+.omen-panel {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--line-strong);
+  background: #1b2025;
+}
+
+.omen-panel.is-active {
+  border-left-color: var(--accent);
+  background: #242116;
+}
+
+.omen-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.omen-heading strong {
+  font-size: 13px;
+}
+
+.omen-heading span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.omen-panel.is-active .omen-heading span {
+  color: #ffd782;
+}
+
+.omen-panel p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.omen-panel.is-active p {
+  color: #f8e5b3;
+}
+
+.player-state-block {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.combat-action-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 0;
+}
+
+.combat-primary-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(116px, 1fr));
+  gap: 8px;
+  width: min(100%, 340px);
+}
+
+.combat-command {
+  min-height: 44px;
+  font-size: 14px;
+}
+
+.combat-leave {
+  color: #e68b91;
+  font-size: 12px;
+}
+
+.combat-abilities {
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
 }
 
 .warning-box {
@@ -813,34 +1040,97 @@ a {
 .ability-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 10px;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 .ability-button {
-  min-height: 54px;
+  position: relative;
+  overflow: hidden;
+  min-height: 96px;
   display: grid;
-  align-content: center;
-  gap: 3px;
-  padding: 8px 10px;
+  align-content: start;
+  gap: 9px;
+  padding: 12px;
   border: 1px solid var(--line-strong);
   border-radius: 5px;
   background: var(--surface-2);
   cursor: pointer;
   text-align: left;
+  transition: transform 130ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
 }
 
-.ability-button small {
+.ability-button-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ability-button-head strong {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.ability-state {
+  flex: 0 0 auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: 2px 5px;
   color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.ability-summary {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.ability-button.is-ready {
+  border-color: #4f7568;
+  background: #1b2924;
+}
+
+.ability-button.is-ready .ability-state {
+  border-color: #347c67;
+  color: var(--green);
+}
+
+.ability-button.is-ready:hover {
+  border-color: var(--green);
+  background: #20332c;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.ability-button.is-ready:active {
+  box-shadow: none;
+  transform: translateY(0) scale(0.99);
 }
 
 .ability-button:disabled {
   cursor: not-allowed;
-  opacity: 0.45;
+  opacity: 0.68;
+}
+
+.ability-button:disabled .ability-summary {
+  color: #9aa4ae;
+}
+
+.combat-sidebar {
+  position: sticky;
+  top: calc(var(--topbar-height) + 18px);
+  min-width: 0;
+  padding-left: 20px;
+  border-left: 1px solid var(--line);
 }
 
 .log-list {
-  max-height: 360px;
+  max-height: 410px;
   overflow: auto;
   padding-right: 4px;
 }
@@ -851,6 +1141,29 @@ a {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.5;
+}
+
+.log-line.is-latest {
+  border-left-color: var(--blue);
+  color: #dce8f3;
+}
+
+.damage-details {
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.damage-details summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.damage-details[open] summary {
+  margin-bottom: 10px;
+  color: var(--text);
 }
 
 .potential-grid {
@@ -904,8 +1217,64 @@ a {
 }
 
 .is-busy {
+  cursor: progress;
+}
+
+.is-busy::before {
+  position: fixed;
+  z-index: 90;
+  top: var(--topbar-height);
+  left: var(--sidebar-width);
+  width: 28%;
+  height: 2px;
+  background: var(--accent);
+  content: "";
+  animation: request-progress 900ms ease-in-out infinite alternate;
+}
+
+@keyframes request-progress {
+  from { transform: translateX(-70%); }
+  to { transform: translateX(330%); }
+}
+
+.is-loading {
+  color: transparent !important;
+}
+
+.is-loading > *:not(.interaction-ripple) {
+  visibility: hidden;
+}
+
+.is-loading::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  color: var(--text);
+  content: "";
+  animation: spin 620ms linear infinite;
+}
+
+.interaction-ripple {
+  position: absolute;
+  z-index: 5;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
   pointer-events: none;
-  opacity: 0.62;
+  transform: scale(0);
+  animation: ripple 500ms ease-out;
+}
+
+@keyframes ripple {
+  to {
+    opacity: 0;
+    transform: scale(1);
+  }
 }
 
 .toast-region {
@@ -919,6 +1288,12 @@ a {
 }
 
 .toast {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  overflow: hidden;
   border: 1px solid var(--line-strong);
   border-left: 4px solid var(--green);
   border-radius: 5px;
@@ -926,10 +1301,62 @@ a {
   padding: 12px 14px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
   font-size: 13px;
+  line-height: 1.45;
+  animation: toast-enter 220ms ease-out;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.toast::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--green);
+  content: "";
+  transform-origin: left;
+  animation: toast-life 3.6s linear forwards;
+}
+
+.toast-mark {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  background: #285c4f;
+  color: #b9f4df;
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .toast.is-error {
   border-left-color: var(--red);
+}
+
+.toast.is-error::after {
+  background: var(--red);
+}
+
+.toast.is-error .toast-mark {
+  background: #6d3036;
+  color: #ffd0d3;
+}
+
+.toast.is-leaving {
+  opacity: 0;
+  transform: translateX(16px);
+}
+
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes toast-life {
+  to { transform: scaleX(0); }
 }
 
 dialog {
@@ -1062,6 +1489,17 @@ dialog::backdrop {
   .potential-grid {
     grid-template-columns: 1fr;
   }
+
+  .combat-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .combat-sidebar {
+    position: static;
+    padding: 18px 0 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
 }
 
 @media (max-width: 760px) {
@@ -1136,9 +1574,62 @@ dialog::backdrop {
   .stat-grid,
   .summary-grid,
   .activity-grid,
-  .combat-columns,
   .ability-grid {
     grid-template-columns: 1fr;
+  }
+
+  .boss-combat {
+    overflow: hidden;
+    padding: 14px;
+  }
+
+  .boss-title-row {
+    align-items: flex-start;
+  }
+
+  .boss-name-line h2 {
+    font-size: 18px;
+  }
+
+  .vital-label {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .boss-state-strip,
+  .player-state-block {
+    grid-template-columns: 1fr;
+  }
+
+  .boss-state-strip small {
+    grid-column: 1;
+  }
+
+  .combat-action-section {
+    position: sticky;
+    z-index: 20;
+    bottom: 58px;
+    margin: 0 -14px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: rgba(24, 28, 33, 0.97);
+    backdrop-filter: blur(10px);
+  }
+
+  .combat-primary-actions {
+    min-width: 0;
+    width: auto;
+    flex: 1;
+  }
+
+  .combat-leave {
+    padding: 0 8px;
+  }
+
+  .is-busy::before {
+    left: 0;
   }
 
   .profile-identity {
