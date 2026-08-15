@@ -95,12 +95,27 @@ class RPGWebTests(unittest.TestCase):
         payload = response.json()
         self.assertTrue(payload["ok"])
         self.assertFalse(payload["boss_session"]["started"])
+        session_id = payload["boss_session"]["id"]
 
         response = self.post_action("boss_start")
         payload = response.json()
         self.assertTrue(payload["ok"])
         self.assertTrue(payload["boss_session"]["started"])
         self.assertEqual(payload["boss_session"]["participant"]["turn"], 1)
+        self.assertEqual(payload["boss_session"]["id"], session_id)
+
+        response = self.post_action("boss_attack")
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["boss_session"]["id"], session_id)
+
+        session = self.runtime.active_session(9001)
+        self.assertIsNotNone(session)
+        session.log.extend(f"고정 로그 {index}" for index in range(20))
+        response = self.client.get("/api/bootstrap/")
+        payload = response.json()
+        self.assertEqual(payload["boss_session"]["log"], session.log[-16:])
+        self.assertEqual(payload["boss_session"]["log_start_index"], len(session.log) - 16)
 
     def test_hard_boss_initial_stack_is_exposed_to_web_client(self) -> None:
         response = self.post_action(

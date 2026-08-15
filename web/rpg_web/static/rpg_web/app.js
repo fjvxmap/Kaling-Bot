@@ -22,6 +22,7 @@
     selected: saved.selected || {},
     filters: saved.filters || {},
     scroll: saved.scroll || {},
+    bossUi: saved.bossUi || {},
     result: null,
     enhancementPreview: null,
     enhancementResult: null,
@@ -31,6 +32,9 @@
   let busyControl = null;
   let previewLoadKey = "";
   let actionErrorTimer = null;
+  let renderedTab = null;
+  let focusRestore = null;
+  let composingFilter = null;
 
   const esc = (value) => String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -65,14 +69,105 @@
       selected: state.selected,
       filters: state.filters,
       scroll: state.scroll,
+      bossUi: state.bossUi,
     }));
   }
 
-  function captureScroll() {
-    state.scroll[`page:${state.tab}`] = window.scrollY;
+  function captureElementScroll(element) {
+    const key = element.dataset.scrollKey;
+    if (key !== "boss.combat-log") {
+      state.scroll[key] = element.scrollTop;
+      return;
+    }
+    const rows = [...element.querySelectorAll(".log-line")];
+    const bounds = element.getBoundingClientRect();
+    const anchor = rows.find((row) => row.getBoundingClientRect().bottom > bounds.top + 1);
+    state.scroll[key] = {
+      top: element.scrollTop,
+      height: element.scrollHeight,
+      anchorId: anchor?.dataset.logId || "",
+      anchorOffset: anchor ? anchor.getBoundingClientRect().top - bounds.top : 0,
+    };
+  }
+
+  function captureScroll(tab = renderedTab || state.tab) {
+    state.scroll[`page:${tab}`] = window.scrollY;
     document.querySelectorAll("[data-scroll-key]").forEach((element) => {
-      state.scroll[element.dataset.scrollKey] = element.scrollTop;
+      if (element.dataset.scrollKey === "boss.combat-log" && element.closest("details:not([open])")) return;
+      captureElementScroll(element);
     });
+  }
+
+  function ensureBossUi(session) {
+    const sessionId = String(session?.id ?? "");
+    if (String(state.bossUi.sessionId ?? "") !== sessionId) {
+      state.bossUi = { sessionId, combatDetailsOpen: false };
+      state.scroll["boss.combat-log"] = 0;
+      state.scroll["page:boss"] = 0;
+    }
+    return state.bossUi;
+  }
+
+  function clearBossUi() {
+    if (!state.bossUi.sessionId) return;
+    state.bossUi = {};
+    state.scroll["boss.combat-log"] = 0;
+    state.scroll["page:boss"] = 0;
+  }
+
+  function captureBossUi() {
+    const details = main.querySelector("details[data-boss-session-id]");
+    if (!details) return;
+    const bossUi = ensureBossUi({ id: details.dataset.bossSessionId });
+    bossUi.combatDetailsOpen = details.open;
+  }
+
+  function captureFocus() {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement) || !main.contains(active)) {
+      focusRestore = null;
+      return;
+    }
+    if (active.dataset.focusKey) {
+      focusRestore = { type: "control", key: active.dataset.focusKey };
+      return;
+    }
+    if (active.matches("input[data-filter], textarea[data-filter]")) {
+      focusRestore = {
+        type: "filter",
+        key: active.dataset.filter,
+        start: active.selectionStart,
+        end: active.selectionEnd,
+        direction: active.selectionDirection,
+      };
+      return;
+    }
+    focusRestore = null;
+  }
+
+  function restoreElementScroll(element) {
+    const savedPosition = state.scroll[element.dataset.scrollKey];
+    if (savedPosition && typeof savedPosition === "object") {
+      const top = Number(savedPosition.top || 0);
+      if (top <= 2) {
+        element.scrollTop = 0;
+        return;
+      }
+      const anchor = savedPosition.anchorId
+        ? [...element.querySelectorAll(".log-line")].find((row) => row.dataset.logId === savedPosition.anchorId)
+        : null;
+      if (anchor) {
+        const bounds = element.getBoundingClientRect();
+        const contentTop = anchor.getBoundingClientRect().top - bounds.top + element.scrollTop;
+        element.scrollTop = contentTop - Number(savedPosition.anchorOffset || 0);
+        return;
+      }
+      const previousHeight = Number(savedPosition.height || 0);
+      const addedHeight = Math.max(0, element.scrollHeight - previousHeight);
+      element.scrollTop = top + addedHeight;
+      return;
+    }
+    element.scrollTop = Number(savedPosition || 0);
   }
 
   function restoreScroll() {
@@ -80,8 +175,30 @@
       const pageY = Number(state.scroll[`page:${state.tab}`] || 0);
       window.scrollTo({ top: pageY, behavior: "instant" });
       document.querySelectorAll("[data-scroll-key]").forEach((element) => {
-        element.scrollTop = Number(state.scroll[element.dataset.scrollKey] || 0);
+        if (element.dataset.scrollKey === "boss.combat-log" && element.closest("details:not([open])")) return;
+        restoreElementScroll(element);
       });
+    });
+  }
+
+  function restoreFocus() {
+    const savedFocus = focusRestore;
+    focusRestore = null;
+    if (!savedFocus) return;
+    requestAnimationFrame(() => {
+      if (savedFocus.type === "filter") {
+        const filter = main.querySelector(`[data-filter="${CSS.escape(savedFocus.key)}"]`);
+        filter?.focus({ preventScroll: true });
+        if (filter?.setSelectionRange && savedFocus.start !== null && savedFocus.end !== null) {
+          filter.setSelectionRange(savedFocus.start, savedFocus.end, savedFocus.direction || "none");
+        }
+        return;
+      }
+      const exact = main.querySelector(`[data-focus-key="${CSS.escape(savedFocus.key)}"]:not(:disabled)`);
+      const fallback = savedFocus.key.startsWith("boss.")
+        ? main.querySelector('[data-focus-key="boss.attack"]:not(:disabled)')
+        : null;
+      (exact || fallback)?.focus({ preventScroll: true });
     });
   }
 
@@ -92,6 +209,11 @@
 
   function filterValue(key, fallback = "") {
     return state.filters[key] ?? fallback;
+  }
+
+  function updateTextFilter(filter) {
+    setFilter(filter.dataset.filter, filter.value);
+    render();
   }
 
   function setActionError(message = "") {
@@ -198,8 +320,8 @@
     }
     captureScroll();
     state.tab = tab;
-    state.scroll[`page:${tab}`] = 0;
-    window.scrollTo({ top: 0, behavior: "instant" });
+    const pageKey = `page:${tab}`;
+    if (!Object.hasOwn(state.scroll, pageKey)) state.scroll[pageKey] = 0;
     saveUi();
     document.querySelector("#more-dialog")?.close();
     render();
@@ -368,7 +490,33 @@
     return lines.join("\n") || "없음";
   }
 
+  function renderCombatDetails(session, terminal = false) {
+    const bossUi = ensureBossUi(session);
+    const log = session.log || [];
+    const logStartIndex = Number(session.log_start_index || 0);
+    const logRows = log.map((text, index) => ({ id: logStartIndex + index, text })).reverse();
+    const detail = session.damage_detail;
+    const detailText = detail
+      ? [
+        detail.action,
+        detail.summary,
+        ...(detail.detail_lines || []),
+        detail.received_summary,
+        ...(detail.received_detail_lines || []),
+      ].filter(Boolean).join("\n")
+      : "";
+    return `<details class="combat-sidebar combat-details${terminal ? " combat-details-terminal" : ""}" data-boss-session-id="${esc(session.id)}" ${bossUi.combatDetailsOpen ? "open" : ""}>
+      <summary><span>전투 기록 · 피해 상세</span><small>${esc(log.at(-1) || "기록 없음")}</small></summary>
+      <div class="combat-detail-body">
+        <div class="section-head"><div><h2>전투 로그</h2><p class="section-copy">최신 기록이 위에 표시됩니다.</p></div></div>
+        <div class="log-list" data-scroll-key="boss.combat-log">${logRows.map((row, index) => `<div class="log-line${index === 0 ? " is-latest" : ""}" data-log-id="${row.id}">${esc(row.text)}</div>`).join("") || `<p class="combat-copy">아직 전투 기록이 없습니다.</p>`}</div>
+        ${detailText ? `<div class="damage-details"><h3>최근 피해 계산</h3><p class="combat-copy">${esc(detailText)}</p></div>` : ""}
+      </div>
+    </details>`;
+  }
+
   function renderBossSession(session) {
+    ensureBossUi(session);
     const player = session.participant;
     const terminal = session.completed || session.failed || session.cancelled;
     const bossHpPercent = clamp(session.boss_hp_ratio * 100, 0, 100);
@@ -393,12 +541,12 @@
             <div class="omen-panel${player.warning ? " is-active" : ""}"><div class="omen-heading"><strong>전조</strong><span>${player.warning ? "해제 조건 확인" : "없음"}</span></div><p>${esc(player.warning || "현재 발동 중인 전조가 없습니다.")}</p></div>
             <div class="player-state-block"><span>내 상태</span><p>${esc(playerState)}</p></div>
           </div>
-          <section class="combat-action-section"><div class="combat-primary-actions"><button class="button button-primary combat-command" data-action="boss_attack" ${player.alive ? "" : "disabled"}>공격</button><button class="button combat-command" data-action="boss_guard" ${player.alive ? "" : "disabled"}>가드</button></div><button class="button button-quiet combat-leave" data-confirm-action="boss_leave" data-confirm-title="보스전 포기" data-confirm-message="현재 보스전에서 나갑니다. 보상은 받을 수 없습니다.">전투 포기</button></section>
-          <section class="combat-abilities hud-abilities"><div class="section-head"><h2>어빌리티</h2><span class="status-pill">${number(session.skills.length)}개</span></div><div class="ability-grid">${session.skills.map((skill) => `<button class="ability-button ${skill.ready ? "is-ready" : "is-cooling"}" data-action="boss_ability" data-skill-id="${esc(skill.id)}" ${skill.ready ? "" : "disabled"}><span class="ability-button-head"><strong>${esc(skill.name)}</strong><span class="ability-state">${esc(skill.state)}</span></span><span class="ability-summary">${esc(skill.summary || "효과 정보 없음")}</span></button>`).join("") || `<p class="combat-copy">장착 어빌리티 없음</p>`}</div></section>
+          <section class="combat-action-section"><div class="combat-primary-actions"><button class="button button-primary combat-command" data-action="boss_attack" data-focus-key="boss.attack" ${player.alive ? "" : "disabled"}>공격</button><button class="button combat-command" data-action="boss_guard" data-focus-key="boss.guard" ${player.alive ? "" : "disabled"}>가드</button></div><button class="button button-quiet combat-leave" data-confirm-action="boss_leave" data-confirm-title="보스전 포기" data-confirm-message="현재 보스전에서 나갑니다. 보상은 받을 수 없습니다.">전투 포기</button></section>
+          <section class="combat-abilities hud-abilities"><div class="section-head"><h2>어빌리티</h2><span class="status-pill">${number(session.skills.length)}개</span></div><div class="ability-grid">${session.skills.map((skill) => `<button class="ability-button ${skill.ready ? "is-ready" : "is-cooling"}" data-action="boss_ability" data-skill-id="${esc(skill.id)}" data-focus-key="boss.ability:${esc(skill.id)}" ${skill.ready ? "" : "disabled"}><span class="ability-button-head"><strong>${esc(skill.name)}</strong><span class="ability-state">${esc(skill.state)}</span></span><span class="ability-summary">${esc(skill.summary || "효과 정보 없음")}</span></button>`).join("") || `<p class="combat-copy">장착 어빌리티 없음</p>`}</div></section>
         </div>
-        <details class="combat-sidebar combat-details"><summary><span>전투 기록 · 피해 상세</span><small>${esc(session.log.at(-1) || "기록 없음")}</small></summary><div class="combat-detail-body"><div class="section-head"><div><h2>전투 로그</h2><p class="section-copy">최신 기록이 위에 표시됩니다.</p></div></div><div class="log-list">${session.log.slice().reverse().map((line, index) => `<div class="log-line${index === 0 ? " is-latest" : ""}">${esc(line)}</div>`).join("") || `<p class="combat-copy">아직 전투 기록이 없습니다.</p>`}</div>${session.damage_detail ? `<div class="damage-details"><h3>최근 피해 계산</h3><p class="combat-copy">${esc([session.damage_detail.action, session.damage_detail.summary, ...(session.damage_detail.detail_lines || []), session.damage_detail.received_summary, ...(session.damage_detail.received_detail_lines || [])].filter(Boolean).join("\n"))}</p></div>` : ""}</div></details>
+        ${renderCombatDetails(session)}
       </div>` : ""}
-      ${terminal ? `<section class="section"><div class="result-panel"><h3>${session.completed ? "클리어" : session.failed ? "패배" : "종료"}</h3><pre>${esc(session.rewards[state.profile.user_id] || session.log.at(-1) || "보상 없음")}</pre></div><div class="button-row" style="margin-top:12px"><button class="button" data-action="boss_panel_reset">보스 목록으로</button></div></section>` : ""}
+      ${terminal ? `<section class="section"><div class="result-panel"><h3>${session.completed ? "클리어" : session.failed ? "패배" : "종료"}</h3><pre>${esc(session.rewards[state.profile.user_id] || session.log.at(-1) || "보상 없음")}</pre></div><div class="button-row" style="margin-top:12px"><button class="button" data-action="boss_panel_reset">보스 목록으로</button></div></section>${renderCombatDetails(session, true)}` : ""}
     </div>`;
   }
 
@@ -406,6 +554,7 @@
     if (state.bossSession) {
       return `<div class="page boss-page">${renderBossSession(state.bossSession)}</div>`;
     }
+    clearBossUi();
     const query = filterValue("boss.query");
     const rows = state.content.bosses.filter((boss) => matches([boss.name, ...boss.variants.map((variant) => variant.description)], query));
     const selectedBase = state.content.bosses.find((boss) => boss.base_id === state.selected.bossBase);
@@ -675,7 +824,11 @@
 
   function render() {
     if (!state.profile || !state.content) return;
-    captureScroll();
+    if (composingFilter?.isConnected) return;
+    captureBossUi();
+    if (renderedTab) captureScroll(renderedTab);
+    if (renderedTab === state.tab) captureFocus();
+    else focusRestore = null;
     const renderers = {
       home: renderHome,
       explore: renderExplore,
@@ -689,9 +842,11 @@
       liberation: renderLiberation,
     };
     main.innerHTML = (renderers[state.tab] || renderHome)();
+    renderedTab = state.tab;
     updateShell();
     saveUi();
     restoreScroll();
+    restoreFocus();
     queueEnhancementPreview();
   }
 
@@ -745,6 +900,31 @@
     if (action === "potential_roll") return request("potential_roll", { item_uid: Number(element.dataset.itemUid), count: Number(element.dataset.count) });
     if (action === "potential_apply") return request("potential_apply", { candidate_index: Number(element.dataset.candidateIndex) });
   }
+
+  document.addEventListener("toggle", (event) => {
+    const details = event.target instanceof Element
+      ? event.target.closest("details[data-boss-session-id]")
+      : null;
+    if (!details) return;
+    const bossUi = ensureBossUi({ id: details.dataset.bossSessionId });
+    bossUi.combatDetailsOpen = details.open;
+    const combatLog = details.querySelector('[data-scroll-key="boss.combat-log"]');
+    if (details.open && combatLog) requestAnimationFrame(() => restoreElementScroll(combatLog));
+    saveUi();
+  }, true);
+
+  document.addEventListener("scroll", (event) => {
+    const scroller = event.target instanceof HTMLElement && event.target.matches("[data-scroll-key]")
+      ? event.target
+      : null;
+    if (scroller) captureElementScroll(scroller);
+  }, { capture: true, passive: true });
+
+  window.addEventListener("pagehide", () => {
+    captureBossUi();
+    captureScroll();
+    saveUi();
+  });
 
   document.addEventListener("click", async (event) => {
     const pressed = event.target.closest("button, .button, .action-tile, .master-row");
@@ -810,16 +990,21 @@
 
   document.addEventListener("input", (event) => {
     const filter = event.target.closest("[data-filter]");
+    if (!filter || !filter.isConnected || filter.tagName === "SELECT" || event.isComposing) return;
+    updateTextFilter(filter);
+  });
+
+  document.addEventListener("compositionstart", (event) => {
+    const filter = event.target.closest("[data-filter]");
     if (!filter || filter.tagName === "SELECT") return;
-    const key = filter.dataset.filter;
-    const selectionStart = filter.selectionStart;
-    setFilter(key, filter.value);
-    render();
-    requestAnimationFrame(() => {
-      const next = document.querySelector(`[data-filter="${CSS.escape(key)}"]`);
-      next?.focus({ preventScroll: true });
-      if (next?.setSelectionRange && selectionStart !== null) next.setSelectionRange(selectionStart, selectionStart);
-    });
+    composingFilter = filter;
+  });
+
+  document.addEventListener("compositionend", (event) => {
+    const filter = event.target.closest("[data-filter]");
+    if (!filter || filter.tagName === "SELECT") return;
+    composingFilter = null;
+    updateTextFilter(filter);
   });
 
   document.addEventListener("change", async (event) => {
@@ -868,11 +1053,12 @@
     const dialog = document.querySelector("#confirm-dialog");
     const shortcut = document.querySelector("[data-enhance-shortcut]:not(:disabled)");
     const focusedShortcut = event.target instanceof HTMLElement && event.target.closest("[data-enhance-shortcut]") === shortcut;
+    const focusedCombatAction = event.target instanceof HTMLElement && Boolean(event.target.closest('[data-focus-key^="boss."]'));
     const passiveTarget = !(event.target instanceof HTMLElement) || !event.target.closest("button, a, summary, [role='button']");
     const shortcutReady = !state.busy && state.tab === "enhance" && (state.selected.enhanceMode || "star") === "star" && !typing && Boolean(shortcut);
     const enhanceDialogOpen = dialog?.open && dialog.dataset.enhanceShortcut === "true";
     if (event.repeat) {
-      if (!typing && (enhanceDialogOpen || (shortcutReady && (focusedShortcut || passiveTarget)))) event.preventDefault();
+      if (!typing && (focusedCombatAction || enhanceDialogOpen || (shortcutReady && (focusedShortcut || passiveTarget)))) event.preventDefault();
       return;
     }
     if (enhanceDialogOpen) {

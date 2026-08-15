@@ -460,6 +460,7 @@ def _boss_session_payload(runtime: WebRPGRuntime, session, user_id: int) -> dict
         ],
         "skills": skills,
         "log": session.log[-16:],
+        "log_start_index": max(0, len(session.log) - 16),
         "rewards": {str(key): value for key, value in session.rewards.items()},
         "damage_detail": (
             {
