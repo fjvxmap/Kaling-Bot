@@ -29,6 +29,8 @@
   };
   let busyControl = null;
   let previewLoadKey = "";
+  let toastLeaveTimer = null;
+  let toastRemoveTimer = null;
 
   const esc = (value) => String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -95,12 +97,19 @@
   function toast(message, ok = true) {
     if (!message) return;
     const region = document.querySelector("#toast-region");
+    if (!region) return;
+    window.clearTimeout(toastLeaveTimer);
+    window.clearTimeout(toastRemoveTimer);
     const element = document.createElement("div");
     element.className = `toast${ok ? "" : " is-error"}`;
     element.innerHTML = `<span class="toast-mark" aria-hidden="true">${ok ? "✓" : "!"}</span><span>${esc(message)}</span>`;
-    region.append(element);
-    setTimeout(() => element.classList.add("is-leaving"), 3600);
-    setTimeout(() => element.remove(), 4000);
+    region.replaceChildren(element);
+    toastLeaveTimer = window.setTimeout(() => element.classList.add("is-leaving"), 3600);
+    toastRemoveTimer = window.setTimeout(() => {
+      element.remove();
+      toastLeaveTimer = null;
+      toastRemoveTimer = null;
+    }, 4000);
   }
 
   function setBusy(value, control = null) {

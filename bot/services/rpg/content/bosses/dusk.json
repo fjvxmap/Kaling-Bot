@@ -176,14 +176,43 @@
     "enabled": true,
     "level_req": 48,
     "stats": {
-      "base_atk": 3,
-      "max_hp": 60000,
+      "base_atk": 1,
+      "max_hp": 65000,
       "defense": 50,
-      "dmg_mitigation": 25
+      "dmg_mitigation": 30
     },
-    "pattern_damage_multiplier": 1.15,
-    "plain_damage_multiplier": 1.0,
-    "objective_multiplier": 1.5,
+    "warning_overrides": {
+      "tentacle_attack": {
+        "objectives": [
+          {
+            "objective": "hits",
+            "required": 99,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 50
+        }
+      },
+      "laser": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 2500,
+            "min_damage": 0
+          }
+        ],
+        "turns": 2,
+        "pattern": {
+          "damage_multiplier": 1.0
+        }
+      }
+    },
+    "balance_notes": {
+      "durability": "낮은 원시 HP 대신 폐안 중 최대 방어와 감산 30으로 개안 화력 창의 가치를 높인다.",
+      "pressure": "개안 시 방어가 사라지고 고정 피해 경감도 5로 줄어 레이저 실패 피해가 즉시 위협한다.",
+      "omens": "촉수의 99타는 의도적 페이즈 전환이고, 실제 공략 검사는 개안 중 2턴에 2,500 피해다."
+    },
     "gold": 15000,
     "exp": 1,
     "description": "짧은 개안 사이에 모든 화력을 집중해야 하는 심연의 장기전이다.",

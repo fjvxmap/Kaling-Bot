@@ -29,6 +29,7 @@ RPG 운영 데이터는 이 폴더에서 수정합니다.
 전조의 `failure_variants`는 스택 조건을 만족할 때 기본 실패 효과 대신 실행되는 조건부 실패 효과입니다.
 보스의 `hp_effects`는 턴 시작 시 해당 HP 이하로 처음 내려갔을 때 즉시 실행되는 효과입니다. 한 효과에 `thresholds`로 여러 HP 임계값을 둘 수 있습니다. 한 번에 여러 조건을 넘기면 가장 낮은 HP 조건 하나만 실행되고, 나머지 넘긴 조건은 지나간 것으로 처리됩니다. `thresholds: [1]`은 보스전 시작 직후 실행됩니다.
 보스의 `hp_locks`는 HP가 해당 비율 미만으로 내려가지 않게 막는 참전자별 기준선입니다. 예: `[0.8, 0.2]`는 각 참전자 기준으로 80%, 20%에서 한 턴 동안 HP를 멈추고 다음 턴부터 해당 락을 해제합니다.
+하드 모드는 `hard_mode.warning_overrides`에서 전조 ID별 `objectives`, `turns`, `pattern`, `success_pattern`, `failure_variants`를 직접 덮어쓸 수 있습니다. `pattern_overrides`는 독립 패턴 ID를, `hp_effect_overrides`는 HP 즉시 효과의 패턴 ID를, `stack_effect_id_overrides`는 하드 전용 스택 효과 ID를 치환합니다. `hp_warnings`, `hp_effects`, `hp_locks`, `ct`, `stack_effects`도 하드 모드에 직접 지정할 수 있습니다. 공통 배율보다 보스별 `stats`, 전조 목표, 패턴 피해를 명시적으로 설계하고 `balance_notes`에 의도를 기록하세요.
 
 `life_steal`은 입힌 실제 피해의 비율만큼 회복하는 생명력 흡수 스탯입니다. 생명력 흡수 스탯 효과나 직접 회복 스킬에는 `heal_cap`을 붙일 수 있습니다. 예: `{"mode": "flat", "value": 1000}` 또는 `{"mode": "max_hp_ratio", "value": 0.01}`.
 직업도 장비처럼 `stat_effects`와 `effects`를 가질 수 있으며, 전투 시작 시 현재 직업 체인의 모든 영속 효과가 적용됩니다.

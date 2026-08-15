@@ -172,13 +172,53 @@
     "enabled": true,
     "level_req": 45,
     "stats": {
-      "base_atk": 45,
-      "max_hp": 125000,
-      "defense": 0.4
+      "base_atk": 34,
+      "max_hp": 50000,
+      "defense": 0.25
     },
-    "pattern_damage_multiplier": 1.15,
-    "plain_damage_multiplier": 1.0,
-    "objective_multiplier": 1.35,
+    "warning_overrides": {
+      "guardian_jump": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 600,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 12
+        }
+      },
+      "guardian_bonk": {
+        "objectives": [
+          {
+            "objective": "hits",
+            "required": 4,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 1.8
+        }
+      },
+      "guardian_laser": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 900,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 3.0
+        }
+      }
+    },
+    "balance_notes": {
+      "durability": "입문 하드 보스답게 낮은 방어와 5만 HP로 장기전의 기준만 익히게 한다.",
+      "pressure": "실패 피해는 읽기 쉽지만 연속 실패 시 회복 여유를 잃는다.",
+      "omens": "피해와 타수 전조를 번갈아 요구해 기본 장비와 어빌리티 운용을 확인한다."
+    },
     "gold": 6000,
     "exp": 1,
     "description": "더 단단해진 가디언 엔젤 슬라임이 모든 패턴을 쏟아낸다.",

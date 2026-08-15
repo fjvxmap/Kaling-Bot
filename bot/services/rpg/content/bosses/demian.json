@@ -352,13 +352,185 @@
     "enabled": true,
     "level_req": 45,
     "stats": {
-      "base_atk": 35,
-      "max_hp": 100000,
-      "defense": 0.75
+      "base_atk": 32,
+      "max_hp": 82000,
+      "defense": 0.7
     },
-    "pattern_damage_multiplier": 1.15,
-    "plain_damage_multiplier": 1.0,
-    "objective_multiplier": 1.4,
+    "warning_overrides": {
+      "binding_hand": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 900,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 2.8
+        },
+        "failure_variants": [
+          {
+            "name": "속박하는 손 강화",
+            "conditions": [
+              {
+                "stack_effect_id": "demian_stigma",
+                "target": "boss",
+                "min_stacks": 7,
+                "max_stacks": -1
+              }
+            ],
+            "pattern": {
+              "id": "binding_hand_failure_variant",
+              "name": "속박하는 손 강화",
+              "damage_multiplier": 3.8,
+              "hits": 1,
+              "player_mods": {},
+              "boss_mods": {},
+              "player_stat_effects": [
+                {
+                  "stat": "atk",
+                  "target": "self",
+                  "value": -0.75,
+                  "duration": 5,
+                  "undispellable": false
+                },
+                {
+                  "stat": "damage_cut",
+                  "target": "self",
+                  "value": -0.25,
+                  "duration": 3,
+                  "undispellable": false
+                }
+              ],
+              "duration": 0,
+              "stats": {}
+            }
+          }
+        ]
+      },
+      "dive": {
+        "objectives": [
+          {
+            "objective": "ability",
+            "required": 1,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 1.8
+        },
+        "failure_variants": [
+          {
+            "name": "다이브 강화",
+            "conditions": [
+              {
+                "stack_effect_id": "demian_stigma",
+                "target": "boss",
+                "min_stacks": 7,
+                "max_stacks": -1
+              }
+            ],
+            "pattern": {
+              "id": "dive_failure_variant",
+              "name": "다이브 강화",
+              "damage_multiplier": 3.8,
+              "hits": 3,
+              "player_mods": {},
+              "boss_mods": {},
+              "effect_actions": [
+                {
+                  "action": "stack_increase",
+                  "target": "self",
+                  "count": 1,
+                  "stack_effect_id": "demian_stigma",
+                  "value": 1,
+                  "duration": -1
+                }
+              ],
+              "duration": 0,
+              "stats": {}
+            }
+          }
+        ]
+      },
+      "dark_thrust": {
+        "objectives": [
+          {
+            "objective": "hits",
+            "required": 8,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 0.8
+        },
+        "failure_variants": [
+          {
+            "name": "다크 쓰러스트 강화",
+            "conditions": [
+              {
+                "stack_effect_id": "demian_stigma",
+                "target": "boss",
+                "min_stacks": 7,
+                "max_stacks": -1
+              }
+            ],
+            "pattern": {
+              "id": "dark_thrust_failure_variant",
+              "name": "다크 쓰러스트 강화",
+              "damage_multiplier": 1.25,
+              "hits": 15,
+              "player_mods": {},
+              "boss_mods": {},
+              "player_stat_effects": [
+                {
+                  "stat": "defense",
+                  "target": "self",
+                  "value": -0.5,
+                  "duration": 5,
+                  "undispellable": false
+                }
+              ],
+              "duration": 0,
+              "stats": {}
+            }
+          }
+        ]
+      },
+      "sword_of_destruction": {
+        "objectives": [
+          {
+            "objective": "debuff",
+            "required": 1,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 4.8
+        }
+      },
+      "corrupted_world_tree": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 3600,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 27
+        }
+      }
+    },
+    "stack_effect_id_overrides": {
+      "demian_stigma": "demian_stigma_hard"
+    },
+    "balance_notes": {
+      "durability": "낙인이 쌓일수록 방어가 낮아지는 대신 공격이 폭증하는 유리 대포형 내구다.",
+      "pressure": "7낙인 강화 패턴과 30% 이후 짧은 CT가 후반 생존을 압박한다.",
+      "omens": "피해, 어빌리티, 타수, 디버프를 구분해 낙인을 해제할 타이밍을 만든다.",
+      "stigma": "하드 전용 낙인은 누적 피해 2,000마다 증가해 한 번의 연속 공격으로 여러 단계가 건너뛰지 않게 한다."
+    },
     "gold": 8000,
     "exp": 1,
     "description": "낙인이 빠르게 번지고 검은 불꽃이 퇴로를 끊는 결전이다.",

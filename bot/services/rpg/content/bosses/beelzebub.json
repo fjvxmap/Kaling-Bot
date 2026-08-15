@@ -437,13 +437,118 @@
     "enabled": true,
     "level_req": 54,
     "stats": {
-      "base_atk": 85,
-      "max_hp": 90000,
-      "defense": 0.8
+      "base_atk": 60,
+      "max_hp": 180000,
+      "defense": 0.75
     },
-    "pattern_damage_multiplier": 1.2,
-    "plain_damage_multiplier": 1.0,
-    "objective_multiplier": 1.6,
+    "warning_overrides": {
+      "chaoscaliber": {
+        "objectives": [
+          {
+            "objective": "hits",
+            "required": 20,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 13
+        }
+      },
+      "unisonic": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 2000,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 2.2
+        }
+      },
+      "black_flies": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 1800,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 1.1
+        }
+      },
+      "just_execution": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 2600,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 0.65
+        }
+      },
+      "karma": {
+        "objectives": [
+          {
+            "objective": "debuff",
+            "required": 1,
+            "min_damage": 100
+          },
+          {
+            "objective": "hits",
+            "required": 10,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 1
+        }
+      },
+      "langelaan_field": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 5000,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 0
+        }
+      },
+      "black_spear": {
+        "objectives": [
+          {
+            "objective": "debuff",
+            "required": 2,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 3.3
+        }
+      },
+      "chaos_legion": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 2200,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 22
+        }
+      }
+    },
+    "balance_notes": {
+      "durability": "원시 체력은 동급 후반 보스보다 낮지만 50%의 해제 가능한 방어막이 실질 내구를 만든다.",
+      "pressure": "짧은 CT와 처형 패턴이 이어지므로 기본 공격력은 방어막 해제 판단을 허용하는 수준으로 둔다.",
+      "omens": "연타, 화력, 디버프를 분리해 요구하고 보호막 이후에는 해제 어빌리티 준비가 핵심이다."
+    },
     "gold": 38000,
     "exp": 1,
     "description": "검은 파리 떼와 처형 패턴이 쉼 없이 겹치는 심연의 결전이다.",

@@ -77,7 +77,7 @@
         "rare": 12.0,
         "epic": 18.0,
         "unique": 35.0,
-        "legendary": 60.0
+        "legendary": 54.0
       },
       "weights": {
         "normal": 14.0,
@@ -96,7 +96,7 @@
         "rare": 0.015,
         "epic": 0.025,
         "unique": 0.04,
-        "legendary": 0.07
+        "legendary": 0.06
       },
       "weights": {
         "normal": 12.0,
@@ -115,7 +115,7 @@
         "rare": 0.015,
         "epic": 0.025,
         "unique": 0.04,
-        "legendary": 0.07
+        "legendary": 0.06
       },
       "weights": {
         "normal": 12.0,
@@ -134,7 +134,7 @@
         "rare": 0.025,
         "epic": 0.04,
         "unique": 0.06,
-        "legendary": 0.1
+        "legendary": 0.09
       },
       "weights": {
         "normal": 12.0,
@@ -153,7 +153,7 @@
         "rare": 0.0,
         "epic": 0.015,
         "unique": 0.03,
-        "legendary": 0.05
+        "legendary": 0.045
       },
       "weights": {
         "normal": 0.0,
@@ -172,7 +172,7 @@
         "rare": 0.0,
         "epic": 0.0,
         "unique": 0.015,
-        "legendary": 0.025
+        "legendary": 0.022
       },
       "weights": {
         "normal": 0.0,
@@ -187,18 +187,18 @@
       "name": "가산 피해",
       "stat": "dmg_supplement",
       "values": {
-        "normal": 2.0,
-        "rare": 3.0,
-        "epic": 5.0,
-        "unique": 8.0,
-        "legendary": 12.0
+        "normal": 1.0,
+        "rare": 1.0,
+        "epic": 2.0,
+        "unique": 3.0,
+        "legendary": 5.0
       },
       "weights": {
-        "normal": 8.0,
-        "rare": 8.0,
-        "epic": 8.0,
-        "unique": 7.0,
-        "legendary": 6.0
+        "normal": 1.0,
+        "rare": 1.0,
+        "epic": 0.8,
+        "unique": 0.6,
+        "legendary": 0.5
       }
     },
     {
@@ -210,7 +210,7 @@
         "rare": 0.015,
         "epic": 0.025,
         "unique": 0.04,
-        "legendary": 0.07
+        "legendary": 0.06
       },
       "weights": {
         "normal": 10.0,
@@ -225,18 +225,18 @@
       "name": "스킬 가산 피해",
       "stat": "skill_dmg_supplement",
       "values": {
-        "normal": 3.0,
-        "rare": 5.0,
-        "epic": 7.0,
-        "unique": 10.0,
-        "legendary": 18.0
+        "normal": 1.0,
+        "rare": 2.0,
+        "epic": 3.0,
+        "unique": 5.0,
+        "legendary": 8.0
       },
       "weights": {
-        "normal": 8.0,
-        "rare": 8.0,
-        "epic": 8.0,
-        "unique": 7.0,
-        "legendary": 6.0
+        "normal": 1.0,
+        "rare": 1.0,
+        "epic": 0.8,
+        "unique": 0.6,
+        "legendary": 0.5
       }
     },
     {
@@ -248,7 +248,7 @@
         "rare": 0.02,
         "epic": 0.035,
         "unique": 0.05,
-        "legendary": 0.075
+        "legendary": 0.0675
       },
       "weights": {
         "normal": 10.0,
@@ -267,7 +267,7 @@
         "rare": 0.0,
         "epic": 0.0,
         "unique": 0.03,
-        "legendary": 0.05
+        "legendary": 0.045
       },
       "weights": {
         "normal": 0.0,
@@ -286,7 +286,7 @@
         "rare": 0.0,
         "epic": 0.0,
         "unique": 0.025,
-        "legendary": 0.04
+        "legendary": 0.035
       },
       "weights": {
         "normal": 0.0,
@@ -305,7 +305,7 @@
         "rare": 0.0,
         "epic": 0.025,
         "unique": 0.04,
-        "legendary": 0.06
+        "legendary": 0.055
       },
       "weights": {
         "normal": 0.0,
@@ -324,7 +324,7 @@
         "rare": 0.0,
         "epic": 0.0,
         "unique": 0.01,
-        "legendary": 0.015
+        "legendary": 0.013
       },
       "weights": {
         "normal": 0.0,
@@ -343,7 +343,7 @@
         "rare": 0.025,
         "epic": 0.04,
         "unique": 0.06,
-        "legendary": 0.1
+        "legendary": 0.09
       },
       "weights": {
         "normal": 7.0,
@@ -351,6 +351,82 @@
         "epic": 7.0,
         "unique": 6.0,
         "legendary": 5.0
+      }
+    },
+    {
+      "id": "potential_damage_cut",
+      "name": "피격 데미지 감소",
+      "stat": "damage_cut",
+      "values": {
+        "normal": 0.0025,
+        "rare": 0.005,
+        "epic": 0.0075,
+        "unique": 0.0125,
+        "legendary": 0.02
+      },
+      "weights": {
+        "normal": 12.0,
+        "rare": 12.0,
+        "epic": 11.0,
+        "unique": 10.0,
+        "legendary": 9.0
+      }
+    },
+    {
+      "id": "potential_dmg_mitigation",
+      "name": "고정 피격 데미지 감소",
+      "stat": "dmg_mitigation",
+      "values": {
+        "normal": 0.5,
+        "rare": 0.75,
+        "epic": 1.0,
+        "unique": 2.0,
+        "legendary": 3.0
+      },
+      "weights": {
+        "normal": 12.0,
+        "rare": 12.0,
+        "epic": 11.0,
+        "unique": 10.0,
+        "legendary": 9.0
+      }
+    },
+    {
+      "id": "potential_life_steal_cap",
+      "name": "생명력 흡수 회복 상한",
+      "stat": "life_steal_cap",
+      "values": {
+        "normal": 0.0005,
+        "rare": 0.001,
+        "epic": 0.002,
+        "unique": 0.0035,
+        "legendary": 0.005
+      },
+      "weights": {
+        "normal": 8.0,
+        "rare": 8.0,
+        "epic": 8.0,
+        "unique": 7.0,
+        "legendary": 6.0
+      }
+    },
+    {
+      "id": "potential_heal_cap_bonus",
+      "name": "회복 상한 증가",
+      "stat": "heal_cap_bonus",
+      "values": {
+        "normal": 0.01,
+        "rare": 0.015,
+        "epic": 0.025,
+        "unique": 0.04,
+        "legendary": 0.06
+      },
+      "weights": {
+        "normal": 8.0,
+        "rare": 8.0,
+        "epic": 8.0,
+        "unique": 7.0,
+        "legendary": 6.0
       }
     }
   ]

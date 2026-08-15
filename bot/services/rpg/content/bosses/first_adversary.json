@@ -564,15 +564,170 @@
     "enabled": true,
     "level_req": 56,
     "stats": {
-      "base_atk": 50,
-      "max_hp": 100000,
-      "defense": 0.95,
+      "base_atk": 60,
+      "max_hp": 250000,
+      "defense": 0.3,
       "triple_attack_rate": 0.45,
-      "double_attack_rate": 0.3
+      "double_attack_rate": 0.25
     },
-    "pattern_damage_multiplier": 1.2,
-    "plain_damage_multiplier": 1.0,
-    "objective_multiplier": 1.65,
+    "warning_overrides": {
+      "thousand_sword": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 6000,
+            "min_damage": 0
+          },
+          {
+            "objective": "hits",
+            "required": 16,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 30
+        }
+      },
+      "spatial_slash": {
+        "objectives": [
+          {
+            "objective": "hits",
+            "required": 4,
+            "min_damage": 200
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 1.25,
+          "hits": 10
+        }
+      },
+      "double_swing": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 2500,
+            "min_damage": 0
+          },
+          {
+            "objective": "hits",
+            "required": 7,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 8
+        }
+      },
+      "cycle_of_power_phase_1": {
+        "objectives": [
+          {
+            "objective": "hits",
+            "required": 9999,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 0
+        }
+      },
+      "stream_of_blade": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 3000,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 0.75
+        }
+      },
+      "element_of_chaos": {
+        "objectives": [
+          {
+            "objective": "hits",
+            "required": 30,
+            "min_damage": 0
+          },
+          {
+            "objective": "ability",
+            "required": 2,
+            "min_damage": 0
+          },
+          {
+            "objective": "debuff",
+            "required": 1,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 17
+        }
+      },
+      "cycle_of_power_phase_2_3": {
+        "objectives": [
+          {
+            "objective": "hits",
+            "required": 9999,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 0
+        }
+      },
+      "scattering_arrows": {
+        "objectives": [
+          {
+            "objective": "hits",
+            "required": 16,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 2.5
+        }
+      },
+      "evolve": {
+        "objectives": [
+          {
+            "objective": "hits",
+            "required": 8,
+            "min_damage": 150
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 4.5
+        }
+      },
+      "pincer_phantom": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 5000,
+            "min_damage": 0
+          },
+          {
+            "objective": "hits",
+            "required": 24,
+            "min_damage": 0
+          },
+          {
+            "objective": "debuff",
+            "required": 1,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 10
+        }
+      }
+    },
+    "balance_notes": {
+      "durability": "최종 보스로서 가장 높은 원시 체력을 지니되 기본 방어는 낮추고, 대적의 의지에 따른 동적 차단을 실질 내구로 사용한다.",
+      "pressure": "긴 전투에서 무작위 평타 연타가 승패를 정하지 않도록 기본 공격 압박을 낮추고, 대적의 의지와 페이즈 전조에 위력을 집중한다.",
+      "omens": "세 페이즈가 화력, 유효 타수, 디버프, 어빌리티 운용을 복합 검사하고 힘의 순환은 의도된 상태 전환으로 유지한다."
+    },
     "gold": 50000,
     "exp": 1,
     "description": "최초의 대적자가 모든 검격을 망설임 없이 이어가는 최고 난도 결전이다.",

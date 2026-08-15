@@ -552,6 +552,7 @@ class BalanceSimulator:
                 warning is not None
                 and warning.remaining_turns <= 1
                 and not engine._warning_complete(warning)
+                and not self._normal_attack_can_progress_warning(warning)
             ):
                 engine._boss_guard(
                     session,
@@ -573,6 +574,34 @@ class BalanceSimulator:
             player_hp=participant.hp if participant is not None else 0,
             boss_hp=session.boss_hp,
         )
+
+    @staticmethod
+    def _normal_attack_can_progress_warning(warning: object) -> bool:
+        attack_objectives = {
+            "damage",
+            "ability_damage",
+            "hits",
+            "triple_attack",
+            "double_attack",
+        }
+        incomplete = [
+            objective
+            for objective in getattr(warning, "objectives", [])
+            if objective.progress < objective.required
+        ]
+        if not incomplete or any(
+            objective.objective not in attack_objectives
+            for objective in incomplete
+        ):
+            return False
+        for objective in incomplete:
+            if objective.min_damage >= 9_999:
+                return False
+            if objective.objective in {"damage", "ability_damage"} and objective.required >= 50_000:
+                return False
+            if objective.objective in {"hits", "triple_attack", "double_attack"} and objective.required >= 99:
+                return False
+        return True
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:

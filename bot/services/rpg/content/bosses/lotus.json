@@ -39,7 +39,7 @@
             {
               "stack_effect_id": "annihilation",
               "target": "boss",
-              "min_stacks": 5,
+              "min_stacks": 3,
               "max_stacks": -1
             }
           ],
@@ -96,7 +96,7 @@
             {
               "stack_effect_id": "annihilation",
               "target": "boss",
-              "min_stacks": 5,
+              "min_stacks": 3,
               "max_stacks": -1
             }
           ],
@@ -153,7 +153,7 @@
             {
               "stack_effect_id": "annihilation",
               "target": "boss",
-              "min_stacks": 5,
+              "min_stacks": 3,
               "max_stacks": -1
             }
           ],
@@ -210,7 +210,7 @@
             {
               "stack_effect_id": "annihilation",
               "target": "boss",
-              "min_stacks": 5,
+              "min_stacks": 3,
               "max_stacks": -1
             }
           ],
@@ -306,14 +306,170 @@
     "level_req": 45,
     "stats": {
       "base_atk": 30,
-      "max_hp": 120000,
+      "max_hp": 68000,
       "defense": 0.45,
-      "triple_attack_rate": 0.65,
-      "double_attack_rate": 0.65
+      "triple_attack_rate": 0.55,
+      "double_attack_rate": 0.45
     },
-    "pattern_damage_multiplier": 1.15,
-    "plain_damage_multiplier": 1.0,
-    "objective_multiplier": 1.4,
+    "warning_overrides": {
+      "tracking_lasers": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 800,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 1.6
+        },
+        "success_pattern": {
+          "self_hp_loss_ratio": 0.03
+        },
+        "failure_variants": [
+          {
+            "name": "침입자 격퇴 프로토콜",
+            "conditions": [
+              {
+                "stack_effect_id": "annihilation",
+                "target": "boss",
+                "min_stacks": 3,
+                "max_stacks": -1
+              }
+            ],
+            "pattern": {
+              "id": "tracking_lasers_failure_variant",
+              "name": "침입자 격퇴 프로토콜",
+              "damage_multiplier": 1.6,
+              "hits": 25,
+              "player_mods": {},
+              "boss_mods": {},
+              "duration": 0,
+              "stats": {}
+            }
+          }
+        ]
+      },
+      "levitation_beam": {
+        "objectives": [
+          {
+            "objective": "hits",
+            "required": 8,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 0.75
+        },
+        "success_pattern": {
+          "self_hp_loss_ratio": 0.03
+        },
+        "failure_variants": [
+          {
+            "name": "중력 흡수",
+            "conditions": [
+              {
+                "stack_effect_id": "annihilation",
+                "target": "boss",
+                "min_stacks": 3,
+                "max_stacks": -1
+              }
+            ],
+            "pattern": {
+              "id": "levitation_beam_failure_variant",
+              "name": "중력 흡수",
+              "damage_multiplier": 25,
+              "hits": 1,
+              "player_mods": {},
+              "boss_mods": {},
+              "duration": 0,
+              "stats": {}
+            }
+          }
+        ]
+      },
+      "laser_web": {
+        "objectives": [
+          {
+            "objective": "ability",
+            "required": 1,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 1.25
+        },
+        "success_pattern": {
+          "self_hp_loss_ratio": 0.03
+        },
+        "failure_variants": [
+          {
+            "name": "상단 포격",
+            "conditions": [
+              {
+                "stack_effect_id": "annihilation",
+                "target": "boss",
+                "min_stacks": 3,
+                "max_stacks": -1
+              }
+            ],
+            "pattern": {
+              "id": "laser_web_failure_variant",
+              "name": "상단 포격",
+              "damage_multiplier": 1.6,
+              "hits": 15,
+              "player_mods": {},
+              "boss_mods": {},
+              "duration": 0,
+              "stats": {}
+            }
+          }
+        ]
+      },
+      "small_mechanical_arms": {
+        "objectives": [
+          {
+            "objective": "hits",
+            "required": 8,
+            "min_damage": 80
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 1.6
+        },
+        "success_pattern": {
+          "self_hp_loss_ratio": 0.03
+        },
+        "failure_variants": [
+          {
+            "name": "대형 기계팔 돌진",
+            "conditions": [
+              {
+                "stack_effect_id": "annihilation",
+                "target": "boss",
+                "min_stacks": 3,
+                "max_stacks": -1
+              }
+            ],
+            "pattern": {
+              "id": "small_mechanical_arms_failure_variant",
+              "name": "대형 기계팔 돌진",
+              "damage_multiplier": 25,
+              "hits": 1,
+              "player_mods": {},
+              "boss_mods": {},
+              "duration": 0,
+              "stats": {}
+            }
+          }
+        ]
+      }
+    },
+    "balance_notes": {
+      "durability": "낮은 중반 HP 대신 섬멸 3단계의 실질 페이즈 전환으로 내구를 만든다.",
+      "pressure": "다단 레이저와 강화 실패 패턴이 후반으로 갈수록 행동 선택을 압박한다.",
+      "omens": "피해, 타수, 어빌리티 전조가 코어 제어망의 서로 다른 공략 수단을 요구한다."
+    },
     "gold": 8000,
     "exp": 1,
     "description": "강화된 코어와 레이저 제어망이 전장을 빈틈없이 봉쇄한다.",

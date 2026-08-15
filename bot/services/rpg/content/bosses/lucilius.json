@@ -387,14 +387,136 @@
     "enabled": true,
     "level_req": 54,
     "stats": {
-      "base_atk": 45,
-      "max_hp": 95000,
+      "base_atk": 50,
+      "max_hp": 205000,
       "defense": 0.65,
-      "triple_attack_rate": 0.4
+      "triple_attack_rate": 0.55,
+      "double_attack_rate": 0.25
     },
-    "pattern_damage_multiplier": 1.2,
-    "plain_damage_multiplier": 0.7,
-    "objective_multiplier": 1.6,
+    "warning_overrides": {
+      "paradise_lost": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 999,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 7
+        }
+      },
+      "phosphorus": {
+        "objectives": [
+          {
+            "objective": "dispel",
+            "required": 1,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 13
+        }
+      },
+      "iblis": {
+        "objectives": [
+          {
+            "objective": "hits",
+            "required": 12,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 0.65
+        }
+      },
+      "axion": {
+        "objectives": [
+          {
+            "objective": "debuff",
+            "required": 1,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 1.8
+        }
+      },
+      "axion_apocalypse": {
+        "objectives": [
+          {
+            "objective": "hits",
+            "required": 20,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 2.5
+        }
+      },
+      "orbital_blackness": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 999,
+            "min_damage": 0
+          },
+          {
+            "objective": "hits",
+            "required": 8,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 1.8
+        }
+      },
+      "gopherwood_ark": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 1500,
+            "min_damage": 0
+          },
+          {
+            "objective": "hits",
+            "required": 12,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 7
+        }
+      },
+      "the_end": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 9000,
+            "min_damage": 0
+          }
+        ],
+        "turns": 3,
+        "pattern": {
+          "damage_multiplier": 13
+        }
+      }
+    },
+    "hp_effect_overrides": {
+      "lucilius_hp_effect": {
+        "pattern": {
+          "plain_damage": {
+            "mode": "target_max_hp_ratio",
+            "value": 0.5
+          }
+        }
+      }
+    },
+    "balance_notes": {
+      "durability": "높은 체력으로 후반 장기전을 만들되 방어는 중간 수준으로 두어 화력 성장을 체감시킨다.",
+      "pressure": "시작 시 최대 HP 50% 피해와 혁인 누적이 자원 관리 압박을 담당하며 일반보다 약해지던 연속 공격률을 바로잡는다.",
+      "omens": "반복 숫자 테마를 유지하고 디 엔드는 3턴 결전 과제로 바꿔 준비된 솔로 플레이가 대응할 수 있게 한다."
+    },
     "gold": 40000,
     "exp": 1,
     "description": "파라다이스 로스트와 궤도 흑색이 연속으로 전장을 압박한다.",

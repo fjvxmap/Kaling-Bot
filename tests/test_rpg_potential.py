@@ -9,7 +9,9 @@ from bot.services.rpg.data import (
     ITEM_BY_ID,
     MAX_ENHANCEMENT_STARS,
     POTENTIAL_GRADES,
+    POTENTIAL_LINE_GRADES,
     POTENTIAL_OPTION_BY_ID,
+    POTENTIAL_OPTIONS,
     POTENTIAL_PITY_COUNTS,
     scaled_item_stats,
 )
@@ -114,6 +116,80 @@ class PotentialTests(unittest.TestCase):
         profile.dmg_supplement = 95
 
         self.assertEqual(service.profile_stats(profile).dmg_supplement, 100.0)
+
+    def test_additive_damage_potentials_are_rare_and_below_signature_gear(self) -> None:
+        damage = POTENTIAL_OPTION_BY_ID["potential_dmg_supplement"]
+        skill_damage = POTENTIAL_OPTION_BY_ID["potential_skill_dmg_supplement"]
+        harmonia = ITEM_BY_ID["harmonia"]
+
+        self.assertTrue(all(weight <= 1.0 for weight in damage.weights.values()))
+        self.assertTrue(all(weight <= 1.0 for weight in skill_damage.weights.values()))
+        self.assertLess(damage.values["legendary"], harmonia.stats["dmg_supplement"])
+        self.assertLess(
+            damage.values["legendary"] * 3,
+            harmonia.stats["dmg_supplement"],
+        )
+        self.assertEqual(damage.values["legendary"], 5.0)
+        self.assertEqual(skill_damage.values["legendary"], 8.0)
+
+        for grade in POTENTIAL_LINE_GRADES:
+            eligible = [
+                option
+                for option in POTENTIAL_OPTIONS
+                if option.values.get(grade, 0.0) != 0
+                and option.weights.get(grade, 0.0) > 0
+            ]
+            total_weight = sum(option.weights[grade] for option in eligible)
+            additive_weight = damage.weights[grade] + skill_damage.weights[grade]
+            with self.subTest(grade=grade):
+                self.assertLessEqual(additive_weight / total_weight, 0.016)
+
+    def test_low_impact_received_damage_and_healing_options_are_mixed_in(self) -> None:
+        filler_ids = {
+            "potential_damage_cut",
+            "potential_dmg_mitigation",
+            "potential_life_steal_cap",
+            "potential_heal_cap_bonus",
+        }
+
+        for grade in POTENTIAL_LINE_GRADES:
+            eligible = [
+                option
+                for option in POTENTIAL_OPTIONS
+                if option.values.get(grade, 0.0) != 0
+                and option.weights.get(grade, 0.0) > 0
+            ]
+            total_weight = sum(option.weights[grade] for option in eligible)
+            filler_weight = sum(
+                option.weights[grade]
+                for option in eligible
+                if option.id in filler_ids
+            )
+            with self.subTest(grade=grade):
+                self.assertGreaterEqual(filler_weight / total_weight, 0.20)
+                self.assertLessEqual(filler_weight / total_weight, 0.31)
+
+    def test_defensive_filler_potentials_apply_to_combat_stats(self) -> None:
+        service = self.service()
+        profile = PlayerProfile.create(1, "Tester")
+        item = ItemInstance(
+            uid=1,
+            template_id="harmonia",
+            potential_grade="legendary",
+            potential_lines=[
+                PotentialLine("potential_damage_cut", "legendary"),
+                PotentialLine("potential_dmg_mitigation", "legendary"),
+                PotentialLine("potential_heal_cap_bonus", "legendary"),
+            ],
+        )
+        profile.inventory = [item]
+        profile.equipped_item_uids = [item.uid]
+
+        stats = service.profile_stats(profile)
+
+        self.assertEqual(stats.damage_cut, 0.02)
+        self.assertEqual(stats.dmg_mitigation, 3.0)
+        self.assertEqual(stats.heal_cap_bonus, 0.06)
 
     def test_new_items_receive_three_potential_lines(self) -> None:
         service = self.service()

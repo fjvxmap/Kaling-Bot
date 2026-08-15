@@ -208,13 +208,82 @@
     "enabled": true,
     "level_req": 50,
     "stats": {
-      "base_atk": 60,
-      "max_hp": 80000,
-      "defense": 1.15
+      "base_atk": 48,
+      "max_hp": 140000,
+      "defense": 1.0
     },
-    "pattern_damage_multiplier": 1.2,
-    "plain_damage_multiplier": 1.0,
-    "objective_multiplier": 1.5,
+    "warning_overrides": {
+      "swipe": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 1500,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 13
+        }
+      },
+      "dive": {
+        "objectives": [
+          {
+            "objective": "hits",
+            "required": 10,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 10
+        }
+      },
+      "charge": {
+        "objectives": [
+          {
+            "objective": "ability",
+            "required": 2,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 19
+        }
+      },
+      "fma": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 3500,
+            "min_damage": 0
+          },
+          {
+            "objective": "hits",
+            "required": 16,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 32
+        }
+      },
+      "attack_up": {
+        "objectives": [
+          {
+            "objective": "damage",
+            "required": 99999,
+            "min_damage": 0
+          }
+        ],
+        "pattern": {
+          "damage_multiplier": 0
+        }
+      }
+    },
+    "balance_notes": {
+      "durability": "높은 방어와 후반 영구 공격 강화로 체력 이상의 압박을 만든다.",
+      "pressure": "단타와 정예 친위대의 연속 공격은 강하지만 기본 공격력은 생존 가능한 범위로 제한한다.",
+      "omens": "단타 화력, 연타, 어빌리티, 복합 검기를 각각 다른 대응으로 검사한다."
+    },
     "gold": 24000,
     "exp": 1,
     "description": "정예 친위대의 공세와 듄켈의 연속 공격이 동시에 몰아친다.",

@@ -2215,6 +2215,63 @@ def _scale_hard_warning_objectives(value: Any, multiplier: float) -> None:
         _scale_hard_warning_objectives(child, multiplier)
 
 
+def _merge_hard_override(target: dict[str, Any], override: dict[str, Any]) -> None:
+    for key, value in override.items():
+        current = target.get(key)
+        if isinstance(current, dict) and isinstance(value, dict):
+            _merge_hard_override(current, value)
+        else:
+            target[key] = deepcopy(value)
+
+
+def _apply_hard_named_overrides(
+    rows: Any,
+    overrides: Any,
+) -> None:
+    if not isinstance(rows, list) or not isinstance(overrides, dict):
+        return
+    by_id = {
+        str(
+            row.get(
+                "id",
+                row.get(
+                    "warning_id",
+                    row.get("pattern", {}).get("id", "")
+                    if isinstance(row.get("pattern"), dict)
+                    else "",
+                ),
+            )
+            or ""
+        ): row
+        for row in rows
+        if isinstance(row, dict)
+    }
+    for row_id, override in overrides.items():
+        target = by_id.get(str(row_id))
+        if target is None:
+            raise ValueError(f"Hard-mode override target not found: {row_id}")
+        if not isinstance(override, dict):
+            continue
+        _merge_hard_override(target, override)
+
+
+def _replace_hard_stack_effect_ids(value: Any, replacements: Any) -> None:
+    if not isinstance(replacements, dict):
+        return
+    if isinstance(value, list):
+        for child in value:
+            _replace_hard_stack_effect_ids(child, replacements)
+        return
+    if not isinstance(value, dict):
+        return
+    stack_effect_id = value.get("stack_effect_id")
+    replacement = replacements.get(str(stack_effect_id))
+    if replacement:
+        value["stack_effect_id"] = str(replacement)
+    for child in value.values():
+        _replace_hard_stack_effect_ids(child, replacements)
+
+
 def _hard_boss_raw(raw: dict[str, Any]) -> dict[str, Any] | None:
     config = raw.get("hard_mode")
     if not isinstance(config, dict) or not _safe_bool(config.get("enabled"), False):
@@ -2233,6 +2290,13 @@ def _hard_boss_raw(raw: dict[str, Any]) -> dict[str, Any] | None:
     hard["difficulty"] = "hard"
     hard["base_boss_id"] = base_id
     hard["weekly_group_id"] = base_id
+    for key in ("hp_warnings", "hp_effects", "hp_locks", "ct", "stack_effects"):
+        if key in config:
+            hard[key] = deepcopy(config[key])
+    _apply_hard_named_overrides(hard.get("patterns"), config.get("pattern_overrides"))
+    _apply_hard_named_overrides(hard.get("warnings"), config.get("warning_overrides"))
+    _apply_hard_named_overrides(hard.get("hp_effects"), config.get("hp_effect_overrides"))
+    _replace_hard_stack_effect_ids(hard, config.get("stack_effect_id_overrides"))
     damage_multiplier = max(0.0, _safe_float(config.get("pattern_damage_multiplier"), 1.0))
     plain_multiplier = max(0.0, _safe_float(config.get("plain_damage_multiplier"), 1.0))
     objective_multiplier = max(0.0, _safe_float(config.get("objective_multiplier"), 1.0))
@@ -2524,6 +2588,12 @@ def _validate_content() -> None:
                         errors.append(
                             f"boss {boss.id} warning {warning.id} failure variant {index} "
                             f"min stacks must be non-negative"
+                        )
+                    stack_effect = STACK_EFFECT_BY_ID.get(condition.stack_effect_id)
+                    if stack_effect is not None and condition.min_stacks > stack_effect.max_stacks:
+                        errors.append(
+                            f"boss {boss.id} warning {warning.id} failure variant {index} "
+                            f"min stacks exceeds {condition.stack_effect_id} maximum"
                         )
                     if condition.max_stacks >= 0 and condition.max_stacks < condition.min_stacks:
                         errors.append(
