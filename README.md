@@ -147,9 +147,9 @@ Common commands:
 - `/rpg 인벤토리`, `/rpg 장착`, `/rpg 판매`, `/rpg 자동판매`
 - `/rpg 어빌리티`, `/rpg 강화`, `/rpg 복구`
 - `/rpg 가챠`, `/rpg 전직`, `/rpg 전직목록`
-- `/메시지검색 키워드:[검색어]` (optional `채널`; private paginated results)
+- `/메시지검색 키워드:[검색어]` (optional `채널` and `기간`; private paginated results)
 
-Message search checks only channels that both the requester and bot can read; private threads are excluded. By default it scans the latest 1,000 messages in up to 100 channels, returns up to 100 newest matches, and keeps the results visible only to the requester. The Discord application's Message Content Intent must be enabled.
+Message search checks only channels that both the requester and bot can read, including accessible active and archived threads. The optional period presets are 24 hours, 7/30/90 days, one year, or the complete history (the default). Within that period it has no bot-side message, channel, result, or time cutoff, so broad searches can take a while. Results remain visible only to the requester; if a long search outlives Discord's private interaction response and direct messages are allowed, the bot falls back to a DM. The Discord application's Message Content Intent must be enabled.
 
 The bot also includes MapleStory combat-power lookup, conversational replies, and number baseball.
 

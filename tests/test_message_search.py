@@ -41,10 +41,23 @@ class FakeChannel:
         self.id = channel_id
         self.name = name
         self.messages: list[FakeMessage] = []
+        self.history_limits: list[int | None] = []
+        self.history_afters: list[datetime | None] = []
+        self.history_oldest_first: list[bool] = []
 
-    async def history(self, *, limit: int, oldest_first: bool):
-        assert oldest_first is False
+    async def history(
+        self,
+        *,
+        limit: int | None,
+        oldest_first: bool,
+        after: datetime | None = None,
+    ):
+        self.history_limits.append(limit)
+        self.history_afters.append(after)
+        self.history_oldest_first.append(oldest_first)
         for message in self.messages[:limit]:
+            if after is not None and message.created_at <= after:
+                continue
             yield message
 
 
@@ -52,23 +65,64 @@ class MessageSearchConfigTests(unittest.TestCase):
     def test_environment_values_are_bounded_and_invalid_values_fall_back(self) -> None:
         with patch.dict(
             os.environ,
-            {
-                "KALING_MESSAGE_SEARCH_HISTORY_PER_CHANNEL": "999999",
-                "KALING_MESSAGE_SEARCH_MAX_RESULTS": "invalid",
-                "KALING_MESSAGE_SEARCH_CONCURRENCY": "0",
-                "KALING_MESSAGE_SEARCH_TIMEOUT_SECONDS": "120",
-            },
+            {"KALING_MESSAGE_SEARCH_CONCURRENCY": "0"},
             clear=False,
         ):
             config = MessageSearchConfig.from_env()
 
-        self.assertEqual(config.history_per_channel, 10_000)
-        self.assertEqual(config.max_results, 100)
         self.assertEqual(config.concurrency, 1)
-        self.assertEqual(config.timeout_seconds, 60)
+        self.assertFalse(hasattr(config, "history_per_channel"))
+        self.assertFalse(hasattr(config, "max_results"))
+        self.assertFalse(hasattr(config, "max_channels"))
+        self.assertFalse(hasattr(config, "timeout_seconds"))
 
 
 class MessageSearchEngineTests(unittest.IsolatedAsyncioTestCase):
+    async def test_default_search_reaches_messages_beyond_first_thousand(self) -> None:
+        now = datetime.now(UTC)
+        channel = FakeChannel(10)
+        channel.messages = [
+            FakeMessage(
+                index,
+                channel,
+                "10시" if index == 1_001 else "unrelated",
+                now - timedelta(seconds=index),
+            )
+            for index in range(1, 1_002)
+        ]
+        engine = MessageSearchEngine(MessageSearchConfig())
+
+        report = await engine.search([channel], "10시")
+
+        self.assertEqual([result.message_id for result in report.results], [1_001])
+        self.assertEqual(report.scanned_messages, 1_001)
+        self.assertEqual(channel.history_limits, [None])
+        self.assertEqual(channel.history_afters, [None])
+        self.assertEqual(channel.history_oldest_first, [False])
+
+    async def test_optional_period_limits_history_without_changing_full_default(self) -> None:
+        now = datetime.now(UTC)
+        cutoff = now - timedelta(days=7)
+        channel = FakeChannel(10)
+        channel.messages = [
+            FakeMessage(1, channel, "needle recent", now - timedelta(days=1)),
+            FakeMessage(2, channel, "needle old", now - timedelta(days=30)),
+        ]
+        engine = MessageSearchEngine(MessageSearchConfig())
+
+        report = await engine.search(
+            [channel],
+            "needle",
+            after=cutoff,
+            scope_label="최근 7일",
+        )
+
+        self.assertEqual([result.message_id for result in report.results], [1])
+        self.assertEqual(channel.history_limits, [None])
+        self.assertEqual(channel.history_afters, [cutoff])
+        self.assertEqual(channel.history_oldest_first, [True])
+        self.assertEqual(report.scope_label, "최근 7일")
+
     async def test_searches_across_channels_case_insensitively_and_sorts_newest(self) -> None:
         now = datetime.now(UTC)
         first = FakeChannel(10, "first")
@@ -81,13 +135,7 @@ class MessageSearchEngineTests(unittest.IsolatedAsyncioTestCase):
             FakeMessage(3, second, "ＮＥＥＤＬＥ from today", now),
         ]
         engine = MessageSearchEngine(
-            MessageSearchConfig(
-                history_per_channel=50,
-                max_results=10,
-                max_channels=10,
-                concurrency=2,
-                timeout_seconds=5,
-            )
+            MessageSearchConfig(concurrency=2)
         )
 
         report = await engine.search([first, second], "needle")
@@ -95,56 +143,41 @@ class MessageSearchEngineTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([result.message_id for result in report.results], [3, 1])
         self.assertEqual(report.searched_channels, 2)
         self.assertEqual(report.scanned_messages, 3)
-        self.assertFalse(report.timed_out)
+        self.assertEqual(report.content_messages, 3)
 
-    async def test_timeout_returns_completed_channel_results(self) -> None:
+    async def test_waits_for_slow_channels_instead_of_timing_out(self) -> None:
         class SlowChannel(FakeChannel):
             async def history(self, *, limit: int, oldest_first: bool):
                 del limit, oldest_first
-                await asyncio.sleep(0.05)
-                if False:
-                    yield None
+                await asyncio.sleep(0.01)
+                yield self.messages[0]
 
         now = datetime.now(UTC)
         fast = FakeChannel(10)
         fast.messages = [FakeMessage(1, fast, "needle", now)]
-        engine = MessageSearchEngine(
-            MessageSearchConfig(
-                history_per_channel=50,
-                max_results=10,
-                max_channels=10,
-                concurrency=2,
-                timeout_seconds=0.01,
-            )
-        )
+        slow = SlowChannel(20)
+        slow.messages = [FakeMessage(2, slow, "needle", now - timedelta(seconds=1))]
+        engine = MessageSearchEngine(MessageSearchConfig(concurrency=2))
 
-        report = await engine.search([fast, SlowChannel(20)], "needle")
+        report = await engine.search([fast, slow], "needle")
 
-        self.assertEqual([result.message_id for result in report.results], [1])
-        self.assertEqual(report.searched_channels, 1)
-        self.assertTrue(report.timed_out)
+        self.assertEqual([result.message_id for result in report.results], [1, 2])
+        self.assertEqual(report.searched_channels, 2)
+        self.assertEqual(report.scanned_messages, 2)
 
-    async def test_global_result_limit_is_reported(self) -> None:
+    async def test_returns_every_matching_result_without_a_result_cap(self) -> None:
         now = datetime.now(UTC)
         channel = FakeChannel(10)
         channel.messages = [
             FakeMessage(index, channel, "needle", now - timedelta(seconds=index))
-            for index in range(1, 4)
+            for index in range(1, 502)
         ]
-        engine = MessageSearchEngine(
-            MessageSearchConfig(
-                history_per_channel=50,
-                max_results=2,
-                max_channels=10,
-                concurrency=1,
-                timeout_seconds=5,
-            )
-        )
+        engine = MessageSearchEngine(MessageSearchConfig(concurrency=1))
 
         report = await engine.search([channel], "needle")
 
-        self.assertEqual(len(report.results), 2)
-        self.assertTrue(report.results_truncated)
+        self.assertEqual(len(report.results), 501)
+        self.assertEqual(report.results[-1].message_id, 501)
 
     async def test_failed_channel_does_not_discard_other_results(self) -> None:
         class ForbiddenChannel(FakeChannel):
@@ -158,15 +191,7 @@ class MessageSearchEngineTests(unittest.IsolatedAsyncioTestCase):
         now = datetime.now(UTC)
         readable = FakeChannel(10)
         readable.messages = [FakeMessage(1, readable, "needle", now)]
-        engine = MessageSearchEngine(
-            MessageSearchConfig(
-                history_per_channel=50,
-                max_results=10,
-                max_channels=10,
-                concurrency=2,
-                timeout_seconds=5,
-            )
-        )
+        engine = MessageSearchEngine(MessageSearchConfig(concurrency=2))
 
         report = await engine.search(
             [ForbiddenChannel(20), readable],
@@ -177,8 +202,68 @@ class MessageSearchEngineTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(report.searched_channels, 1)
         self.assertEqual(report.failed_channels, 1)
 
+    async def test_partial_results_from_a_failed_channel_are_discarded(self) -> None:
+        class PartiallyForbiddenChannel(FakeChannel):
+            async def history(self, *, limit: int | None, oldest_first: bool):
+                self.history_limits.append(limit)
+                self.assert_oldest_first = oldest_first
+                yield self.messages[0]
+                response = SimpleNamespace(status=403, reason="Forbidden")
+                raise discord.Forbidden(response, "denied")
 
-class MessageSearchPermissionTests(unittest.TestCase):
+        now = datetime.now(UTC)
+        partial = PartiallyForbiddenChannel(20)
+        partial.messages = [FakeMessage(2, partial, "needle", now)]
+        readable = FakeChannel(10)
+        readable.messages = [
+            FakeMessage(1, readable, "needle", now - timedelta(seconds=1))
+        ]
+        engine = MessageSearchEngine(MessageSearchConfig(concurrency=2))
+
+        report = await engine.search([partial, readable], "needle")
+
+        self.assertEqual([result.message_id for result in report.results], [1])
+        self.assertEqual(report.scanned_messages, 1)
+        self.assertEqual(report.content_messages, 1)
+        self.assertEqual(report.failed_channels, 1)
+        self.assertEqual(partial.history_limits, [None])
+        self.assertFalse(partial.assert_oldest_first)
+
+    async def test_concurrent_searches_share_the_engine_concurrency_limit(self) -> None:
+        active = 0
+        peak = 0
+
+        class TrackedChannel(FakeChannel):
+            async def history(self, *, limit: int | None, oldest_first: bool):
+                nonlocal active, peak
+                self.history_limits.append(limit)
+                self.assert_oldest_first = oldest_first
+                active += 1
+                peak = max(peak, active)
+                try:
+                    await asyncio.sleep(0.01)
+                    yield self.messages[0]
+                finally:
+                    active -= 1
+
+        now = datetime.now(UTC)
+        channels = [TrackedChannel(channel_id) for channel_id in range(1, 7)]
+        for channel in channels:
+            channel.messages = [FakeMessage(channel.id, channel, "needle", now)]
+        engine = MessageSearchEngine(MessageSearchConfig(concurrency=2))
+
+        first, second = await asyncio.gather(
+            engine.search(channels[:3], "needle"),
+            engine.search(channels[3:], "needle"),
+        )
+
+        self.assertEqual(peak, 2)
+        self.assertEqual(len(first.results), 3)
+        self.assertEqual(len(second.results), 3)
+        self.assertTrue(all(channel.history_limits == [None] for channel in channels))
+
+
+class MessageSearchPermissionTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.requester = SimpleNamespace(id=1)
         self.bot_member = SimpleNamespace(id=2)
@@ -190,7 +275,7 @@ class MessageSearchPermissionTests(unittest.TestCase):
         )
         return channel
 
-    def test_requires_history_and_view_permissions_for_both_members(self) -> None:
+    async def test_requires_history_and_view_permissions_for_both_members(self) -> None:
         allowed = SimpleNamespace(
             view_channel=True,
             read_message_history=True,
@@ -203,28 +288,28 @@ class MessageSearchPermissionTests(unittest.TestCase):
         )
 
         self.assertTrue(
-            MessageSearchCog._channel_is_searchable(
+            await MessageSearchCog._channel_is_searchable(
                 self.channel(allowed, allowed),
                 self.requester,
                 self.bot_member,
             )
         )
         self.assertFalse(
-            MessageSearchCog._channel_is_searchable(
+            await MessageSearchCog._channel_is_searchable(
                 self.channel(cannot_read_history, allowed),
                 self.requester,
                 self.bot_member,
             )
         )
         self.assertFalse(
-            MessageSearchCog._channel_is_searchable(
+            await MessageSearchCog._channel_is_searchable(
                 self.channel(allowed, cannot_read_history),
                 self.requester,
                 self.bot_member,
             )
         )
 
-    def test_private_threads_are_excluded(self) -> None:
+    async def test_private_threads_require_current_membership(self) -> None:
         allowed = SimpleNamespace(
             view_channel=True,
             read_message_history=True,
@@ -233,23 +318,248 @@ class MessageSearchPermissionTests(unittest.TestCase):
         thread = MagicMock(spec=discord.Thread)
         thread.permissions_for.return_value = allowed
         thread.is_private.return_value = True
+        response = SimpleNamespace(status=404, reason="Not Found")
+        thread.fetch_member = AsyncMock(
+            side_effect=discord.NotFound(response, "missing")
+        )
         self.assertFalse(
-            MessageSearchCog._channel_is_searchable(
+            await MessageSearchCog._channel_is_searchable(
                 thread,
                 self.requester,
                 self.bot_member,
             )
         )
 
-        thread.members = [self.requester, self.bot_member]
-        thread.owner_id = self.requester.id
-        self.assertFalse(
-            MessageSearchCog._channel_is_searchable(
+        thread.fetch_member = AsyncMock(return_value=SimpleNamespace(id=self.requester.id))
+        self.assertTrue(
+            await MessageSearchCog._channel_is_searchable(
                 thread,
                 self.requester,
                 self.bot_member,
             )
         )
+
+    async def test_private_thread_api_failure_is_reported_not_silently_omitted(self) -> None:
+        allowed = SimpleNamespace(
+            view_channel=True,
+            read_message_history=True,
+            manage_threads=False,
+        )
+        thread = MagicMock(spec=discord.Thread)
+        thread.id = 20
+        thread.permissions_for.return_value = allowed
+        thread.is_private.return_value = True
+        response = SimpleNamespace(status=403, reason="Forbidden")
+        thread.fetch_member = AsyncMock(
+            side_effect=discord.Forbidden(response, "denied")
+        )
+        guild = SimpleNamespace(
+            channels=[],
+            threads=[],
+            active_threads=AsyncMock(return_value=[thread]),
+        )
+        cog = MessageSearchCog(MagicMock())
+
+        channels, failures = await cog._candidate_channels(
+            guild,
+            self.requester,
+            self.bot_member,
+            selected_channel=None,
+            current_channel=thread,
+        )
+
+        self.assertEqual(channels, [])
+        self.assertEqual(failures, 1)
+
+    async def test_candidates_include_active_and_archived_public_threads(self) -> None:
+        allowed = SimpleNamespace(
+            view_channel=True,
+            read_message_history=True,
+            manage_threads=False,
+        )
+
+        def readable(spec, channel_id):
+            channel = MagicMock(spec=spec)
+            channel.id = channel_id
+            channel.permissions_for.return_value = allowed
+            return channel
+
+        text_channel = readable(discord.TextChannel, 10)
+        forum_channel = readable(discord.ForumChannel, 11)
+        active_thread = readable(discord.Thread, 20)
+        active_thread.is_private.return_value = False
+        archived_thread = readable(discord.Thread, 30)
+        archived_thread.is_private.return_value = False
+        private_thread = readable(discord.Thread, 40)
+        private_thread.is_private.return_value = True
+        private_thread.fetch_member = AsyncMock(
+            return_value=SimpleNamespace(id=self.requester.id)
+        )
+        forum_thread = readable(discord.Thread, 50)
+        forum_thread.is_private.return_value = False
+
+        async def archived_threads(*, private=False, joined=False, limit=100):
+            self.assertIsNone(limit)
+            if private:
+                self.assertTrue(joined)
+                yield private_thread
+            else:
+                yield archived_thread
+
+        async def forum_archived_threads(*, limit=100):
+            self.assertIsNone(limit)
+            yield forum_thread
+
+        text_channel.archived_threads = archived_threads
+        forum_channel.archived_threads = forum_archived_threads
+        guild = SimpleNamespace(
+            channels=[text_channel, forum_channel],
+            threads=[],
+            active_threads=AsyncMock(return_value=[active_thread]),
+        )
+        cog = MessageSearchCog(MagicMock())
+
+        channels, failures = await cog._candidate_channels(
+            guild,
+            self.requester,
+            self.bot_member,
+            selected_channel=None,
+            current_channel=text_channel,
+        )
+
+        self.assertEqual(
+            [channel.id for channel in channels],
+            [10, 20, 30, 40, 50],
+        )
+        self.assertEqual(failures, 0)
+
+    async def test_candidate_channels_have_no_count_cap(self) -> None:
+        allowed = SimpleNamespace(
+            view_channel=True,
+            read_message_history=True,
+            manage_threads=False,
+        )
+        channels = []
+        for channel_id in range(1, 102):
+            channel = MagicMock(spec=discord.VoiceChannel)
+            channel.id = channel_id
+            channel.permissions_for.return_value = allowed
+            channels.append(channel)
+        guild = SimpleNamespace(
+            channels=channels,
+            threads=[],
+            active_threads=AsyncMock(return_value=[]),
+        )
+        cog = MessageSearchCog(MagicMock())
+
+        candidates, failures = await cog._candidate_channels(
+            guild,
+            self.requester,
+            self.bot_member,
+            selected_channel=None,
+            current_channel=channels[0],
+        )
+
+        self.assertEqual(len(candidates), 101)
+        self.assertEqual(failures, 0)
+
+    async def test_results_are_removed_if_access_is_revoked_during_search(self) -> None:
+        allowed = SimpleNamespace(
+            view_channel=True,
+            read_message_history=True,
+            manage_threads=False,
+        )
+        denied = SimpleNamespace(
+            view_channel=False,
+            read_message_history=False,
+            manage_threads=False,
+        )
+        readable_channel = SimpleNamespace(
+            id=10,
+            permissions_for=lambda member: allowed,
+        )
+        revoked_channel = SimpleNamespace(
+            id=20,
+            permissions_for=lambda member: (
+                denied if member is self.requester else allowed
+            ),
+        )
+        now = datetime.now(UTC)
+        report = MessageSearchReport(
+            results=(
+                MessageSearchResult(
+                    1,
+                    10,
+                    "readable",
+                    "author",
+                    "needle",
+                    now,
+                    "https://discord.com/channels/1/10/1",
+                ),
+                MessageSearchResult(
+                    2,
+                    20,
+                    "revoked",
+                    "author",
+                    "needle",
+                    now,
+                    "https://discord.com/channels/1/20/2",
+                ),
+            ),
+            searched_channels=2,
+            scanned_messages=2,
+            total_channels=2,
+            content_messages=2,
+        )
+
+        filtered = await MessageSearchCog._filter_report_permissions(
+            report,
+            [readable_channel, revoked_channel],
+            self.requester,
+            self.bot_member,
+        )
+
+        self.assertEqual([result.message_id for result in filtered.results], [1])
+        self.assertEqual(filtered.searched_channels, 1)
+        self.assertEqual(filtered.failed_channels, 1)
+
+    async def test_current_membership_is_required_before_cached_results_are_shown(self) -> None:
+        now = datetime.now(UTC)
+        report = MessageSearchReport(
+            results=(
+                MessageSearchResult(
+                    1,
+                    10,
+                    "former-channel",
+                    "author",
+                    "needle",
+                    now,
+                    "https://discord.com/channels/1/10/1",
+                ),
+            ),
+            searched_channels=1,
+            scanned_messages=1,
+            total_channels=1,
+            content_messages=1,
+        )
+        response = SimpleNamespace(status=404, reason="Not Found")
+        guild = SimpleNamespace(
+            fetch_member=AsyncMock(
+                side_effect=discord.NotFound(response, "member left")
+            )
+        )
+
+        filtered = await MessageSearchCog._filter_report_current_permissions(
+            report,
+            [SimpleNamespace(id=10)],
+            guild,
+            requester_id=1,
+            bot_member_id=2,
+        )
+
+        self.assertEqual(filtered.results, ())
+        self.assertEqual(filtered.searched_channels, 0)
+        self.assertEqual(filtered.failed_channels, 1)
 
 
 class MessageSearchViewTests(unittest.IsolatedAsyncioTestCase):
@@ -269,7 +579,7 @@ class MessageSearchViewTests(unittest.IsolatedAsyncioTestCase):
             results=(self.result(1), self.result(2)),
             searched_channels=2,
             scanned_messages=10,
-            history_per_channel=1_000,
+            total_channels=2,
         )
         view = MessageSearchView(100, "result", report)
 
@@ -293,7 +603,7 @@ class MessageSearchViewTests(unittest.IsolatedAsyncioTestCase):
             results=(self.result(1),),
             searched_channels=1,
             scanned_messages=1,
-            history_per_channel=1_000,
+            total_channels=1,
         )
         view = MessageSearchView(100, "result", report)
         interaction = SimpleNamespace(
@@ -308,6 +618,39 @@ class MessageSearchViewTests(unittest.IsolatedAsyncioTestCase):
             "이 검색 결과는 명령을 실행한 사람만 조작할 수 있습니다.",
             ephemeral=True,
         )
+
+    async def test_navigation_rechecks_permissions_before_revealing_a_page(self) -> None:
+        initial = MessageSearchReport(
+            results=(self.result(1), self.result(2)),
+            searched_channels=1,
+            scanned_messages=2,
+            total_channels=1,
+        )
+        filtered = MessageSearchReport(
+            results=(self.result(2),),
+            searched_channels=1,
+            scanned_messages=2,
+            total_channels=1,
+        )
+        permission_filter = AsyncMock(return_value=filtered)
+        view = MessageSearchView(
+            100,
+            "result",
+            initial,
+            permission_filter=permission_filter,
+        )
+        interaction = SimpleNamespace(
+            response=SimpleNamespace(defer=AsyncMock()),
+            edit_original_response=AsyncMock(),
+        )
+
+        await view.next.callback(interaction)
+
+        permission_filter.assert_awaited_once_with(initial)
+        interaction.response.defer.assert_awaited_once_with()
+        _, kwargs = interaction.edit_original_response.await_args
+        self.assertIn("result 2", kwargs["embed"].description or "")
+        self.assertEqual(view.report, filtered)
 
     async def test_embed_stays_within_discord_limits_and_escapes_markdown(self) -> None:
         result = MessageSearchResult(
@@ -324,12 +667,9 @@ class MessageSearchViewTests(unittest.IsolatedAsyncioTestCase):
             results=(result,),
             searched_channels=100,
             scanned_messages=100_000,
-            history_per_channel=1_000,
-            omitted_channels=400,
             failed_channels=10,
-            timed_out_channels=20,
-            timed_out=True,
-            results_truncated=True,
+            total_channels=110,
+            content_messages=99_000,
         )
 
         embed = MessageSearchView(100, "**needle**", report).embed()
@@ -355,15 +695,16 @@ class MessageSearchCommandTests(unittest.IsolatedAsyncioTestCase):
             created_at=datetime.now(UTC),
             jump_url="https://discord.com/channels/1/20/1",
         )
-        cog.engine.search = AsyncMock(
-            return_value=MessageSearchReport(
-                results=(result,),
-                searched_channels=1,
-                scanned_messages=5,
-                history_per_channel=1_000,
-            )
+        report = MessageSearchReport(
+            results=(result,),
+            searched_channels=1,
+            scanned_messages=5,
+            total_channels=1,
+            content_messages=5,
         )
-        cog._candidate_channels = MagicMock(return_value=([FakeChannel(20)], 0))
+        cog.engine.search = AsyncMock(return_value=report)
+        cog._filter_report_current_permissions = AsyncMock(return_value=report)
+        cog._candidate_channels = AsyncMock(return_value=([FakeChannel(20)], 0))
         requester = SimpleNamespace(id=100)
         bot_member = SimpleNamespace(id=9)
         guild = SimpleNamespace(
@@ -393,7 +734,52 @@ class MessageSearchCommandTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(kwargs["wait"])
         self.assertIsInstance(kwargs["allowed_mentions"], discord.AllowedMentions)
         self.assertIsInstance(kwargs["view"], MessageSearchView)
+        self.assertIsNone(cog.engine.search.await_args.kwargs["after"])
+        self.assertEqual(
+            cog.engine.search.await_args.kwargs["scope_label"],
+            "전체 기간",
+        )
         self.assertEqual(cog._active_requesters, set())
+
+    async def test_expired_private_response_falls_back_to_requester_dm(self) -> None:
+        report = MessageSearchReport(
+            results=(
+                MessageSearchResult(
+                    message_id=1,
+                    channel_id=20,
+                    channel_name="general",
+                    author_name="tester",
+                    content="needle",
+                    created_at=datetime.now(UTC),
+                    jump_url="https://discord.com/channels/1/20/1",
+                ),
+            ),
+            searched_channels=1,
+            scanned_messages=1,
+            total_channels=1,
+            content_messages=1,
+        )
+        view = MessageSearchView(100, "needle", report)
+        response = SimpleNamespace(status=404, reason="Not Found")
+        interaction = SimpleNamespace(
+            followup=SimpleNamespace(
+                send=AsyncMock(
+                    side_effect=discord.NotFound(response, "expired")
+                )
+            )
+        )
+        delivered_message = MagicMock(spec=discord.Message)
+        requester = MagicMock(spec=discord.Member)
+        requester.id = 100
+        requester.send = AsyncMock(return_value=delivered_message)
+
+        await MessageSearchCog._deliver_results(interaction, requester, view)
+
+        requester.send.assert_awaited_once()
+        _, kwargs = requester.send.await_args
+        self.assertIs(kwargs["view"], view)
+        self.assertIsInstance(kwargs["allowed_mentions"], discord.AllowedMentions)
+        self.assertIs(view.message, delivered_message)
 
     async def test_uses_interaction_member_when_member_cache_misses(self) -> None:
         bot = MagicMock()
@@ -404,10 +790,10 @@ class MessageSearchCommandTests(unittest.IsolatedAsyncioTestCase):
                 results=(),
                 searched_channels=1,
                 scanned_messages=0,
-                history_per_channel=1_000,
+                total_channels=1,
             )
         )
-        cog._candidate_channels = MagicMock(return_value=([FakeChannel(20)], 0))
+        cog._candidate_channels = AsyncMock(return_value=([FakeChannel(20)], 0))
         requester = MagicMock(spec=discord.Member)
         requester.id = 100
         bot_member = SimpleNamespace(id=9)
@@ -441,11 +827,23 @@ class MessageSearchCommandDefinitionTests(unittest.TestCase):
         options = {option["name"]: option for option in payload["options"]}
 
         self.assertFalse(payload["dm_permission"])
-        self.assertEqual(options["키워드"]["min_length"], 1)
+        self.assertEqual(options["키워드"]["min_length"], 2)
         self.assertEqual(options["키워드"]["max_length"], 100)
         self.assertEqual(
             options["채널"]["channel_types"],
             [discord.ChannelType.text.value, discord.ChannelType.news.value],
+        )
+        self.assertFalse(options["기간"]["required"])
+        self.assertEqual(
+            [(choice["name"], choice["value"]) for choice in options["기간"]["choices"]],
+            [
+                ("최근 24시간", 1),
+                ("최근 7일", 7),
+                ("최근 30일", 30),
+                ("최근 90일", 90),
+                ("최근 1년", 365),
+                ("전체 기간", 0),
+            ],
         )
 
 
