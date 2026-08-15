@@ -18,6 +18,7 @@ django.setup()
 from django.test import Client, override_settings
 
 from bot.services.rpg.manager import RPGService
+from bot.services.rpg.models import ItemInstance
 from bot.services.rpg.store import RPGStore
 from rpg_web import runtime as runtime_module
 from rpg_web.runtime import WebRPGRuntime
@@ -132,6 +133,75 @@ class RPGWebTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertIsNone(payload["boss_session"])
         self.assertIsNone(self.runtime.active_session(9001))
+
+    def test_enhance_response_includes_cost_odds_balance_and_next_preview(self) -> None:
+        service = self.runtime.engine.service
+        profile = service.get_profile(9001, "웹 테스터")
+        item = ItemInstance(uid=1, template_id="wooden_sword")
+        profile.inventory = [item]
+        profile.next_item_uid = 2
+        profile.gold = 10_000
+        service._save()
+
+        preview = service.enhancement_preview(9001, "웹 테스터", item.uid, "gold")
+        self.assertTrue(preview.ok)
+
+        response = self.post_action("enhance", item_uid=item.uid, method_id="gold")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+
+        result = payload["result"]
+        self.assertEqual(result["item_uid"], item.uid)
+        self.assertEqual(result["cost"], preview.cost)
+        self.assertEqual(
+            result["odds"],
+            {
+                "success": preview.odds[0],
+                "fail": preview.odds[1],
+                "destroy": preview.odds[2],
+            },
+        )
+        self.assertEqual(result["material_cost_rows"], [])
+        self.assertEqual(result["remaining_gold"], 10_000 - preview.cost)
+        self.assertEqual(payload["profile"]["gold"], result["remaining_gold"])
+
+        next_preview = result["next_preview"]
+        self.assertIsNotNone(next_preview)
+        self.assertEqual(next_preview["item_uid"], item.uid)
+        self.assertEqual(next_preview["before_stars"], result["after_stars"])
+        self.assertEqual(next_preview["method_id"], "gold")
+        self.assertEqual(set(next_preview["odds"]), {"success", "fail", "destroy"})
+
+    def test_restore_response_does_not_include_next_enhancement_preview(self) -> None:
+        service = self.runtime.engine.service
+        profile = service.get_profile(9001, "웹 테스터")
+        trace = ItemInstance(
+            uid=1,
+            template_id="wooden_sword",
+            stars=4,
+            destroyed=True,
+        )
+        spare = ItemInstance(uid=2, template_id="wooden_sword")
+        profile.inventory = [trace, spare]
+        profile.next_item_uid = 3
+        profile.gold = 10_000
+        service._save()
+
+        preview = service.restore_preview(9001, "웹 테스터", trace.uid, spare.uid)
+        self.assertTrue(preview.ok)
+
+        response = self.post_action("restore", item_uid=trace.uid, spare_uid=spare.uid)
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+
+        result = payload["result"]
+        self.assertEqual(result["item_uid"], trace.uid)
+        self.assertEqual(result["cost"], preview.cost)
+        self.assertEqual(result["remaining_gold"], 10_000 - preview.cost)
+        self.assertEqual(payload["profile"]["gold"], result["remaining_gold"])
+        self.assertIsNone(result["next_preview"])
 
 
 if __name__ == "__main__":

@@ -24,9 +24,11 @@
     scroll: saved.scroll || {},
     result: null,
     enhancementPreview: null,
+    enhancementResult: null,
     busy: false,
   };
   let busyControl = null;
+  let previewLoadKey = "";
 
   const esc = (value) => String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -138,7 +140,7 @@
     }
   }
 
-  async function perform(type, data = {}, { keepResult = false, trigger = null } = {}) {
+  async function perform(type, data = {}, { keepResult = false, trigger = null, quiet = false } = {}) {
     const control = trigger || document.activeElement?.closest?.("button, [data-action]");
     setBusy(true, control);
     try {
@@ -157,11 +159,17 @@
       if (Object.hasOwn(payload, "joinable_sessions")) state.joinableSessions = payload.joinable_sessions || [];
       if (type === "enhancement_preview" || type === "restore_preview") {
         state.enhancementPreview = payload.result || null;
+      } else if (type === "enhance" || type === "restore") {
+        state.enhancementResult = payload.result || null;
+        state.enhancementPreview = payload.result?.next_preview || null;
       } else if (!keepResult) {
         state.result = payload.result || null;
       }
-      toast(payload.message, Boolean(payload.ok));
+      if (!quiet) toast(payload.message, Boolean(payload.ok));
       render();
+      if (type === "enhance") {
+        requestAnimationFrame(() => document.querySelector("[data-enhance-shortcut]")?.focus({ preventScroll: true }));
+      }
       return payload;
     } catch (error) {
       toast(error.message || "요청을 처리하지 못했습니다.", false);
@@ -210,6 +218,41 @@
   function resultPanel(title, lines) {
     if (!lines || !lines.length) return "";
     return `<section class="section"><div class="result-panel"><h3>${esc(title)}</h3><pre>${esc(lines.join("\n"))}</pre></div></section>`;
+  }
+
+  function pickerHeading(label, visible, total, group) {
+    const filtered = visible !== total;
+    return `<div class="picker-heading"><span>${esc(label)}</span><strong>${number(visible)}${filtered ? ` / ${number(total)}` : ""}</strong>${filtered ? `<button class="filter-reset" type="button" data-clear-filter-group="${esc(group)}" title="필터 초기화" aria-label="필터 초기화">×</button>` : ""}</div>`;
+  }
+
+  function itemListRow(item, selected, attribute) {
+    const stateText = item.destroyed ? "파괴 흔적" : item.equipped ? "장착" : "보유";
+    return `<button class="master-row${item.uid === selected?.uid ? " is-selected" : ""}" ${attribute}="${item.uid}"><span class="rarity-bar" data-rarity="${esc(item.rarity)}"></span><span class="row-main"><span class="row-title">${esc(item.name)} <b>+${item.stars}</b></span><span class="row-meta">${esc(item.rarity_label)} · ${stateText} · ${esc(item.potential_grade_label || "잠재 없음")}</span></span><span class="row-side">${item.equipped ? "장착" : ""}</span></button>`;
+  }
+
+  function materialCostText(rows = []) {
+    if (!rows.length) return "";
+    return rows.map((row) => `${esc(row.name)} ${number(row.owned ?? 0)} / ${number(row.amount)}`).join(" · ");
+  }
+
+  function enhancementOutcome(result, itemUid) {
+    if (!result || Number(result.item_uid) !== Number(itemUid)) return "";
+    const labels = {
+      success: ["success", "성공", `+${result.before_stars} → +${result.after_stars}`],
+      failed: ["failed", "실패", `+${result.after_stars} 유지`],
+      destroyed: ["destroyed", "파괴", `+${result.before_stars} 흔적 생성`],
+      restored: ["success", "복구 완료", `+${result.after_stars} 복구`],
+      missing_cost: ["failed", "재료 부족", "강화를 진행하지 못했습니다."],
+      unavailable: ["failed", "사용 불가", "다른 강화 방식을 선택하세요."],
+    };
+    const [tone, title, detail] = labels[result.outcome] || ["failed", "처리 결과", result.outcome || "확인 필요"];
+    const costs = [
+      result.cost ? `${number(result.cost)}G` : "",
+      ...(result.material_cost_rows || []).map((row) => `${esc(row.name)} ${number(row.amount)}개`),
+    ].filter(Boolean);
+    const completed = ["success", "failed", "destroyed", "restored"].includes(result.outcome);
+    const transaction = costs.length ? `${completed ? "소모" : "필요"} ${costs.join(" · ")} · ` : "";
+    return `<div class="enhance-outcome is-${tone}" role="status"><span>${title}</span><strong>${esc(detail)}</strong><small>${transaction}잔액 ${number(result.remaining_gold)}G</small></div>`;
   }
 
   function renderHome() {
@@ -268,15 +311,14 @@
   function renderExplore() {
     const query = filterValue("explore.query");
     const rows = state.content.dungeons.filter((dungeon) => matches([dungeon.name, dungeon.description, dungeon.level], query));
-    let selectedId = state.selected.dungeon;
-    if (selectedId && !rows.some((row) => row.id === selectedId)) selectedId = null;
+    const selectedId = state.selected.dungeon;
     const selected = state.content.dungeons.find((row) => row.id === selectedId);
     const resultRows = state.result?.runs || [];
     return `<div class="page">
       ${pageHeader("탐색", `내 레벨 ${state.profile.level} · 남은 탐색 ${state.profile.daily_unlimited ? "무제한" : state.profile.daily_remaining}`)}
       <div class="workspace">
         <aside class="master-pane">
-          <div class="master-tools"><input class="input search-input" value="${esc(query)}" placeholder="지역 검색" data-filter="explore.query"></div>
+          ${pickerHeading("지역 목록", rows.length, state.content.dungeons.length, "explore")}<div class="master-tools"><input class="input search-input" value="${esc(query)}" placeholder="지역·몬스터 검색" data-filter="explore.query"></div>
           <div class="master-list" data-scroll-key="explore.list">
             ${rows.map((dungeon) => `<button class="master-row${selectedId === dungeon.id ? " is-selected" : ""}" data-select-dungeon="${esc(dungeon.id)}">
               <span class="rarity-bar"></span><span class="row-main"><span class="row-title">${esc(dungeon.name)}</span><span class="row-meta">Lv.${dungeon.level} · ${esc(dungeon.enemies.map((enemy) => enemy.name).join(", "))}</span></span><span class="row-side">${dungeon.level > state.profile.level ? "고레벨" : ""}</span>
@@ -286,7 +328,7 @@
         <section class="detail-pane">
           ${selected ? `<div class="detail-header"><div><h2>${esc(selected.name)} <span class="tag">Lv.${selected.level}</span></h2><p>${esc(selected.description)}</p></div></div>
             <section class="section"><div class="section-head"><h2>출현 몬스터</h2></div><div class="entity-list">${selected.enemies.map((enemy) => `<div class="entity-card"><div><h3>${esc(enemy.name)}</h3>${enemy.rare ? `<p>희귀 몬스터</p>` : ""}</div>${enemy.rare ? `<span class="status-pill warning">RARE</span>` : ""}</div>`).join("")}</div></section>
-            <section class="section"><div class="button-row"><button class="button button-primary" data-action="explore" data-count="1" data-dungeon-id="${esc(selected.id)}">1회 탐색</button><button class="button" data-action="explore" data-count="7" data-dungeon-id="${esc(selected.id)}">7회 탐색</button></div></section>
+            <div class="operation-bar"><div class="operation-metrics"><div><span>내 레벨</span><strong>Lv.${state.profile.level}</strong></div><div><span>지역 레벨</span><strong>Lv.${selected.level}</strong></div><div><span>남은 탐색</span><strong>${state.profile.daily_unlimited ? "∞" : number(state.profile.daily_remaining)}</strong></div></div><div class="button-row"><button class="button" data-action="explore" data-count="1" data-dungeon-id="${esc(selected.id)}">1회</button><button class="button button-primary" data-action="explore" data-count="7" data-dungeon-id="${esc(selected.id)}">7회 탐색</button></div></div>
             ${resultPanel("최근 탐색", resultRows.flatMap((run, index) => {
               const reward = run.reward || {};
               const drops = [...(reward.items || []), ...(reward.materials || []).map((row) => `${row.name} x${row.amount}`)];
@@ -319,22 +361,24 @@
     const playerState = player ? effectText(player.player_effects, player.player_stacks) : "없음";
     const battleState = session.completed ? "클리어" : session.failed ? "패배" : session.cancelled ? "취소" : session.started ? `${player?.turn || 1}턴` : "준비";
     return `<div class="boss-combat">
-      <div class="boss-title-row"><div><div class="boss-name-line"><h2>${esc(session.boss_name)}</h2><span class="tag">${esc(session.difficulty_label)}</span>${session.practice ? `<span class="status-pill">연습</span>` : ""}</div><span class="section-copy">Lv.${session.boss_level}${player?.ct !== null && player?.ct !== undefined ? ` · CT ${player.ct}/${player.ct_max}` : ""}</span></div><span class="status-pill ${session.completed ? "success" : session.failed || session.cancelled ? "danger" : "warning"}">${battleState}</span></div>
+      <div class="boss-title-row boss-hud-head"><div><div class="boss-name-line"><h2>${esc(session.boss_name)}</h2><span class="tag">${esc(session.difficulty_label)}</span>${session.practice ? `<span class="status-pill">연습</span>` : ""}</div><span class="section-copy">Lv.${session.boss_level}${player?.ct !== null && player?.ct !== undefined ? ` · CT ${player.ct}/${player.ct_max}` : ""}</span></div><span class="status-pill ${session.completed ? "success" : session.failed || session.cancelled ? "danger" : "warning"}">${battleState}</span></div>
       <div class="boss-hp vital-block"><div class="vital-label"><span>보스 HP</span><strong>${number(session.boss_hp)} / ${number(session.boss_max_hp)} <small>${bossHpPercent.toFixed(1)}%</small></strong></div><div class="hp-track boss-health" role="progressbar" aria-label="보스 체력" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${bossHpPercent.toFixed(1)}"><span style="width:${bossHpPercent}%"></span></div></div>
-      ${session.started && player ? `<div class="boss-state-strip"><span>보스 상태</span><p>${esc(bossState)}</p>${player.hp_lock ? `<small>${esc(player.hp_lock)}</small>` : ""}</div>` : ""}
       ${!session.started && !terminal ? `<section class="section"><div class="entity-list">${session.participants.map((member) => `<div class="entity-card"><div><h3>${esc(member.name)} Lv.${member.level}</h3></div><span class="status-pill">참전</span></div>`).join("")}</div><div class="button-row" style="margin-top:12px">${session.is_owner ? `<button class="button button-primary" data-action="boss_start">시작</button><button class="button" data-action="boss_skip">스킵</button>` : ""}<button class="button button-danger" data-action="boss_cancel">취소</button></div></section>` : ""}
-      ${session.started && !terminal && player ? `<div class="combat-columns">
-        <div class="combat-main">
+      ${session.started && !terminal && player ? `<div class="combat-columns combat-hud-layout">
+        <div class="combat-main combat-hud">
           <div class="player-vitals vital-block">
             <div class="vital-label"><span><strong>${esc(state.profile.display_name)}</strong> · Lv.${state.profile.level}</span><strong>${number(player.hp)} / ${number(player.max_hp)} <small>${playerHpPercent.toFixed(1)}%</small></strong></div>
             <div class="hp-track player-health ${playerHpTone}" role="progressbar" aria-label="내 체력" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${playerHpPercent.toFixed(1)}"><span style="width:${playerHpPercent}%"></span></div>
           </div>
-          <div class="omen-panel${player.warning ? " is-active" : ""}"><div class="omen-heading"><strong>전조</strong><span>${player.warning ? "해제 조건 확인" : "없음"}</span></div><p>${esc(player.warning || "현재 발동 중인 전조가 없습니다.")}</p></div>
-          <div class="player-state-block"><span>내 상태</span><p>${esc(playerState)}</p></div>
+          <div class="combat-status-grid">
+            <div class="boss-state-strip"><span>보스 상태</span><p>${esc(bossState)}</p>${player.hp_lock ? `<small>${esc(player.hp_lock)}</small>` : ""}</div>
+            <div class="omen-panel${player.warning ? " is-active" : ""}"><div class="omen-heading"><strong>전조</strong><span>${player.warning ? "해제 조건 확인" : "없음"}</span></div><p>${esc(player.warning || "현재 발동 중인 전조가 없습니다.")}</p></div>
+            <div class="player-state-block"><span>내 상태</span><p>${esc(playerState)}</p></div>
+          </div>
           <section class="combat-action-section"><div class="combat-primary-actions"><button class="button button-primary combat-command" data-action="boss_attack" ${player.alive ? "" : "disabled"}>공격</button><button class="button combat-command" data-action="boss_guard" ${player.alive ? "" : "disabled"}>가드</button></div><button class="button button-quiet combat-leave" data-confirm-action="boss_leave" data-confirm-title="보스전 포기" data-confirm-message="현재 보스전에서 나갑니다. 보상은 받을 수 없습니다.">전투 포기</button></section>
-          <section class="combat-abilities"><div class="section-head"><div><h2>어빌리티</h2><p class="section-copy">효과와 재사용 상태를 확인하고 사용하세요.</p></div></div><div class="ability-grid">${session.skills.map((skill) => `<button class="ability-button ${skill.ready ? "is-ready" : "is-cooling"}" data-action="boss_ability" data-skill-id="${esc(skill.id)}" ${skill.ready ? "" : "disabled"}><span class="ability-button-head"><strong>${esc(skill.name)}</strong><span class="ability-state">${esc(skill.state)}</span></span><span class="ability-summary">${esc(skill.summary || "효과 정보 없음")}</span></button>`).join("") || `<p class="combat-copy">장착 어빌리티 없음</p>`}</div></section>
+          <section class="combat-abilities hud-abilities"><div class="section-head"><h2>어빌리티</h2><span class="status-pill">${number(session.skills.length)}개</span></div><div class="ability-grid">${session.skills.map((skill) => `<button class="ability-button ${skill.ready ? "is-ready" : "is-cooling"}" data-action="boss_ability" data-skill-id="${esc(skill.id)}" ${skill.ready ? "" : "disabled"}><span class="ability-button-head"><strong>${esc(skill.name)}</strong><span class="ability-state">${esc(skill.state)}</span></span><span class="ability-summary">${esc(skill.summary || "효과 정보 없음")}</span></button>`).join("") || `<p class="combat-copy">장착 어빌리티 없음</p>`}</div></section>
         </div>
-        <aside class="combat-sidebar"><div class="section-head"><div><h2>전투 로그</h2><p class="section-copy">최신 기록이 위에 표시됩니다.</p></div></div><div class="log-list">${session.log.slice().reverse().map((line, index) => `<div class="log-line${index === 0 ? " is-latest" : ""}">${esc(line)}</div>`).join("") || `<p class="combat-copy">아직 전투 기록이 없습니다.</p>`}</div>${session.damage_detail ? `<details class="damage-details"><summary>최근 피해 상세</summary><p class="combat-copy">${esc([session.damage_detail.action, session.damage_detail.summary, ...(session.damage_detail.detail_lines || []), session.damage_detail.received_summary, ...(session.damage_detail.received_detail_lines || [])].filter(Boolean).join("\n"))}</p></details>` : ""}</aside>
+        <details class="combat-sidebar combat-details"><summary><span>전투 기록 · 피해 상세</span><small>${esc(session.log.at(-1) || "기록 없음")}</small></summary><div class="combat-detail-body"><div class="section-head"><div><h2>전투 로그</h2><p class="section-copy">최신 기록이 위에 표시됩니다.</p></div></div><div class="log-list">${session.log.slice().reverse().map((line, index) => `<div class="log-line${index === 0 ? " is-latest" : ""}">${esc(line)}</div>`).join("") || `<p class="combat-copy">아직 전투 기록이 없습니다.</p>`}</div>${session.damage_detail ? `<div class="damage-details"><h3>최근 피해 계산</h3><p class="combat-copy">${esc([session.damage_detail.action, session.damage_detail.summary, ...(session.damage_detail.detail_lines || []), session.damage_detail.received_summary, ...(session.damage_detail.received_detail_lines || [])].filter(Boolean).join("\n"))}</p></div>` : ""}</div></details>
       </div>` : ""}
       ${terminal ? `<section class="section"><div class="result-panel"><h3>${session.completed ? "클리어" : session.failed ? "패배" : "종료"}</h3><pre>${esc(session.rewards[state.profile.user_id] || session.log.at(-1) || "보상 없음")}</pre></div><div class="button-row" style="margin-top:12px"><button class="button" data-action="boss_panel_reset">보스 목록으로</button></div></section>` : ""}
     </div>`;
@@ -357,7 +401,7 @@
     return `<div class="page">
       ${pageHeader("보스", "일반과 하드는 주간 자발 횟수를 공유합니다.", `<button class="button" data-action="boss_batch_skip">일괄 스킵</button>`)}
       <div class="workspace">
-        <aside class="master-pane"><div class="master-tools"><input class="input search-input" value="${esc(query)}" placeholder="보스 검색" data-filter="boss.query"></div><div class="master-list" data-scroll-key="boss.list">
+        <aside class="master-pane">${pickerHeading("보스 목록", rows.length, state.content.bosses.length, "boss")}<div class="master-tools"><input class="input search-input" value="${esc(query)}" placeholder="보스 검색" data-filter="boss.query"></div><div class="master-list" data-scroll-key="boss.list">
           ${rows.map((boss) => `<button class="master-row${boss.base_id === state.selected.bossBase ? " is-selected" : ""}" data-select-boss="${esc(boss.base_id)}"><span class="rarity-bar" data-rarity="${boss.variants.some((row) => row.difficulty === "hard") ? "unique" : "normal"}"></span><span class="row-main"><span class="row-title">${esc(boss.name)}</span><span class="row-meta">${boss.variants.map((row) => `${row.difficulty_label} Lv.${row.level}`).join(" · ")}</span></span><span class="row-side">${state.profile.weekly_remaining[boss.base_id] < 0 ? "∞" : `${state.profile.weekly_remaining[boss.base_id]}/1`}</span></button>`).join("")}
         </div></aside>
         <section class="detail-pane">
@@ -391,15 +435,13 @@
     const rows = equipmentRows();
     const sellableRows = rows.filter((item) => !item.equipped && !item.destroyed && !item.unsellable);
     const sellableGold = sellableRows.reduce((sum, item) => sum + Number(item.sell_price || 0), 0);
-    const selected = state.profile.inventory.find(
-      (item) => item.uid === Number(state.selected.itemUid) && rows.some((row) => row.uid === item.uid),
-    );
+    const selected = state.profile.inventory.find((item) => item.uid === Number(state.selected.itemUid));
     const rarityOptions = state.content.rarities.map((row) => `<option value="${esc(row.id)}" ${filterValue("equipment.rarity", "all") === row.id ? "selected" : ""}>${esc(row.name)}</option>`).join("");
     return `<div class="page">
       ${pageHeader("장비", `${state.profile.inventory.length}개 보유 · ${state.profile.equipped_item_uids.length}/${state.profile.max_equipped_items} 장착`, `<div class="head-action-stack"><div class="segmented"><button class="${mode === "equip" ? "is-active" : ""}" data-equipment-mode="equip">장착</button><button class="${mode === "sell" ? "is-active" : ""}" data-equipment-mode="sell">판매</button><button class="${mode === "auto" ? "is-active" : ""}" data-equipment-mode="auto">자동판매</button></div>${mode === "sell" ? `<button class="button button-danger" data-confirm-action="sell_filtered" data-confirm-title="필터 결과 일괄 판매" data-confirm-message="현재 검색 및 필터 결과의 장비 ${sellableRows.length}개를 ${number(sellableGold)}G에 판매합니다." ${sellableRows.length ? "" : "disabled"}>결과 ${sellableRows.length}개 판매</button>` : ""}</div>`)}
       ${mode === "auto" ? renderAutoSell() : `<div class="workspace">
-        <aside class="master-pane"><div class="master-tools"><input class="input search-input" value="${esc(filterValue("equipment.query"))}" placeholder="장비명·효과 검색" data-filter="equipment.query"><div class="filter-row"><select class="select" data-filter="equipment.rarity"><option value="all">모든 등급</option>${rarityOptions}</select><select class="select" data-filter="equipment.status"><option value="all">모든 상태</option><option value="equipped" ${filterValue("equipment.status") === "equipped" ? "selected" : ""}>장착</option><option value="owned" ${filterValue("equipment.status") === "owned" ? "selected" : ""}>보유</option><option value="destroyed" ${filterValue("equipment.status") === "destroyed" ? "selected" : ""}>파괴 흔적</option></select></div></div><div class="master-list" data-scroll-key="equipment.list">
-          ${rows.map((item) => `<button class="master-row${item.uid === selected?.uid ? " is-selected" : ""}" data-select-item="${item.uid}"><span class="rarity-bar" data-rarity="${esc(item.rarity)}"></span><span class="row-main"><span class="row-title">${esc(item.name)}${item.stars ? ` +${item.stars}` : ""}</span><span class="row-meta">${item.destroyed ? "파괴 흔적" : item.equipped ? "장착" : esc(item.potential_grade_label || "잠재 없음")}</span></span><span class="row-side">${item.equipped ? "장착" : ""}</span></button>`).join("") || `<div class="empty-state">검색 결과 없음</div>`}
+        <aside class="master-pane">${pickerHeading("장비 목록", rows.length, state.profile.inventory.length, "equipment")}<div class="master-tools"><input class="input search-input" value="${esc(filterValue("equipment.query"))}" placeholder="이름·능력치·잠재 검색" data-filter="equipment.query"><div class="filter-row"><select class="select" data-filter="equipment.rarity"><option value="all">모든 등급</option>${rarityOptions}</select><select class="select" data-filter="equipment.status"><option value="all">모든 상태</option><option value="equipped" ${filterValue("equipment.status") === "equipped" ? "selected" : ""}>장착</option><option value="owned" ${filterValue("equipment.status") === "owned" ? "selected" : ""}>보유</option><option value="destroyed" ${filterValue("equipment.status") === "destroyed" ? "selected" : ""}>파괴 흔적</option></select></div></div><div class="master-list" data-scroll-key="equipment.list">
+          ${rows.map((item) => itemListRow(item, selected, "data-select-item")).join("") || `<div class="empty-list">조건에 맞는 장비가 없습니다.</div>`}
         </div></aside>
         <section class="detail-pane">${selected ? renderItemDetail(selected, mode) : `<div class="empty-state">장비를 선택하세요.</div>`}</section>
       </div>`}
@@ -407,11 +449,14 @@
   }
 
   function renderItemDetail(item, mode) {
-    return `<div class="detail-header"><div><h2>${esc(item.name)}${item.stars ? ` +${item.stars}` : ""}</h2><p>${rarityTag(item.rarity, item.rarity_label)} ${item.destroyed ? `<span class="status-pill danger">파괴 흔적</span>` : item.equipped ? `<span class="status-pill success">장착</span>` : ""}</p></div></div>
+    const status = item.destroyed ? "파괴 흔적" : item.equipped ? "장착 중" : "보유 중";
+    const sellDisabled = item.equipped || item.destroyed || item.unsellable;
+    const sellLabel = item.unsellable ? "판매 불가" : `${number(item.sell_price)}G`;
+    return `<div class="detail-header"><div><h2>${esc(item.name)}${item.stars ? ` +${item.stars}` : ""}</h2></div>${rarityTag(item.rarity, item.rarity_label)}</div>
       <section class="section"><div class="section-head"><h2>능력치</h2></div><p class="combat-copy">${esc(item.stats_text || "없음")}</p></section>
       ${item.effects_text ? `<section class="section"><div class="section-head"><h2>영속 효과</h2></div><p class="combat-copy">${esc(item.effects_text)}</p></section>` : ""}
       <section class="section"><div class="section-head"><h2>잠재능력</h2>${item.potential_grade ? rarityTag(item.potential_grade, item.potential_grade_label) : ""}</div><p class="combat-copy">${esc(item.potential_text || "없음")}</p></section>
-      <section class="section"><div class="button-row">${mode === "equip" ? `<button class="button ${item.equipped ? "" : "button-primary"}" data-action="equipment_toggle" data-item-uid="${item.uid}" ${item.destroyed ? "disabled" : ""}>${item.equipped ? "장착 해제" : "장착"}</button><button class="button" data-action="equipment_auto">최강 장비 자동 장착</button>` : `<button class="button button-danger" data-confirm-action="sell_one" data-item-uid="${item.uid}" data-confirm-title="장비 판매" data-confirm-message="${esc(item.name)}을 ${number(item.sell_price)}G에 판매합니다." ${item.equipped || item.destroyed || item.unsellable ? "disabled" : ""}>${number(item.sell_price)}G에 판매</button>`}</div></section>`;
+      <div class="operation-bar equipment-operation"><div class="operation-metrics"><div><span>상태</span><strong>${status}</strong></div><div><span>판매가</span><strong>${sellLabel}</strong></div><div><span>장비 점수</span><strong>${number(item.score)}</strong></div></div><div class="button-row"><button class="button ${mode === "equip" && !item.equipped ? "button-primary" : ""}" data-action="equipment_toggle" data-item-uid="${item.uid}" ${item.destroyed ? "disabled" : ""}>${item.equipped ? "장착 해제" : "장착"}</button><button class="button button-danger" data-confirm-action="sell_one" data-item-uid="${item.uid}" data-confirm-title="장비 판매" data-confirm-message="${esc(item.name)}을 ${number(item.sell_price)}G에 판매합니다." ${sellDisabled ? "disabled" : ""}>${sellDisabled ? sellLabel : `${number(item.sell_price)}G에 판매`}</button>${mode === "equip" ? `<button class="button" data-action="equipment_auto">자동 장착</button>` : ""}</div></div>`;
   }
 
   function renderAutoSell() {
@@ -421,59 +466,103 @@
 
   function renderAbilities() {
     const query = filterValue("abilities.query");
+    const role = filterValue("abilities.role", "all");
     const unlocked = new Set(state.profile.unlocked_skill_ids);
     const unlockedSpecial = new Set(state.profile.unlocked_special_skill_ids);
-    const skills = state.content.skills.filter((skill) => !skill.special && unlocked.has(skill.id) && matches([skill.name, skill.summary, skill.note], query));
-    const specials = state.content.skills.filter((skill) => skill.special && unlockedSpecial.has(skill.id) && matches([skill.name, skill.summary, skill.note], query));
     const equipped = new Set(state.profile.equipped_skill_ids);
+    const equippedSpecial = state.profile.equipped_special_skill_id;
+    const roleLabels = { attack: "공격", buff: "강화", debuff: "약화", heal: "회복" };
+    const roleLabel = (value) => roleLabels[value] || value;
+    const available = state.content.skills.filter((skill) => (skill.special ? unlockedSpecial.has(skill.id) : unlocked.has(skill.id)));
+    const roles = [...new Set(available.map((skill) => skill.role).filter(Boolean))].sort((left, right) => roleLabel(left).localeCompare(roleLabel(right), "ko"));
+    const visible = available.filter((skill) => (role === "all" || skill.role === role) && matches([skill.name, skill.summary, skill.note, skill.role, roleLabel(skill.role)], query));
+    const skills = visible
+      .filter((skill) => !skill.special)
+      .sort((left, right) => Number(equipped.has(right.id)) - Number(equipped.has(left.id)) || left.level - right.level || left.name.localeCompare(right.name, "ko"));
+    const specials = visible
+      .filter((skill) => skill.special)
+      .sort((left, right) => Number(right.id === equippedSpecial) - Number(left.id === equippedSpecial) || left.level - right.level || left.name.localeCompare(right.name, "ko"));
+    const skillDescription = (skill) => `<span class="skill-copy"><h3>${esc(skill.name)}</h3><p class="skill-effect">${esc(skill.summary || "효과 정보 없음")}</p>${skill.note ? `<p class="skill-note">${esc(skill.note)}</p>` : ""}</span>`;
     return `<div class="page">
-      ${pageHeader("어빌리티", `${equipped.size}/${state.profile.max_equipped_skills} 장착 · 특수 ${state.profile.equipped_special_skill_id ? "1/1" : "0/1"}`, `<input class="input search-input" value="${esc(query)}" placeholder="어빌리티 검색" data-filter="abilities.query">`)}
-      <section class="section"><div class="section-head"><h2>일반 어빌리티</h2></div><div class="skill-list">${skills.map((skill) => `<label class="skill-row"><input type="checkbox" data-skill-id="${esc(skill.id)}" ${equipped.has(skill.id) ? "checked" : ""}><span><h3>${esc(skill.name)}</h3><p>${esc(skill.summary)}${skill.note ? ` · ${esc(skill.note)}` : ""}</p></span><span class="status-pill">${esc(skill.role)}</span></label>`).join("") || `<p class="section-copy">사용 가능한 어빌리티가 없습니다.</p>`}</div></section>
-      <section class="section"><div class="section-head"><h2>특수 어빌리티</h2></div><div class="skill-list"><label class="skill-row"><input type="radio" name="special-skill" data-special-skill-id="" ${state.profile.equipped_special_skill_id ? "" : "checked"}><span><h3>장착 안 함</h3></span></label>${specials.map((skill) => `<label class="skill-row"><input type="radio" name="special-skill" data-special-skill-id="${esc(skill.id)}" ${state.profile.equipped_special_skill_id === skill.id ? "checked" : ""}><span><h3>${esc(skill.name)}</h3><p>${esc(skill.summary)}${skill.note ? ` · ${esc(skill.note)}` : ""}</p></span><span class="status-pill warning">SPECIAL</span></label>`).join("")}</div></section>
+      ${pageHeader("어빌리티", `${equipped.size}/${state.profile.max_equipped_skills} 장착 · 특수 ${equippedSpecial ? "1/1" : "0/1"}`, `<div class="ability-filters"><input class="input search-input" value="${esc(query)}" placeholder="이름·효과 검색" aria-label="어빌리티 검색" data-filter="abilities.query"><select class="select" aria-label="어빌리티 역할 필터" data-filter="abilities.role"><option value="all">모든 역할</option>${roles.map((value) => `<option value="${esc(value)}" ${role === value ? "selected" : ""}>${esc(roleLabel(value))}</option>`).join("")}</select></div>`)}
+      <section class="section"><div class="section-head"><h2>일반 어빌리티</h2><span class="status-pill">${number(skills.length)}개</span></div><div class="skill-list">${skills.map((skill) => `<label class="skill-row${equipped.has(skill.id) ? " is-equipped" : ""}"><input type="checkbox" data-skill-id="${esc(skill.id)}" ${equipped.has(skill.id) ? "checked" : ""}>${skillDescription(skill)}<span class="status-pill">${esc(roleLabel(skill.role))}</span></label>`).join("") || `<p class="section-copy">조건에 맞는 일반 어빌리티가 없습니다.</p>`}</div></section>
+      <section class="section"><div class="section-head"><h2>특수 어빌리티</h2><span class="status-pill">${number(specials.length)}개</span></div><div class="skill-list"><label class="skill-row${equippedSpecial ? "" : " is-equipped"}"><input type="radio" name="special-skill" data-special-skill-id="" ${equippedSpecial ? "" : "checked"}><span class="skill-copy"><h3>장착 안 함</h3><p class="skill-effect">특수 어빌리티 슬롯을 비웁니다.</p></span><span class="status-pill">해제</span></label>${specials.map((skill) => `<label class="skill-row${equippedSpecial === skill.id ? " is-equipped" : ""}"><input type="radio" name="special-skill" data-special-skill-id="${esc(skill.id)}" ${equippedSpecial === skill.id ? "checked" : ""}>${skillDescription(skill)}<span class="status-pill warning">${esc(roleLabel(skill.role))} · 특수</span></label>`).join("")}</div></section>
     </div>`;
   }
 
   function enhancementItems(mode) {
-    return state.profile.inventory.filter((item) => mode === "restore" ? item.destroyed : !item.destroyed);
+    if (mode === "restore") return state.profile.inventory.filter((item) => item.destroyed);
+    if (mode === "potential") return state.profile.inventory.filter((item) => !item.destroyed);
+    return state.profile.inventory;
   }
 
   function renderEnhance() {
     const mode = state.selected.enhanceMode || "star";
     const query = filterValue("enhance.query");
-    const rows = enhancementItems(mode).filter((item) => matches([item.name, item.potential_text, item.stats_text], query));
-    const selected = state.profile.inventory.find((item) => item.uid === Number(state.selected.enhanceItemUid) && rows.some((row) => row.uid === item.uid));
+    const rarity = filterValue("enhance.rarity", "all");
+    const status = filterValue("enhance.status", "all");
+    const available = enhancementItems(mode);
+    const rows = available.filter((item) => {
+      if (rarity !== "all" && item.rarity !== rarity) return false;
+      if (status === "equipped" && !item.equipped) return false;
+      if (status === "owned" && (item.equipped || item.destroyed)) return false;
+      if (status === "destroyed" && !item.destroyed) return false;
+      return matches([item.name, item.template_id, item.rarity_label, item.potential_text, item.stats_text], query);
+    });
+    const selected = available.find((item) => item.uid === Number(state.selected.enhanceItemUid));
+    const rarityOptions = state.content.rarities.map((row) => `<option value="${esc(row.id)}" ${rarity === row.id ? "selected" : ""}>${esc(row.name)}</option>`).join("");
     return `<div class="page">
-      ${pageHeader("강화", `${number(state.profile.gold)}G`, `<div class="segmented"><button class="${mode === "star" ? "is-active" : ""}" data-enhance-mode="star">스타포스</button><button class="${mode === "potential" ? "is-active" : ""}" data-enhance-mode="potential">잠재능력</button><button class="${mode === "restore" ? "is-active" : ""}" data-enhance-mode="restore">흔적 복구</button></div>`)}
-      <div class="workspace"><aside class="master-pane"><div class="master-tools"><input class="input search-input" value="${esc(query)}" placeholder="강화 장비 검색" data-filter="enhance.query"></div><div class="master-list" data-scroll-key="enhance.list">${rows.map((item) => `<button class="master-row${item.uid === selected?.uid ? " is-selected" : ""}" data-select-enhance-item="${item.uid}"><span class="rarity-bar" data-rarity="${esc(item.rarity)}"></span><span class="row-main"><span class="row-title">${esc(item.name)}${item.stars ? ` +${item.stars}` : ""}</span><span class="row-meta">${item.destroyed ? "파괴 흔적" : item.equipped ? "장착" : "보유"} · ${esc(item.potential_grade_label || "잠재 없음")}</span></span><span class="row-side">${item.equipped ? "장착" : ""}</span></button>`).join("") || `<div class="empty-state">대상 장비 없음</div>`}</div></aside><section class="detail-pane">${selected ? (mode === "star" ? renderStarforce(selected) : mode === "potential" ? renderPotential(selected) : renderRestore(selected)) : `<div class="empty-state">장비를 선택하세요.</div>`}</section></div>
+      ${pageHeader("강화", `보유 골드 ${number(state.profile.gold)}G`, `<div class="segmented"><button class="${mode === "star" ? "is-active" : ""}" data-enhance-mode="star">스타포스</button><button class="${mode === "potential" ? "is-active" : ""}" data-enhance-mode="potential">잠재능력</button><button class="${mode === "restore" ? "is-active" : ""}" data-enhance-mode="restore">흔적 복구</button></div>`)}
+      <div class="workspace enhance-workspace"><aside class="master-pane">${pickerHeading("장비 목록", rows.length, available.length, "enhance")}<div class="master-tools"><input class="input search-input" value="${esc(query)}" placeholder="이름·능력치·잠재 검색" data-filter="enhance.query"><div class="filter-row"><select class="select" data-filter="enhance.rarity"><option value="all">모든 등급</option>${rarityOptions}</select><select class="select" data-filter="enhance.status"><option value="all">모든 상태</option><option value="equipped" ${status === "equipped" ? "selected" : ""}>장착</option><option value="owned" ${status === "owned" ? "selected" : ""}>보유</option><option value="destroyed" ${status === "destroyed" ? "selected" : ""}>파괴 흔적</option></select></div></div><div class="master-list" data-scroll-key="enhance.list">${rows.map((item) => itemListRow(item, selected, "data-select-enhance-item")).join("") || `<div class="empty-list">조건에 맞는 장비가 없습니다.</div>`}</div></aside><section class="detail-pane">${selected ? (mode === "star" ? renderStarforce(selected) : mode === "potential" ? renderPotential(selected) : renderRestore(selected)) : `<div class="empty-state">왼쪽 목록에서 장비를 선택하세요.</div>`}</section></div>
     </div>`;
   }
 
   function renderStarforce(item) {
     const methodId = state.selected.enhanceMethod || state.content.enhancement_methods[0]?.id || "";
-    const preview = state.enhancementPreview?.item_uid === item.uid ? state.enhancementPreview : null;
-    return `<div class="detail-header"><div><h2>${esc(item.name)} +${item.stars}</h2><p>${item.equipped ? "장착 · " : ""}${esc(item.stats_text)}</p></div>${rarityTag(item.rarity, item.rarity_label)}</div>
-      ${item.enhancement_disabled ? `<div class="warning-box">스타포스 강화 불가</div>` : `<section class="section"><label class="field"><span>강화 방식</span><select class="select" data-enhancement-method>${state.content.enhancement_methods.map((method) => `<option value="${esc(method.id)}" ${method.id === methodId ? "selected" : ""}>${esc(method.name)}</option>`).join("")}</select></label></section>
-      <section class="section">${preview ? `<div class="stat-grid"><div class="stat-cell"><span>성공</span><strong>${percent(preview.odds.success)}</strong></div><div class="stat-cell"><span>실패</span><strong>${percent(preview.odds.fail)}</strong></div><div class="stat-cell"><span>파괴</span><strong>${percent(preview.odds.destroy)}</strong></div><div class="stat-cell"><span>비용</span><strong>${number(preview.cost)}G</strong></div></div><p class="combat-copy" style="margin-top:12px">${esc(preview.delta_text || "능력치 변동 없음")}</p>` : `<p class="section-copy">강화 정보를 갱신해 주세요.</p>`}</section>
-      <section class="section"><div class="button-row"><button class="button" data-action="enhancement_preview" data-item-uid="${item.uid}">정보 갱신</button><button class="button button-primary" data-confirm-action="enhance" data-item-uid="${item.uid}" data-confirm-title="스타포스 강화" data-confirm-message="${esc(item.name)} +${item.stars} 강화를 시도합니다." ${preview && !preview.ok ? "disabled" : ""}>강화</button></div></section>`}`;
+    const preview = state.enhancementPreview?.item_uid === item.uid && (!state.enhancementPreview.method_id || state.enhancementPreview.method_id === methodId) ? state.enhancementPreview : null;
+    const result = enhancementOutcome(state.enhancementResult, item.uid);
+    if (item.destroyed) {
+      return `<div class="enhance-console">${result}<div class="enhance-title"><div><span class="eyebrow">파괴 흔적</span><h2>${esc(item.name)} <b>+${item.stars}</b></h2><p>${esc(item.stats_text)}</p></div>${rarityTag(item.rarity, item.rarity_label)}</div><div class="warning-box">동일한 장비 스페어를 사용하면 +${Math.max(0, item.stars - 3)}로 복구됩니다.</div><div class="enhance-actions"><button class="button button-primary" data-enhance-mode="restore">흔적 복구로 이동</button></div></div>`;
+    }
+    const afterGold = preview ? state.profile.gold - preview.cost : state.profile.gold;
+    const confirmation = preview ? `${item.name} +${item.stars} → +${preview.after_stars}\n소모 ${number(preview.cost)}G · 성공 ${percent(preview.odds.success)} · 실패 ${percent(preview.odds.fail)} · 파괴 ${percent(preview.odds.destroy)}` : `${item.name} 강화를 시도합니다.`;
+    return `<div class="enhance-console">${result}<div class="enhance-title"><div><span class="eyebrow">스타포스</span><h2>${esc(item.name)} <b>+${item.stars}</b></h2><p>${item.equipped ? "장착 중 · " : ""}${esc(item.stats_text)}</p></div>${rarityTag(item.rarity, item.rarity_label)}</div>
+      ${item.enhancement_disabled ? `<div class="warning-box">이 장비는 스타포스 강화가 불가능합니다.</div>` : `<div class="enhance-method"><label class="field"><span>강화 방식</span><select class="select" data-enhancement-method>${state.content.enhancement_methods.map((method) => `<option value="${esc(method.id)}" ${method.id === methodId ? "selected" : ""}>${esc(method.name)}</option>`).join("")}</select></label></div>
+      ${preview ? `<div class="enhance-ledger"><div><span>보유 골드</span><strong>${number(state.profile.gold)}G</strong></div><div><span>소모 골드</span><strong class="cost">-${number(preview.cost)}G</strong></div><div><span>강화 후 잔액</span><strong>${number(afterGold)}G</strong></div></div>
+      <div class="chance-grid"><div class="chance success"><span>성공</span><strong>${percent(preview.odds.success)}</strong></div><div class="chance fail"><span>실패</span><strong>${percent(preview.odds.fail)}</strong></div><div class="chance destroy"><span>파괴</span><strong>${percent(preview.odds.destroy)}</strong></div></div><div class="chance-track" aria-hidden="true"><span class="success" style="width:${preview.odds.success * 100}%"></span><span class="fail" style="width:${preview.odds.fail * 100}%"></span><span class="destroy" style="width:${preview.odds.destroy * 100}%"></span></div>
+      ${preview.material_cost_rows?.length ? `<div class="enhance-materials"><span>소모 재료</span><strong>${materialCostText(preview.material_cost_rows)}</strong></div>` : ""}<div class="enhance-delta"><span>성공 시 변화</span><p>${esc(preview.delta_text || "능력치 변동 없음")}</p></div>${preview.ok ? "" : `<div class="warning-box">${esc(preview.message)}</div>`}<div class="enhance-actions"><button class="button button-primary enhance-submit" data-confirm-action="enhance" data-enhance-shortcut data-item-uid="${item.uid}" data-confirm-title="스타포스 강화" data-confirm-message="${esc(confirmation)}" aria-keyshortcuts="Enter Space" ${preview.ok ? "" : "disabled"}>+${item.stars} → +${preview.after_stars} 강화</button></div>` : `<div class="enhance-loading"><span class="spinner"></span><p>강화 정보를 불러오는 중</p></div>`}`}</div>`;
   }
 
   function renderPotential(item) {
     const pending = state.profile.pending_potential;
     const thisPending = pending?.item_uid === item.uid ? pending : null;
     const progress = item.potential_progress || "보장 없음";
-    const costLabel = `1회 ${number(item.potential_reroll_cost)}G · 3회 ${number(item.potential_reroll_cost * 3)}G`;
-    return `<div class="detail-header"><div><h2>${esc(item.name)}${item.stars ? ` +${item.stars}` : ""}</h2><p>${item.equipped ? "장착 · " : ""}${esc(item.potential_grade_label || "잠재 없음")}</p></div>${item.potential_grade ? rarityTag(item.potential_grade, item.potential_grade_label) : ""}</div>
-      <section class="section"><div class="section-head"><h2>현재 잠재능력</h2><span class="status-pill">등급업 ${esc(progress)}</span></div><p class="combat-copy">${esc(item.potential_text || "잠재능력 없음")}</p><p class="section-copy">${esc(costLabel)}</p></section>
-      ${item.potential_locked ? `<div class="warning-box">현재 단계에서는 잠재능력을 재설정할 수 없습니다.</div>` : `<section class="section"><div class="section-head"><h2>메모리얼</h2></div>${thisPending ? `<div class="potential-grid">${thisPending.candidates.map((candidate) => `<div class="potential-candidate"><h3>${esc(candidate.grade_label)}${candidate.tier_up ? ` <span class="status-pill success">등급 상승</span>` : ""}</h3><div class="potential-lines">${esc(candidate.text)}</div><button class="button button-primary" data-action="potential_apply" data-candidate-index="${candidate.index}">이 능력 적용</button></div>`).join("")}</div>${thisPending.required_grade ? `<div class="warning-box">등급이 상승했습니다. 상승 등급 후보를 반드시 적용해야 합니다.</div>` : ""}` : `<p class="section-copy">재설정 결과가 여기에 표시됩니다.</p>`}<div class="button-row" style="margin-top:14px"><button class="button" data-action="potential_roll" data-item-uid="${item.uid}" data-count="1">1회 재설정</button><button class="button" data-action="potential_roll" data-item-uid="${item.uid}" data-count="3">3회 재설정</button></div></section>`}`;
+    const oneCost = Number(item.potential_reroll_cost || 0);
+    const threeCost = oneCost * 3;
+    const requiredGrade = pending?.required_grade || "";
+    const requiredLabel = thisPending?.candidates.find((candidate) => candidate.grade === requiredGrade)?.grade_label || requiredGrade;
+    const pendingItem = requiredGrade ? state.profile.inventory.find((candidate) => candidate.uid === Number(pending.item_uid)) : null;
+    const choiceRequiredHere = Boolean(requiredGrade && thisPending);
+    const choiceRequiredElsewhere = Boolean(requiredGrade && !thisPending);
+    const rerollLocked = choiceRequiredHere || choiceRequiredElsewhere;
+    const candidateGrid = thisPending ? `<div class="potential-grid">${thisPending.candidates.map((candidate) => {
+      const eligible = !requiredGrade || candidate.grade === requiredGrade;
+      return `<div class="potential-candidate${candidate.tier_up ? " is-tier-up" : ""}${eligible ? "" : " is-unavailable"}" ${eligible ? "" : `aria-disabled="true"`}><h3>${esc(candidate.grade_label)}${candidate.tier_up ? ` <span class="status-pill success">등급 상승</span>` : ""}${eligible ? "" : ` <span class="status-pill danger">선택 불가</span>`}</h3><div class="potential-lines">${esc(candidate.text)}</div><button class="button ${eligible ? "button-primary" : ""}" data-action="potential_apply" data-candidate-index="${candidate.index}" ${eligible ? "" : "disabled"}>${eligible ? "이 능력 적용" : "상승 등급만 선택 가능"}</button></div>`;
+    }).join("")}</div>` : `<div class="empty-result">재설정 결과가 이 자리에 표시됩니다.</div>`;
+    return `<div class="enhance-console"><div class="enhance-title"><div><span class="eyebrow">잠재능력</span><h2>${esc(item.name)} <b>+${item.stars}</b></h2><p>${item.equipped ? "장착 중 · " : ""}${esc(item.potential_grade_label || "잠재 없음")}</p></div>${item.potential_grade ? rarityTag(item.potential_grade, item.potential_grade_label) : ""}</div>
+      <div class="potential-overview"><div class="current-potential"><div class="section-head"><h3>현재 잠재능력</h3><span class="status-pill">등급업 ${esc(progress)}</span></div><div class="potential-lines">${esc(item.potential_text || "잠재능력 없음")}</div></div><div class="potential-wallet"><div><span>보유 골드</span><strong>${number(state.profile.gold)}G</strong></div><div><span>1회 비용</span><strong>${number(item.potential_reroll_cost)}G</strong></div><div><span>3회 비용</span><strong>${number(item.potential_reroll_cost * 3)}G</strong></div></div></div>
+      ${item.potential_locked ? `<div class="warning-box">현재 단계에서는 잠재능력을 재설정할 수 없습니다.</div>` : `<section class="potential-workbench" aria-labelledby="potential-workbench-title"><div class="memorial-head"><div><h3 id="potential-workbench-title">메모리얼 후보 선택</h3><p class="section-copy">재설정과 후보 적용을 이 영역에서 진행합니다.</p></div><div class="button-row potential-reroll-actions"><button class="button" data-action="potential_roll" data-item-uid="${item.uid}" data-count="1" ${rerollLocked || state.profile.gold < oneCost ? "disabled" : ""}>1회 · ${number(oneCost)}G</button><button class="button button-primary" data-action="potential_roll" data-item-uid="${item.uid}" data-count="3" ${rerollLocked || state.profile.gold < threeCost ? "disabled" : ""}>3회 · ${number(threeCost)}G</button></div></div>${choiceRequiredHere ? `<div class="warning-box potential-required" role="alert"><strong>후보 선택 필수</strong>\n등급이 상승했습니다. ${esc(requiredLabel)} 등급 후보 중 하나를 적용해야 다른 재설정을 진행할 수 있습니다.</div>` : ""}${choiceRequiredElsewhere ? `<div class="warning-box potential-required" role="alert"><strong>후보 선택 필수</strong>\n${esc(pendingItem?.name || "다른 장비")}에서 상승 등급 후보를 먼저 적용해 주세요.</div>` : ""}${candidateGrid}</section>`}</div>`;
   }
 
   function renderRestore(item) {
     const spares = state.profile.inventory.filter((candidate) => !candidate.destroyed && !candidate.equipped && candidate.template_id === item.template_id && candidate.uid !== item.uid);
     const spareUid = Number(state.selected.restoreSpareUid || spares[0]?.uid || 0);
     const preview = state.enhancementPreview?.item_uid === item.uid ? state.enhancementPreview : null;
-    return `<div class="detail-header"><div><h2>${esc(item.name)} +${item.stars} 흔적</h2><p>복구 후 +${Math.max(0, item.stars - 3)}</p></div><span class="status-pill danger">파괴</span></div>
-      <section class="section"><label class="field"><span>소모할 스페어</span><select class="select" data-restore-spare>${spares.length ? spares.map((spare) => `<option value="${spare.uid}" ${spare.uid === spareUid ? "selected" : ""}>${esc(spare.name)}${spare.stars ? ` +${spare.stars}` : ""}</option>`).join("") : `<option value="">사용 가능한 스페어 없음</option>`}</select></label></section>
-      <section class="section">${preview ? `<div class="stat-grid"><div class="stat-cell"><span>복구 성급</span><strong>+${preview.after_stars}</strong></div><div class="stat-cell"><span>비용</span><strong>${number(preview.cost)}G</strong></div></div>` : ""}<div class="button-row" style="margin-top:14px"><button class="button" data-action="restore_preview" data-item-uid="${item.uid}" data-spare-uid="${spareUid}" ${spareUid ? "" : "disabled"}>정보 갱신</button><button class="button button-primary" data-confirm-action="restore" data-item-uid="${item.uid}" data-spare-uid="${spareUid}" data-confirm-title="흔적 복구" data-confirm-message="동일 장비 스페어를 소모해 흔적을 복구합니다." ${spareUid && preview?.ok ? "" : "disabled"}>복구</button></div></section>`;
+    const result = enhancementOutcome(state.enhancementResult, item.uid);
+    const afterGold = preview ? state.profile.gold - preview.cost : state.profile.gold;
+    return `<div class="enhance-console">${result}<div class="enhance-title"><div><span class="eyebrow">흔적 복구</span><h2>${esc(item.name)} <b>+${item.stars}</b></h2><p>복구 결과 +${Math.max(0, item.stars - 3)}</p></div><span class="status-pill danger">파괴 흔적</span></div>
+      <div class="enhance-method"><label class="field"><span>소모할 스페어</span><select class="select" data-restore-spare>${spares.length ? spares.map((spare) => `<option value="${spare.uid}" ${spare.uid === spareUid ? "selected" : ""}>${esc(spare.name)} +${spare.stars} · ${esc(spare.potential_grade_label || "잠재 없음")}</option>`).join("") : `<option value="">사용 가능한 스페어 없음</option>`}</select></label></div>
+      ${preview ? `<div class="enhance-ledger"><div><span>보유 골드</span><strong>${number(state.profile.gold)}G</strong></div><div><span>소모 골드</span><strong class="cost">-${number(preview.cost)}G</strong></div><div><span>복구 후 잔액</span><strong>${number(afterGold)}G</strong></div></div><div class="restore-summary"><div><span>파괴 전 성급</span><strong>+${preview.before_stars}</strong></div><div><span>복구 성급</span><strong>+${preview.after_stars}</strong></div></div>${preview.ok ? "" : `<div class="warning-box">${esc(preview.message)}</div>`}<div class="enhance-actions"><button class="button button-primary enhance-submit" data-confirm-action="restore" data-item-uid="${item.uid}" data-spare-uid="${spareUid}" data-confirm-title="흔적 복구" data-confirm-message="${esc(`${item.name} 흔적을 +${preview.after_stars}로 복구합니다.\n동일 장비 1개 · ${number(preview.cost)}G 소모`)}" ${spareUid && preview.ok ? "" : "disabled"}>+${preview.after_stars}로 복구</button></div>` : spares.length ? `<div class="enhance-loading"><span class="spinner"></span><p>복구 정보를 불러오는 중</p></div>` : `<div class="warning-box">복구에 사용할 동일 장비 스페어가 없습니다.</div>`}</div>`;
   }
 
   function renderGacha() {
@@ -482,19 +571,35 @@
     const owned = state.profile.material_amounts[selectedPool?.cost_material_id] || 0;
     const result = state.result;
     return `<div class="page">
-      ${pageHeader("가챠", selectedPool ? `${esc(selectedPool.cost_material_name)} ${number(owned)}개 보유` : "")}
+      ${pageHeader("가챠", selectedPool ? `${esc(selectedPool.cost_material_name)} ${number(owned)}개` : "")}
       ${festival ? `<section class="section"><div class="detail-header"><div><h2>${esc(festival.name)}</h2><p>${esc(festival.description)}</p></div><span class="status-pill warning">FES</span></div><p class="combat-copy">${esc([festival.period, ...festival.overrides.map((row) => `${row.name} ${(row.chance * 100).toFixed(2)}%`)].filter(Boolean).join("\n"))}</p></section>` : ""}
-      <section class="section"><div class="section-head"><h2>가챠 풀</h2></div><div class="segmented">${state.content.gacha_pools.map((pool) => `<button data-gacha-pool="${esc(pool.id)}" class="${pool.id === selectedPool?.id ? "is-active" : ""}">${esc(pool.name)}</button>`).join("")}</div>${selectedPool ? `<p class="section-copy">${esc(selectedPool.description)}</p><div class="button-row" style="margin-top:16px">${selectedPool.draw_options.map((draws) => { const cost = Math.ceil(selectedPool.base_cost * draws / Math.max(1, selectedPool.base_draws)); return `<button class="button ${draws === selectedPool.base_draws ? "button-primary" : ""}" data-action="gacha" data-pool-id="${esc(selectedPool.id)}" data-draws="${draws}" ${owned < cost ? "disabled" : ""}>${draws}회 · ${number(cost)}</button>`; }).join("")}</div>` : ""}</section>
-      ${result && (result.items || result.materials) ? `<section class="section"><div class="result-panel"><h3>가챠 결과</h3><pre>${esc([...(result.items || []), ...(result.materials || []).map((row) => `${row.name} x${row.amount}`), result.auto_sold_count ? `자동판매 ${result.auto_sold_count}개 · ${number(result.auto_sold_gold)}G` : ""].filter(Boolean).join("\n") || "획득 없음")}</pre></div></section>` : ""}
+      <div class="gacha-console"><div class="gacha-pool-head"><div><span class="eyebrow">가챠 풀</span><h2>${esc(selectedPool?.name || "가챠 없음")}</h2><p>${esc(selectedPool?.description || "")}</p></div><div class="segmented">${state.content.gacha_pools.map((pool) => `<button data-gacha-pool="${esc(pool.id)}" class="${pool.id === selectedPool?.id ? "is-active" : ""}">${esc(pool.name)}</button>`).join("")}</div></div>${selectedPool ? `<div class="gacha-wallet"><span>보유 ${esc(selectedPool.cost_material_name)}</span><strong>${number(owned)}</strong></div><div class="draw-grid">${selectedPool.draw_options.map((draws) => { const cost = Math.ceil(selectedPool.base_cost * draws / Math.max(1, selectedPool.base_draws)); return `<button class="draw-option${draws === selectedPool.base_draws ? " is-primary" : ""}" data-action="gacha" data-pool-id="${esc(selectedPool.id)}" data-draws="${draws}" ${owned < cost ? "disabled" : ""}><strong>${draws}회</strong><span>${number(cost)} ${esc(selectedPool.cost_material_name)}</span></button>`; }).join("")}</div>` : ""}${result && (result.items || result.materials) ? `<div class="gacha-result"><h3>가챠 결과</h3><pre>${esc([...(result.items || []), ...(result.materials || []).map((row) => `${row.name} x${row.amount}`), result.auto_sold_count ? `자동판매 ${result.auto_sold_count}개 · ${number(result.auto_sold_gold)}G` : ""].filter(Boolean).join("\n") || "획득 없음")}</pre></div>` : ""}</div>
     </div>`;
   }
 
   function renderCraft() {
     const query = filterValue("craft.query");
     const rarity = filterValue("craft.rarity", "all");
-    const rows = state.content.recipes.filter((recipe) => (rarity === "all" || recipe.result_rarity === rarity) && matches([recipe.name, recipe.result_name, recipe.description], query));
+    const rows = state.content.recipes.filter((recipe) => (rarity === "all" || recipe.result_rarity === rarity) && matches([recipe.name, recipe.result_name, recipe.description, ...recipe.materials.map((material) => material.name)], query));
     const selected = state.content.recipes.find((recipe) => recipe.id === state.selected.recipe);
-    return `<div class="page">${pageHeader("제작", `${number(state.profile.gold)}G`)}<div class="workspace"><aside class="master-pane"><div class="master-tools"><input class="input search-input" value="${esc(query)}" placeholder="제작품 검색" data-filter="craft.query"><select class="select" data-filter="craft.rarity"><option value="all">모든 등급</option>${state.content.rarities.map((row) => `<option value="${row.id}" ${rarity === row.id ? "selected" : ""}>${esc(row.name)}</option>`).join("")}</select></div><div class="master-list" data-scroll-key="craft.list">${rows.map((recipe) => `<button class="master-row${selected?.id === recipe.id ? " is-selected" : ""}" data-select-recipe="${esc(recipe.id)}"><span class="rarity-bar" data-rarity="${esc(recipe.result_rarity)}"></span><span class="row-main"><span class="row-title">${esc(recipe.result_name)}${recipe.result_stars ? ` +${recipe.result_stars}` : ""}</span><span class="row-meta">${esc(recipe.name)} · Lv.${recipe.level}</span></span><span class="row-side">${number(recipe.gold)}G</span></button>`).join("") || `<div class="empty-state">검색 결과 없음</div>`}</div></aside><section class="detail-pane">${selected ? `<div class="detail-header"><div><h2>${esc(selected.result_name)}${selected.result_stars ? ` +${selected.result_stars}` : ""}</h2><p>${esc(selected.description)}</p></div>${rarityTag(selected.result_rarity, state.content.rarities.find((row) => row.id === selected.result_rarity)?.name)}</div><section class="section"><div class="section-head"><h2>필요 재료</h2></div><div class="entity-list">${selected.materials.map((row) => { const owned = state.profile.material_amounts[row.id] || 0; return `<div class="entity-card"><div><h3>${esc(row.name)}</h3></div><span class="status-pill ${owned >= row.amount ? "success" : "danger"}">${number(owned)} / ${number(row.amount)}</span></div>`; }).join("")}</div></section><section class="section"><div class="button-row"><button class="button button-primary" data-confirm-action="craft" data-recipe-id="${esc(selected.id)}" data-confirm-title="장비 제작" data-confirm-message="${esc(selected.result_name)}을 제작합니다. 비용 ${number(selected.gold)}G">제작 · ${number(selected.gold)}G</button></div></section>` : `<div class="empty-state">제작품을 선택하세요.</div>`}</section></div></div>`;
+    let detail = `<div class="empty-state">제작품을 선택하세요.</div>`;
+    if (selected) {
+      const materialRows = selected.materials.map((row) => {
+        const owned = Number(state.profile.material_amounts[row.id] || 0);
+        return { ...row, owned, missing: Math.max(0, Number(row.amount) - owned) };
+      });
+      const missingMaterials = materialRows.filter((row) => row.missing > 0);
+      const missingGold = Math.max(0, Number(selected.gold) - Number(state.profile.gold));
+      const canCraft = missingGold === 0 && missingMaterials.length === 0;
+      const shortages = [
+        missingGold ? `골드 ${number(missingGold)}G` : "",
+        ...missingMaterials.map((row) => `${row.name} ${number(row.missing)}개`),
+      ].filter(Boolean);
+      const materialSummary = selected.materials.map((row) => `${row.name} ${number(row.amount)}개`).join(" · ");
+      const confirmation = `${selected.result_name}을 제작합니다.\n${number(selected.gold)}G${materialSummary ? ` · ${materialSummary}` : ""}를 소모합니다.`;
+      detail = `<div class="detail-header"><div><h2>${esc(selected.result_name)} +${selected.result_stars}</h2><p>${esc(selected.description)}</p></div>${rarityTag(selected.result_rarity, state.content.rarities.find((row) => row.id === selected.result_rarity)?.name)}</div><section class="section"><div class="section-head"><h2>필요 재료</h2><span class="status-pill ${canCraft ? "success" : "danger"}">${canCraft ? "제작 가능" : "재료 부족"}</span></div><div class="entity-list">${materialRows.map((row) => `<div class="entity-card${row.missing ? " is-missing" : ""}"><div><h3>${esc(row.name)}</h3>${row.missing ? `<p>${number(row.missing)}개 부족</p>` : ""}</div><span class="status-pill ${row.missing ? "danger" : "success"}">${number(row.owned)} / ${number(row.amount)}</span></div>`).join("")}</div></section>${canCraft ? "" : `<div class="warning-box craft-shortage" role="status"><strong>제작 조건 부족</strong>\n${esc(shortages.join(" · "))}</div>`}<div class="operation-bar craft-operation${canCraft ? "" : " is-unavailable"}"><div class="operation-metrics"><div><span>보유 골드</span><strong>${number(state.profile.gold)}G</strong></div><div><span>제작 비용</span><strong>${number(selected.gold)}G</strong></div><div><span>제작 후 잔액</span><strong>${number(state.profile.gold - selected.gold)}G</strong></div></div><button class="button button-primary" data-confirm-action="craft" data-recipe-id="${esc(selected.id)}" data-confirm-title="장비 제작" data-confirm-message="${esc(confirmation)}" ${canCraft ? "" : "disabled"}>${canCraft ? "제작" : "비용 부족"}</button></div>`;
+    }
+    return `<div class="page">${pageHeader("제작", `보유 골드 ${number(state.profile.gold)}G`)}<div class="workspace"><aside class="master-pane">${pickerHeading("제작 목록", rows.length, state.content.recipes.length, "craft")}<div class="master-tools"><input class="input search-input" value="${esc(query)}" placeholder="제작품·설명·재료 검색" data-filter="craft.query"><select class="select" data-filter="craft.rarity"><option value="all">모든 등급</option>${state.content.rarities.map((row) => `<option value="${row.id}" ${rarity === row.id ? "selected" : ""}>${esc(row.name)}</option>`).join("")}</select></div><div class="master-list" data-scroll-key="craft.list">${rows.map((recipe) => `<button class="master-row${selected?.id === recipe.id ? " is-selected" : ""}" data-select-recipe="${esc(recipe.id)}"><span class="rarity-bar" data-rarity="${esc(recipe.result_rarity)}"></span><span class="row-main"><span class="row-title">${esc(recipe.result_name)} <b>+${recipe.result_stars}</b></span><span class="row-meta">${esc(recipe.name)} · Lv.${recipe.level}</span></span><span class="row-side">${number(recipe.gold)}G</span></button>`).join("") || `<div class="empty-list">조건에 맞는 제작품이 없습니다.</div>`}</div></aside><section class="detail-pane">${detail}</section></div></div>`;
   }
 
   function renderJobs() {
@@ -508,6 +613,46 @@
     const liberation = state.profile.liberation;
     const stageName = ["미수령", "미해방", "1차 해방", "2차 해방"][liberation.stage + 1] || "미수령";
     return `<div class="page">${pageHeader("제네시스 해방", liberation.item_name ? `${esc(liberation.item_name)} · ${stageName}` : esc(liberation.target_item_name || ""))}<section class="section">${liberation.item_uid ? `<div class="stat-grid"><div class="stat-cell"><span>현재 단계</span><strong>${esc(stageName)}</strong></div><div class="stat-cell"><span>무기</span><strong>${esc(liberation.item_name)}</strong></div></div>${liberation.next_stage ? `<section class="section"><div class="section-head"><h2>${esc(liberation.next_stage.name)} · +${liberation.next_stage.stars}</h2></div><div class="entity-list">${Object.entries(liberation.next_stage.materials).map(([id, amount]) => { const owned = state.profile.material_amounts[id] || 0; const name = state.profile.materials.find((row) => row.id === id)?.name || id; return `<div class="entity-card"><h3>${esc(name)}</h3><span class="status-pill ${owned >= amount ? "success" : "danger"}">${number(owned)} / ${number(amount)}</span></div>`; }).join("")}</div><div class="button-row" style="margin-top:14px"><button class="button button-primary" data-confirm-action="liberation_advance" data-confirm-title="제네시스 해방" data-confirm-message="재료를 소모해 다음 해방 단계를 진행합니다.">해방 진행</button></div></section>` : `<div class="result-panel"><h3>해방 완료</h3><pre>제네시스 무기의 모든 해방을 마쳤습니다.</pre></div>`}` : `<div class="empty-state"><div><strong>${liberation.claimable ? "제네시스 무기 수령 가능" : "검은 마법사 처치 기록 필요"}</strong>${liberation.claimable ? `<div style="margin-top:14px"><button class="button button-primary" data-action="liberation_claim">${esc(liberation.target_item_name)} 수령</button></div>` : ""}</div></div>`}</section></div>`;
+  }
+
+  function queueEnhancementPreview() {
+    if (state.tab !== "enhance" || state.busy) return;
+    const mode = state.selected.enhanceMode || "star";
+    if (mode !== "star" && mode !== "restore") return;
+    const item = state.profile.inventory.find((row) => row.uid === Number(state.selected.enhanceItemUid));
+    if (!item) return;
+
+    if (mode === "star") {
+      if (item.destroyed || item.enhancement_disabled) return;
+      const methodId = state.selected.enhanceMethod || state.content.enhancement_methods[0]?.id || "";
+      if (state.enhancementPreview?.item_uid === item.uid && state.enhancementPreview?.method_id === methodId) return;
+      const key = `star:${item.uid}:${methodId}`;
+      if (previewLoadKey === key) return;
+      previewLoadKey = key;
+      requestAnimationFrame(async () => {
+        try {
+          await perform("enhancement_preview", { item_uid: item.uid, method_id: methodId }, { keepResult: true, quiet: true });
+        } finally {
+          if (previewLoadKey === key) previewLoadKey = "";
+        }
+      });
+      return;
+    }
+
+    const spares = state.profile.inventory.filter((candidate) => !candidate.destroyed && !candidate.equipped && candidate.template_id === item.template_id && candidate.uid !== item.uid);
+    const spareUid = Number(state.selected.restoreSpareUid || spares[0]?.uid || 0);
+    if (!spareUid) return;
+    if (state.enhancementPreview?.item_uid === item.uid && state.enhancementPreview?.spare_uid === spareUid) return;
+    const key = `restore:${item.uid}:${spareUid}`;
+    if (previewLoadKey === key) return;
+    previewLoadKey = key;
+    requestAnimationFrame(async () => {
+      try {
+        await perform("restore_preview", { item_uid: item.uid, spare_uid: spareUid }, { keepResult: true, quiet: true });
+      } finally {
+        if (previewLoadKey === key) previewLoadKey = "";
+      }
+    });
   }
 
   function render() {
@@ -529,14 +674,20 @@
     updateShell();
     saveUi();
     restoreScroll();
+    queueEnhancementPreview();
   }
 
   async function confirmAction(element) {
     const dialog = document.querySelector("#confirm-dialog");
     document.querySelector("#confirm-title").textContent = element.dataset.confirmTitle || "확인";
     document.querySelector("#confirm-message").textContent = element.dataset.confirmMessage || "계속 진행합니다.";
+    dialog.returnValue = "";
+    if (element.dataset.confirmAction === "enhance") dialog.dataset.enhanceShortcut = "true";
+    else delete dialog.dataset.enhanceShortcut;
     dialog.showModal();
+    requestAnimationFrame(() => dialog.querySelector('[value="confirm"]')?.focus({ preventScroll: true }));
     const result = await new Promise((resolve) => dialog.addEventListener("close", () => resolve(dialog.returnValue === "confirm"), { once: true }));
+    delete dialog.dataset.enhanceShortcut;
     if (!result) return;
     await runAction(element.dataset.confirmAction, element);
   }
@@ -577,27 +728,21 @@
     if (action === "potential_apply") return request("potential_apply", { candidate_index: Number(element.dataset.candidateIndex) });
   }
 
-  function addPressEffect(element, event) {
-    if (!(element instanceof HTMLElement) || element.matches(":disabled")) return;
-    const bounds = element.getBoundingClientRect();
-    const ripple = document.createElement("span");
-    const size = Math.max(bounds.width, bounds.height) * 1.5;
-    const x = event.clientX ? event.clientX - bounds.left : bounds.width / 2;
-    const y = event.clientY ? event.clientY - bounds.top : bounds.height / 2;
-    ripple.className = "interaction-ripple";
-    ripple.style.width = `${size}px`;
-    ripple.style.height = `${size}px`;
-    ripple.style.left = `${x - size / 2}px`;
-    ripple.style.top = `${y - size / 2}px`;
-    element.append(ripple);
-    setTimeout(() => ripple.remove(), 520);
-  }
-
   document.addEventListener("click", async (event) => {
     const pressed = event.target.closest("button, .button, .action-tile, .master-row");
-    if (pressed) addPressEffect(pressed, event);
     if (state.busy && pressed) {
       event.preventDefault();
+      return;
+    }
+    const clearFilters = event.target.closest("[data-clear-filter-group]");
+    if (clearFilters) {
+      event.preventDefault();
+      const prefix = `${clearFilters.dataset.clearFilterGroup}.`;
+      Object.keys(state.filters).forEach((key) => {
+        if (key.startsWith(prefix)) delete state.filters[key];
+      });
+      saveUi();
+      render();
       return;
     }
     const nav = event.target.closest("[data-nav]");
@@ -638,7 +783,7 @@
     const equipmentMode = event.target.closest("[data-equipment-mode]");
     if (equipmentMode) { state.selected.equipmentMode = equipmentMode.dataset.equipmentMode; render(); return; }
     const enhanceMode = event.target.closest("[data-enhance-mode]");
-    if (enhanceMode) { state.selected.enhanceMode = enhanceMode.dataset.enhanceMode; state.enhancementPreview = null; render(); return; }
+    if (enhanceMode) { state.selected.enhanceMode = enhanceMode.dataset.enhanceMode; state.enhancementPreview = null; saveUi(); render(); return; }
     const gachaPool = event.target.closest("[data-gacha-pool]");
     if (gachaPool) { state.selected.gachaPool = gachaPool.dataset.gachaPool; state.result = null; render(); return; }
     const jobMode = event.target.closest("[data-job-mode]");
@@ -668,13 +813,15 @@
       return;
     }
     if (event.target.matches("[data-skill-id]")) {
-      const selected = [...document.querySelectorAll("[data-skill-id]:checked")].map((input) => input.dataset.skillId);
-      if (selected.length > state.profile.max_equipped_skills) {
+      const selected = new Set(state.profile.equipped_skill_ids);
+      if (event.target.checked) selected.add(event.target.dataset.skillId);
+      else selected.delete(event.target.dataset.skillId);
+      if (selected.size > state.profile.max_equipped_skills) {
         event.target.checked = false;
         toast(`어빌리티는 최대 ${state.profile.max_equipped_skills}개까지 장착할 수 있습니다.`, false);
         return;
       }
-      await perform("skills_set", { skill_ids: selected });
+      await perform("skills_set", { skill_ids: [...selected] });
       return;
     }
     if (event.target.matches("[data-special-skill-id]")) {
@@ -686,7 +833,7 @@
       state.enhancementPreview = null;
       saveUi();
       const uid = Number(state.selected.enhanceItemUid || 0);
-      if (uid) await perform("enhancement_preview", { item_uid: uid, method_id: event.target.value });
+      if (uid) await perform("enhancement_preview", { item_uid: uid, method_id: event.target.value }, { keepResult: true, quiet: true });
       return;
     }
     if (event.target.matches("[data-restore-spare]")) {
@@ -695,6 +842,30 @@
       saveUi();
       render();
     }
+  });
+
+  document.addEventListener("keydown", async (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const typing = event.target instanceof HTMLElement && Boolean(event.target.closest("input, textarea, select"));
+    const dialog = document.querySelector("#confirm-dialog");
+    const shortcut = document.querySelector("[data-enhance-shortcut]:not(:disabled)");
+    const focusedShortcut = event.target instanceof HTMLElement && event.target.closest("[data-enhance-shortcut]") === shortcut;
+    const passiveTarget = !(event.target instanceof HTMLElement) || !event.target.closest("button, a, summary, [role='button']");
+    const shortcutReady = !state.busy && state.tab === "enhance" && (state.selected.enhanceMode || "star") === "star" && !typing && Boolean(shortcut);
+    const enhanceDialogOpen = dialog?.open && dialog.dataset.enhanceShortcut === "true";
+    if (event.repeat) {
+      if (!typing && (enhanceDialogOpen || (shortcutReady && (focusedShortcut || passiveTarget)))) event.preventDefault();
+      return;
+    }
+    if (enhanceDialogOpen) {
+      event.preventDefault();
+      dialog.close("confirm");
+      return;
+    }
+    if (dialog?.open) return;
+    if (!shortcutReady || (!focusedShortcut && !passiveTarget)) return;
+    event.preventDefault();
+    await confirmAction(shortcut);
   });
 
   document.querySelector("#refresh-button")?.addEventListener("click", () => fetchBootstrap());

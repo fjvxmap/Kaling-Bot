@@ -480,6 +480,7 @@ def _boss_session_payload(runtime: WebRPGRuntime, session, user_id: int) -> dict
 
 
 def _enhancement_payload(runtime: WebRPGRuntime, preview) -> dict[str, Any]:
+    service = runtime.engine.service
     return {
         "ok": preview.ok,
         "message": preview.message,
@@ -498,7 +499,58 @@ def _enhancement_payload(runtime: WebRPGRuntime, preview) -> dict[str, Any]:
         "method_id": preview.method_id,
         "method_name": preview.method_name,
         "material_costs": preview.material_costs,
+        "material_cost_rows": [
+            {
+                "id": material_id,
+                "name": service.material_name(material_id),
+                "amount": amount,
+                "owned": int(preview.profile.materials.get(material_id, 0)),
+            }
+            for material_id, amount in preview.material_costs.items()
+        ],
         "spare_uid": preview.spare_item.uid if preview.spare_item else 0,
+    }
+
+
+def _enhancement_result_payload(
+    runtime: WebRPGRuntime,
+    result,
+    *,
+    include_next_preview: bool = True,
+) -> dict[str, Any]:
+    service = runtime.engine.service
+    next_preview = None
+    if include_next_preview and result.item is not None and not result.item.destroyed:
+        preview = service.enhancement_preview(
+            result.profile.user_id,
+            result.profile.display_name,
+            result.item.uid,
+            result.method_id or None,
+        )
+        next_preview = _enhancement_payload(runtime, preview)
+    return {
+        "item_uid": result.item.uid if result.item else 0,
+        "outcome": result.outcome,
+        "before_stars": result.before_stars,
+        "after_stars": result.after_stars,
+        "cost": result.cost,
+        "odds": {
+            "success": result.odds[0],
+            "fail": result.odds[1],
+            "destroy": result.odds[2],
+        },
+        "method_id": result.method_id,
+        "method_name": result.method_name,
+        "material_cost_rows": [
+            {
+                "id": material_id,
+                "name": service.material_name(material_id),
+                "amount": amount,
+            }
+            for material_id, amount in result.material_costs.items()
+        ],
+        "remaining_gold": result.profile.gold,
+        "next_preview": next_preview,
     }
 
 
@@ -630,7 +682,13 @@ def action(request: HttpRequest) -> JsonResponse:
                 return _api_response(runtime, preview.profile, ok=True, message=preview.message, result=_enhancement_payload(runtime, preview))
             if action_type == "enhance":
                 result = service.enhance(user_id, display_name, int(payload.get("item_uid", 0)), str(payload.get("method_id", "")) or None)
-                return _api_response(runtime, result.profile, ok=result.ok, message=result.message, result={"outcome": result.outcome, "before_stars": result.before_stars, "after_stars": result.after_stars})
+                return _api_response(
+                    runtime,
+                    result.profile,
+                    ok=result.ok,
+                    message=result.message,
+                    result=_enhancement_result_payload(runtime, result),
+                )
             if action_type == "restore_preview":
                 spare = int(payload.get("spare_uid", 0)) or None
                 preview = service.restore_preview(user_id, display_name, int(payload.get("item_uid", 0)), spare)
@@ -638,7 +696,17 @@ def action(request: HttpRequest) -> JsonResponse:
             if action_type == "restore":
                 spare = int(payload.get("spare_uid", 0)) or None
                 result = service.restore(user_id, display_name, int(payload.get("item_uid", 0)), spare)
-                return _api_response(runtime, result.profile, ok=result.ok, message=result.message, result={"outcome": result.outcome, "after_stars": result.after_stars})
+                return _api_response(
+                    runtime,
+                    result.profile,
+                    ok=result.ok,
+                    message=result.message,
+                    result=_enhancement_result_payload(
+                        runtime,
+                        result,
+                        include_next_preview=False,
+                    ),
+                )
 
             if action_type == "potential_roll":
                 pending = runtime.pending_potentials.get(user_id)
