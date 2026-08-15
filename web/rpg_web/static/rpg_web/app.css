@@ -125,6 +125,18 @@ a {
   color: var(--text);
 }
 
+.quick-status.has-action-error {
+  color: var(--red);
+}
+
+.quick-action-error {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .topbar-actions {
   display: flex;
   align-items: center;
@@ -1965,88 +1977,6 @@ summary:focus-visible {
   animation: spin 620ms linear infinite;
 }
 
-.toast-region {
-  position: fixed;
-  z-index: 100;
-  right: 18px;
-  bottom: 18px;
-  display: grid;
-  width: min(380px, calc(100vw - 36px));
-  gap: 8px;
-}
-
-.toast {
-  position: relative;
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr);
-  align-items: start;
-  gap: 9px;
-  overflow: hidden;
-  border: 1px solid var(--line-strong);
-  border-left: 4px solid var(--green);
-  border-radius: 5px;
-  background: #22272e;
-  padding: 12px 14px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-  font-size: 13px;
-  line-height: 1.45;
-  animation: toast-enter 220ms ease-out;
-  transition: opacity 180ms ease, transform 180ms ease;
-}
-
-.toast::after {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  background: var(--green);
-  content: "";
-  transform-origin: left;
-  animation: toast-life 3.6s linear forwards;
-}
-
-.toast-mark {
-  display: grid;
-  width: 20px;
-  height: 20px;
-  place-items: center;
-  border-radius: 50%;
-  background: #285c4f;
-  color: #b9f4df;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.toast.is-error {
-  border-left-color: var(--red);
-}
-
-.toast.is-error::after {
-  background: var(--red);
-}
-
-.toast.is-error .toast-mark {
-  background: #6d3036;
-  color: #ffd0d3;
-}
-
-.toast.is-leaving {
-  opacity: 0;
-  transform: translateX(16px);
-}
-
-@keyframes toast-enter {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
-
-@keyframes toast-life {
-  to { transform: scaleX(0); }
-}
-
 dialog {
   border: 1px solid var(--line-strong);
   border-radius: 7px;
@@ -2638,10 +2568,6 @@ dialog::backdrop {
     border-top-color: var(--accent);
     color: var(--text);
     font-weight: 750;
-  }
-
-  .toast-region {
-    bottom: 72px;
   }
 
   .login-content {

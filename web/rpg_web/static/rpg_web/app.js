@@ -25,12 +25,12 @@
     result: null,
     enhancementPreview: null,
     enhancementResult: null,
+    actionError: "",
     busy: false,
   };
   let busyControl = null;
   let previewLoadKey = "";
-  let toastLeaveTimer = null;
-  let toastRemoveTimer = null;
+  let actionErrorTimer = null;
 
   const esc = (value) => String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -94,21 +94,18 @@
     return state.filters[key] ?? fallback;
   }
 
-  function toast(message, ok = true) {
-    if (!message) return;
-    const region = document.querySelector("#toast-region");
-    if (!region) return;
-    window.clearTimeout(toastLeaveTimer);
-    window.clearTimeout(toastRemoveTimer);
-    const element = document.createElement("div");
-    element.className = `toast${ok ? "" : " is-error"}`;
-    element.innerHTML = `<span class="toast-mark" aria-hidden="true">${ok ? "✓" : "!"}</span><span>${esc(message)}</span>`;
-    region.replaceChildren(element);
-    toastLeaveTimer = window.setTimeout(() => element.classList.add("is-leaving"), 3600);
-    toastRemoveTimer = window.setTimeout(() => {
-      element.remove();
-      toastLeaveTimer = null;
-      toastRemoveTimer = null;
+  function setActionError(message = "") {
+    window.clearTimeout(actionErrorTimer);
+    state.actionError = String(message || "");
+    updateShell();
+    if (!state.actionError) {
+      actionErrorTimer = null;
+      return;
+    }
+    actionErrorTimer = window.setTimeout(() => {
+      state.actionError = "";
+      actionErrorTimer = null;
+      updateShell();
     }, 4000);
   }
 
@@ -174,14 +171,20 @@
       } else if (!keepResult) {
         state.result = payload.result || null;
       }
-      if (!quiet) toast(payload.message, Boolean(payload.ok));
+      if (!quiet) {
+        if (!payload.ok) {
+          setActionError(payload.message || "요청을 처리하지 못했습니다.");
+        } else if (state.actionError) {
+          setActionError();
+        }
+      }
       render();
       if (type === "enhance") {
         requestAnimationFrame(() => document.querySelector("[data-enhance-shortcut]")?.focus({ preventScroll: true }));
       }
       return payload;
     } catch (error) {
-      toast(error.message || "요청을 처리하지 못했습니다.", false);
+      setActionError(error.message || "요청을 처리하지 못했습니다.");
       return null;
     } finally {
       setBusy(false);
@@ -209,7 +212,13 @@
     });
     const profile = state.profile;
     if (!profile) return;
-    document.querySelector("#quick-status").innerHTML = [
+    const quickStatus = document.querySelector("#quick-status");
+    quickStatus.classList.toggle("has-action-error", Boolean(state.actionError));
+    if (state.actionError) {
+      quickStatus.innerHTML = `<span class="quick-action-error" title="${esc(state.actionError)}">${esc(state.actionError)}</span>`;
+      return;
+    }
+    quickStatus.innerHTML = [
       `<span><strong>${esc(profile.display_name)}</strong> Lv.${profile.level}</span>`,
       `<span>${number(profile.gold)}G</span>`,
       `<span>탐색 ${profile.daily_unlimited ? "∞" : number(profile.daily_remaining)}</span>`,
@@ -827,7 +836,7 @@
       else selected.delete(event.target.dataset.skillId);
       if (selected.size > state.profile.max_equipped_skills) {
         event.target.checked = false;
-        toast(`어빌리티는 최대 ${state.profile.max_equipped_skills}개까지 장착할 수 있습니다.`, false);
+        setActionError(`어빌리티는 최대 ${state.profile.max_equipped_skills}개까지 장착할 수 있습니다.`);
         return;
       }
       await perform("skills_set", { skill_ids: [...selected] });
