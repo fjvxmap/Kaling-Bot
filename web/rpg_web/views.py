@@ -121,6 +121,8 @@ def _profile_payload(runtime: WebRPGRuntime, profile: PlayerProfile) -> dict[str
     )
     current_job = service.current_job(profile)
     genesis = service.genesis_item(profile)
+    genesis_skill_template = service.genesis_weapon_skill_template()
+    genesis_skill = service.genesis_weapon_skill(profile)
     next_stage = service.liberation_next_stage(profile)
     pending = runtime.pending_potentials.get(profile.user_id)
     return {
@@ -161,6 +163,18 @@ def _profile_payload(runtime: WebRPGRuntime, profile: PlayerProfile) -> dict[str
         "max_equipped_skills": MAX_EQUIPPED_SKILLS,
         "unlocked_skill_ids": [skill.id for skill in service.unlocked_skills(profile)],
         "unlocked_special_skill_ids": [skill.id for skill in service.unlocked_special_skills(profile)],
+        "genesis_weapon_skill": (
+            {
+                "id": genesis_skill_template.id,
+                "name": genesis_skill_template.name,
+                "summary": service.skill_summary(genesis_skill_template),
+                "note": genesis_skill_template.note,
+                "unlocked": profile.genesis_liberation_stage >= 2,
+                "active": genesis_skill is not None,
+            }
+            if genesis_skill_template is not None
+            else None
+        ),
         "available_job_ids": [job.id for job in service.available_jobs(profile)],
         "free_advance_job_ids": [job.id for job in service.free_advance_jobs(profile)],
         "weekly_remaining": {
@@ -234,6 +248,7 @@ def _reward_payload(runtime: WebRPGRuntime, reward: RewardReport | None) -> dict
 def _content_payload(runtime: WebRPGRuntime, profile: PlayerProfile) -> dict[str, Any]:
     service = runtime.engine.service
     festival = service.active_gacha_festival()
+    liberation_trace_ids = service.liberation_trace_material_ids()
     return {
         "rarities": [
             {"id": rarity, "name": RARITY_LABELS.get(rarity, rarity)} for rarity in RARITIES
@@ -271,7 +286,11 @@ def _content_payload(runtime: WebRPGRuntime, profile: PlayerProfile) -> dict[str
                                 if drop.template_id in ITEM_BY_ID
                             ]
                             + [
-                                MATERIAL_BY_ID[drop.id].name
+                                (
+                                    f"{MATERIAL_BY_ID[drop.id].name} (해방 전 하드 솔로 확정 1개)"
+                                    if drop.id in liberation_trace_ids
+                                    else MATERIAL_BY_ID[drop.id].name
+                                )
                                 for drop in boss.rewards.material_drops
                                 if drop.id in MATERIAL_BY_ID
                             ]

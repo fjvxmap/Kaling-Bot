@@ -87,6 +87,7 @@ from .data import (
     RewardItemDrop,
     RewardMaterialDrop,
     RewardTemplate,
+    SelfHpCost,
     SkillTemplate,
     StatEffect,
     enhancement_method,
@@ -112,6 +113,8 @@ STACKED_DEBUFF_FLOORS = {
 RESTORE_STAR_LOSS = 3
 DEFENSE_CAP = 4.0
 WARNING_STACK_EVENTS = {"warning_success", "warning_failure"}
+LIBERATION_RESET_REVISION = 1
+GENESIS_CREATION_ION_SKILL_ID = "genesis_creation_ion"
 RPG_TIMEZONE = ZoneInfo("Asia/Seoul")
 WEEKLY_BOSS_RESET_WEEKDAY = 3  # Thursday. datetime.date.weekday(): Monday=0.
 
@@ -172,6 +175,7 @@ class SkillUseResult:
     raw_heals: list[int] = field(default_factory=list)
     dispels: int = 0
     clear_alls: int = 0
+    self_hp_loss: int = 0
     detail_lines: list[str] = field(default_factory=list)
 
 
@@ -629,6 +633,17 @@ class RPGService:
         target_stage = max(1, int(profile.genesis_liberation_stage) + 1)
         return next((stage for stage in LIBERATION.stages if stage.stage == target_stage), None)
 
+    def liberation_complete(self, profile: PlayerProfile) -> bool:
+        final_stage = max((stage.stage for stage in LIBERATION.stages), default=0)
+        return final_stage > 0 and profile.genesis_liberation_stage >= final_stage
+
+    def liberation_trace_material_ids(self) -> frozenset[str]:
+        return frozenset(
+            material_id
+            for stage in LIBERATION.stages
+            for material_id in stage.materials
+        )
+
     def claim_genesis_weapon(self, user_id: int, display_name: str) -> LiberationResult:
         profile = self.get_profile(user_id, display_name)
         existing = self.genesis_item(profile)
@@ -707,6 +722,8 @@ class RPGService:
         chain_ids = {job.id for job in self.job_chain(profile)}
         skills: list[SkillTemplate] = []
         for skill in SKILLS:
+            if skill.equipment_granted:
+                continue
             if skill.special != special:
                 continue
             if profile.level < skill.unlock_level:
@@ -731,11 +748,29 @@ class RPGService:
         available = {skill.id: skill for skill in self.unlocked_special_skills(profile)}
         return available.get(profile.equipped_special_skill_id)
 
+    def genesis_weapon_skill(self, profile: PlayerProfile) -> SkillTemplate | None:
+        item = self.genesis_item(profile)
+        if (
+            item is None
+            or item.destroyed
+            or profile.genesis_liberation_stage < 2
+            or item.stars < 8
+            or item.uid not in profile.equipped_item_uids
+        ):
+            return None
+        return self.genesis_weapon_skill_template()
+
+    def genesis_weapon_skill_template(self) -> SkillTemplate | None:
+        return SKILL_BY_ID.get(GENESIS_CREATION_ION_SKILL_ID)
+
     def combat_skills(self, profile: PlayerProfile) -> list[SkillTemplate]:
         skills = self.equipped_skills(profile)
         special_skill = self.equipped_special_skill(profile)
         if special_skill is not None:
             skills.append(special_skill)
+        genesis_skill = self.genesis_weapon_skill(profile)
+        if genesis_skill is not None:
+            skills.append(genesis_skill)
         return skills
 
     def set_equipped_skills(self, user_id: int, display_name: str, skill_ids: list[str]) -> AbilityResult:
@@ -1003,6 +1038,7 @@ class RPGService:
                 victory=battle.won,
                 weekly_key=weekly_key,
                 reward_role="owner",
+                solo_clear=True,
             )
         self._save()
         return BossResult(True, "보스 도전 완료", profile, boss, battle, reward, weekly_key)
@@ -1016,6 +1052,7 @@ class RPGService:
         victory: bool = True,
         reward_role: str | None = None,
         record_clear_history: bool = True,
+        solo_clear: bool = False,
     ) -> RewardReport:
         profile = self.get_profile(user_id, display_name)
         boss = BOSS_BY_ID[boss_id]
@@ -1027,6 +1064,7 @@ class RPGService:
             weekly_key=weekly_key,
             reward_role=reward_role,
             record_clear_history=record_clear_history,
+            solo_clear=solo_clear,
         )
         self._save()
         return reward
@@ -1066,18 +1104,40 @@ class RPGService:
         weekly_key: str,
         reward_role: str | None = None,
         record_clear_history: bool = True,
+        solo_clear: bool = False,
     ) -> RewardReport:
         if not victory:
             return RewardReport()
 
+        trace_ids = self.liberation_trace_material_ids()
+        standard_rewards = replace(
+            boss.rewards,
+            material_drops=[
+                drop for drop in boss.rewards.material_drops
+                if drop.id not in trace_ids
+            ],
+        )
         reward = self._grant_reward(
             profile,
             boss.gold,
             boss.exp,
-            boss.rewards if victory else None,
+            standard_rewards,
             victory=victory,
             reward_role=reward_role,
         )
+        if (
+            boss.difficulty == "hard"
+            and solo_clear
+            and reward_role == "owner"
+            and not self.liberation_complete(profile)
+        ):
+            trace_id = next(
+                (drop.id for drop in boss.rewards.material_drops if drop.id in trace_ids),
+                "",
+            )
+            if trace_id:
+                profile.materials[trace_id] = profile.materials.get(trace_id, 0) + 1
+                reward.materials[trace_id] = reward.materials.get(trace_id, 0) + 1
         if victory:
             profile.boss_clear_count += 1
             clear_ids = [boss.id]
@@ -2101,11 +2161,22 @@ class RPGService:
         action_summary = self.effect_actions_summary(skill.effect_actions)
         if action_summary:
             parts.append(action_summary)
+        hp_cost_summary = self._self_hp_cost_summary(skill.self_hp_cost)
+        if hp_cost_summary:
+            parts.append(hp_cost_summary)
         if skill.cooldown > 0:
             parts.append(f"쿨 {skill.cooldown}턴")
         if skill.uses > 0:
             parts.append(f"전투당 {skill.uses}회")
         return " · ".join(parts) if parts else "기본 효과"
+
+    def _self_hp_cost_summary(self, cost: SelfHpCost) -> str:
+        if not cost.has_cost:
+            return ""
+        if cost.mode == "set":
+            return f"자신 HP {max(cost.minimum_hp, int(cost.value))}로 변경"
+        label = "최대 HP" if cost.mode == "max_hp_ratio" else "현재 HP"
+        return f"{label} {cost.value * 100:g}% 소모 (최소 {cost.minimum_hp})"
 
     def special_effects_summary(
         self,
@@ -2122,7 +2193,9 @@ class RPGService:
             )
         if effects.double_strike is not None:
             parts.append(
-                f"{allies_label if effects.double_strike.target == 'allies' else self_label} 재행동 {effects.double_strike.count}회"
+                f"{allies_label if effects.double_strike.target == 'allies' else self_label} "
+                f"총 {effects.double_strike.count}회 행동 "
+                f"(추가 행동 {effects.double_strike.count - 1}회)"
                 f"{self._effect_meta_summary(effects.double_strike.duration, effects.double_strike.undispellable)}"
             )
         for bonus in effects.bonus_damage:
@@ -2149,6 +2222,11 @@ class RPGService:
             parts.append(
                 f"{allies_label if recast.target == 'allies' else self_label} 어빌리티 재발동 {recast.count}회"
                 f"{self._effect_meta_summary(recast.duration, recast.undispellable)}"
+            )
+        for invulnerability in effects.invulnerability:
+            parts.append(
+                f"{allies_label if invulnerability.target == 'allies' else self_label} 무적"
+                f"{self._effect_meta_summary(invulnerability.duration, invulnerability.undispellable)}"
             )
         for guard in effects.dispel_guard:
             parts.append(
@@ -2248,8 +2326,10 @@ class RPGService:
         enemy_base = enemy_base_stats
         player_effects: list[ActiveEffect] = self._permanent_effects(profile)
         enemy_effects: list[ActiveEffect] = []
-        player_hp = self._stats_with_effects(player_base, player_effects).final_hp
-        enemy_hp = self._stats_with_effects(enemy_base, enemy_effects).final_hp
+        player_stack_effects: list[ActiveStackEffect] = []
+        enemy_stack_effects: list[ActiveStackEffect] = []
+        player_hp = self._stats_with_effects(player_base, player_effects, player_stack_effects).final_hp
+        enemy_hp = self._stats_with_effects(enemy_base, enemy_effects, enemy_stack_effects).final_hp
         triggered_patterns: set[int] = set()
         skills = self.combat_skills(profile)
         uses_left = {skill.id: skill.uses for skill in skills if skill.uses > 0}
@@ -2258,8 +2338,16 @@ class RPGService:
         skills_used: list[str] = []
 
         def battle_report(won: bool, turn: int, current_player_hp: int, current_enemy_hp: int) -> BattleReport:
-            current_player_max_hp = self._stats_with_effects(player_base, player_effects).final_hp
-            current_enemy_max_hp = self._stats_with_effects(enemy_base, enemy_effects).final_hp
+            current_player_max_hp = self._stats_with_effects(
+                player_base,
+                player_effects,
+                player_stack_effects,
+            ).final_hp
+            current_enemy_max_hp = self._stats_with_effects(
+                enemy_base,
+                enemy_effects,
+                enemy_stack_effects,
+            ).final_hp
             return BattleReport(
                 won,
                 turn,
@@ -2274,8 +2362,8 @@ class RPGService:
         for turn in range(1, 25):
             used_this_turn: set[str] = set()
             for _ in range(len(skills)):
-                player_stats = self._stats_with_effects(player_base, player_effects)
-                enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
+                player_stats = self._stats_with_effects(player_base, player_effects, player_stack_effects)
+                enemy_stats = self._stats_with_effects(enemy_base, enemy_effects, enemy_stack_effects)
                 skill = self._choose_skill(
                     skills,
                     uses_left,
@@ -2307,20 +2395,29 @@ class RPGService:
                     enemy_effects,
                     ally_effects=[player_effects],
                     opponent_effects=[enemy_effects],
+                    player_stack_effects=player_stack_effects,
+                    enemy_stack_effects=enemy_stack_effects,
+                    ally_stack_effects=[player_stack_effects],
+                    opponent_stack_effects=[enemy_stack_effects],
                     skill_damage_multiplier=explore_skill_damage_multiplier,
                 )
-                player_stats = self._stats_with_effects(player_base, player_effects)
-                enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
+                player_stats = self._stats_with_effects(player_base, player_effects, player_stack_effects)
+                enemy_stats = self._stats_with_effects(enemy_base, enemy_effects, enemy_stack_effects)
                 player_hp = self._rescale_current_hp_for_max_change(player_hp, before_player_max_hp, player_stats.final_hp)
                 enemy_hp = self._rescale_current_hp_for_max_change(enemy_hp, before_enemy_max_hp, enemy_stats.final_hp)
+                player_hp = max(0, player_hp - skill_result.self_hp_loss)
                 life_steal_heal = 0
                 if skill_result.damage > 0:
                     dealt_damage = min(enemy_hp, skill_result.damage)
                     enemy_hp = max(0, enemy_hp - skill_result.damage)
-                    life_steal_heal = self._life_steal_heal(
-                        player_stats,
-                        player_effects,
+                    dealt_segments = self._clamped_damage_segments(
+                        skill_result.hit_damages,
                         dealt_damage,
+                    )
+                    life_steal_heal = self._life_steal_heal_segments(
+                        player_stats,
+                        self._effects_with_stacks(player_effects, player_stack_effects),
+                        dealt_segments,
                         player_stats.final_hp,
                     )
                 total_heal = skill_result.heal + life_steal_heal
@@ -2339,6 +2436,8 @@ class RPGService:
                     action_bits.append(f"디스펠 {skill_result.dispels}회")
                 if skill_result.clear_alls:
                     action_bits.append(f"클리어 올 {skill_result.clear_alls}회")
+                if skill_result.self_hp_loss:
+                    action_bits.append(f"HP {skill_result.self_hp_loss} 소모")
                 if skill_result.heal > 0:
                     action_bits.append(f"{skill_result.heal} 회복")
                 if life_steal_heal > 0:
@@ -2350,21 +2449,21 @@ class RPGService:
                 if enemy_hp <= 0:
                     return battle_report(True, turn, player_hp, 0)
 
-            player_stats = self._stats_with_effects(player_base, player_effects)
-            enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
+            player_stats = self._stats_with_effects(player_base, player_effects, player_stack_effects)
+            enemy_stats = self._stats_with_effects(enemy_base, enemy_effects, enemy_stack_effects)
             attack = self._basic_attack(
                 player_stats,
                 player_hp,
                 enemy_stats,
                 enemy_hp,
-                player_effects,
+                self._effects_with_stacks(player_effects, player_stack_effects),
                 multiplier=explore_basic_attack_multiplier,
             )
             dealt_segments = self._clamped_damage_segments(attack.life_steal_segments, enemy_hp)
             enemy_hp = max(0, enemy_hp - attack.damage)
             attack.heal = self._life_steal_heal_segments(
                 player_stats,
-                player_effects,
+                self._effects_with_stacks(player_effects, player_stack_effects),
                 dealt_segments,
                 player_stats.final_hp,
             )
@@ -2376,11 +2475,17 @@ class RPGService:
             if enemy_hp <= 0:
                 return battle_report(True, turn, player_hp, 0)
 
-            enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
-            player_stats = self._stats_with_effects(player_base, player_effects)
+            enemy_stats = self._stats_with_effects(enemy_base, enemy_effects, enemy_stack_effects)
+            player_stats = self._stats_with_effects(player_base, player_effects, player_stack_effects)
             pattern = self._next_boss_pattern(boss, enemy_hp, enemy_base.final_hp, triggered_patterns)
             if pattern is None:
-                attack = self._basic_attack(enemy_stats, enemy_hp, player_stats, player_hp, enemy_effects)
+                attack = self._basic_attack(
+                    enemy_stats,
+                    enemy_hp,
+                    player_stats,
+                    player_hp,
+                    self._effects_with_stacks(enemy_effects, enemy_stack_effects),
+                )
                 dealt_segments = self._clamped_damage_segments(attack.life_steal_segments, player_hp)
                 player_hp = max(0, player_hp - attack.damage)
                 attack.heal = self._life_steal_heal_segments(
@@ -2395,9 +2500,23 @@ class RPGService:
             else:
                 before_player_max_hp = player_stats.final_hp
                 before_enemy_max_hp = enemy_stats.final_hp
-                damage = self._use_boss_pattern(pattern, enemy_stats, player_stats, enemy_hp, player_hp, player_effects, enemy_effects)
-                player_stats = self._stats_with_effects(player_base, player_effects)
-                enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
+                damage = self._use_boss_pattern(
+                    pattern,
+                    enemy_stats,
+                    player_stats,
+                    enemy_hp,
+                    player_hp,
+                    player_effects,
+                    enemy_effects,
+                    ally_effects=[enemy_effects],
+                    opponent_effects=[player_effects],
+                    boss_stack_effects=enemy_stack_effects,
+                    player_stack_effects=player_stack_effects,
+                    ally_stack_effects=[enemy_stack_effects],
+                    opponent_stack_effects=[player_stack_effects],
+                )
+                player_stats = self._stats_with_effects(player_base, player_effects, player_stack_effects)
+                enemy_stats = self._stats_with_effects(enemy_base, enemy_effects, enemy_stack_effects)
                 player_hp = self._rescale_current_hp_for_max_change(player_hp, before_player_max_hp, player_stats.final_hp)
                 enemy_hp = self._rescale_current_hp_for_max_change(enemy_hp, before_enemy_max_hp, enemy_stats.final_hp)
                 if damage > 0:
@@ -2414,14 +2533,16 @@ class RPGService:
             if player_hp <= 0:
                 return battle_report(False, turn, 0, enemy_hp)
 
-            player_stats = self._stats_with_effects(player_base, player_effects)
-            enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
+            player_stats = self._stats_with_effects(player_base, player_effects, player_stack_effects)
+            enemy_stats = self._stats_with_effects(enemy_base, enemy_effects, enemy_stack_effects)
             before_player_max_hp = player_stats.final_hp
             before_enemy_max_hp = enemy_stats.final_hp
             player_effects = self._tick_effects(player_effects)
             enemy_effects = self._tick_effects(enemy_effects)
-            player_stats = self._stats_with_effects(player_base, player_effects)
-            enemy_stats = self._stats_with_effects(enemy_base, enemy_effects)
+            player_stack_effects = self.tick_stack_effects(player_stack_effects)
+            enemy_stack_effects = self.tick_stack_effects(enemy_stack_effects)
+            player_stats = self._stats_with_effects(player_base, player_effects, player_stack_effects)
+            enemy_stats = self._stats_with_effects(enemy_base, enemy_effects, enemy_stack_effects)
             player_hp = self._rescale_current_hp_for_max_change(player_hp, before_player_max_hp, player_stats.final_hp)
             enemy_hp = self._rescale_current_hp_for_max_change(enemy_hp, before_enemy_max_hp, enemy_stats.final_hp)
             self._tick_cooldowns(cooldowns)
@@ -2531,18 +2652,39 @@ class RPGService:
     ) -> float:
         if skill.damage_multiplier <= 0 or skill.hits <= 0:
             return 0.0
+        effective_player_hp = self._self_hp_after_cost(
+            skill.self_hp_cost,
+            player_hp,
+            player_stats.final_hp,
+        )
         return sum(
             self._estimated_skill_damage_hit(
                 player_stats,
-                player_hp,
+                effective_player_hp,
                 enemy_stats,
                 enemy_hp,
                 skill.damage_multiplier,
                 player_effects,
+                hp_scaled_damage=skill.hp_scaled_damage,
                 skill_damage_multiplier=skill_damage_multiplier,
             )
             for _ in range(skill.hits)
         )
+
+    def _self_hp_after_cost(self, cost: SelfHpCost, current_hp: int, max_hp: int) -> int:
+        current_hp = max(0, int(current_hp))
+        if current_hp <= 0 or not cost.has_cost:
+            return current_hp
+
+        floor = min(current_hp, max(0, int(cost.minimum_hp)))
+        if cost.mode == "set":
+            target = max(floor, int(cost.value))
+            return min(current_hp, target)
+        if cost.mode == "max_hp_ratio":
+            loss = int(round(max(1, int(max_hp)) * cost.value))
+        else:
+            loss = int(round(current_hp * cost.value))
+        return max(floor, current_hp - max(0, loss))
 
     def _use_player_skill(
         self,
@@ -2597,7 +2739,12 @@ class RPGService:
             all_targets=opponent_effects,
         )
 
-        result = SkillUseResult()
+        effective_player_hp = self._self_hp_after_cost(
+            skill.self_hp_cost,
+            player_hp,
+            player_stats.final_hp,
+        )
+        result = SkillUseResult(self_hp_loss=max(0, int(player_hp) - effective_player_hp))
         active_player_effects = self._effects_with_stacks(player_effects, player_stack_effects)
         deals_damage = skill.damage_multiplier > 0 and skill.hits > 0
         result.recasts = self._ability_recast_count(active_player_effects) if deals_damage else 0
@@ -2613,11 +2760,12 @@ class RPGService:
                 for _ in range(skill.hits):
                     hit_damage = self._actual_skill_damage(
                         player_stats,
-                        player_hp,
+                        effective_player_hp,
                         enemy_stats,
                         enemy_hp,
                         skill.damage_multiplier,
                         active_player_effects,
+                        hp_scaled_damage=skill.hp_scaled_damage,
                         skill_damage_multiplier=skill_damage_multiplier,
                         forced_critical=critical,
                     )
@@ -2655,6 +2803,8 @@ class RPGService:
             result.dispels += dispels
             result.clear_alls += clear_alls
             reaction_damage = self._resolve_stack_reactions(enemy_stack_effects, enemy_stats.final_hp)
+            if enemy_stats.invulnerable:
+                reaction_damage = 0
             if reaction_damage > 0:
                 result.damage += reaction_damage
                 result.hit_damages.append(reaction_damage)
@@ -2754,6 +2904,8 @@ class RPGService:
                 if damage_details is not None:
                     damage_details.append(hit_damage)
         damage += self._plain_damage_value(pattern, player_stats.final_hp)
+        if player_stats.invulnerable:
+            return 0
         return damage
 
     def _resolve_stack_reactions(
@@ -2899,6 +3051,8 @@ class RPGService:
         for effect in effects:
             if not self._effect_active(effect):
                 continue
+            if effect.special.invulnerability:
+                stats.invulnerable = True
             for key, value in effect.mods.items():
                 if effect.source_id.startswith("stack:"):
                     stack_mods[key] = stack_mods.get(key, 0.0) + value
@@ -3174,6 +3328,18 @@ class RPGService:
                         source_id,
                         CombatSpecialEffects(ability_recast=[recast]),
                         recast.undispellable,
+                    )
+                )
+        for invulnerability in special.invulnerability:
+            for effect_target in effect_targets(invulnerability.target):
+                self._append_active_effect(
+                    effect_target,
+                    ActiveEffect(
+                        self._effect_turns(invulnerability.duration),
+                        {},
+                        source_id,
+                        CombatSpecialEffects(invulnerability=[invulnerability]),
+                        invulnerability.undispellable,
                     )
                 )
         for guard in special.dispel_guard:
@@ -3734,6 +3900,8 @@ class RPGService:
             ratios.append(1.0)
         if effect.special.ability_recast:
             ratios.append(1.0)
+        if effect.special.invulnerability:
+            ratios.append(1.0)
         if effect.special.dispel_guard:
             ratios.append(1.0)
         if effect.special.veil:
@@ -3960,7 +4128,7 @@ class RPGService:
         if attack.hits > 1:
             parts.append(f"{attack.hits}타")
         if attack.actions > 1:
-            parts.append(f"재행동 {attack.actions}회")
+            parts.append(f"추가 행동 {attack.actions - 1}회")
         if attack.triple_attacks:
             parts.append(f"트리플 {attack.triple_attacks}")
         if attack.double_attacks:
@@ -4096,9 +4264,13 @@ class RPGService:
         return min(heal, max(0, limit))
 
     def _estimated_flat_mitigated_damage(self, damage: float, defender: CombatStats) -> float:
+        if defender.invulnerable:
+            return 0.0
         return max(1.0, damage - float(defender.dmg_mitigation))
 
     def _flat_mitigated_damage(self, damage: float, defender: CombatStats) -> int:
+        if defender.invulnerable:
+            return 0
         return max(1, int(round(damage - float(defender.dmg_mitigation))))
 
     def _heal_cap_summary(self, cap: HealCap | None) -> str:
@@ -4129,6 +4301,8 @@ class RPGService:
         include_final_damage: bool = True,
         include_flat_mitigation: bool = True,
     ) -> float:
+        if defender.invulnerable:
+            return 0.0
         damage = self._outgoing_damage(attacker, attacker_hp) * multiplier
         mitigated = damage / self._defense_factor(defender, defender_hp, attacker.defense_ignore)
         final = max(1.0, mitigated * max(0.05, 1 - defender.damage_cut))
@@ -4158,9 +4332,20 @@ class RPGService:
         include_supplement: bool = True,
         include_final_damage: bool = True,
         include_flat_mitigation: bool = True,
+        hp_scaled_damage: bool = False,
         skill_damage_multiplier: float = 1.0,
     ) -> float:
-        damage = self._skill_outgoing_damage(attacker) * multiplier * max(0.0, skill_damage_multiplier)
+        if defender.invulnerable:
+            return 0.0
+        if hp_scaled_damage:
+            damage = (
+                self._outgoing_damage(attacker, attacker_hp)
+                * max(0.0, 1 + attacker.skill_damage)
+                * multiplier
+                * max(0.0, skill_damage_multiplier)
+            )
+        else:
+            damage = self._skill_outgoing_damage(attacker) * multiplier * max(0.0, skill_damage_multiplier)
         mitigated = damage / self._defense_factor(defender, defender_hp, attacker.defense_ignore)
         final = max(1.0, mitigated * max(0.05, 1 - defender.damage_cut))
         critical_chance = max(0.0, min(1.0, attacker.critical_rate))
@@ -4194,6 +4379,8 @@ class RPGService:
         include_flat_mitigation: bool = True,
         forced_critical: bool | None = None,
     ) -> int:
+        if defender.invulnerable:
+            return 0
         damage = self._outgoing_damage(attacker, attacker_hp) * multiplier
         mitigated = damage / self._defense_factor(defender, defender_hp, attacker.defense_ignore)
         estimated = max(1.0, mitigated * max(0.05, 1 - defender.damage_cut))
@@ -4225,9 +4412,20 @@ class RPGService:
         include_final_damage: bool = True,
         include_flat_mitigation: bool = True,
         forced_critical: bool | None = None,
+        hp_scaled_damage: bool = False,
         skill_damage_multiplier: float = 1.0,
     ) -> int:
-        damage = self._skill_outgoing_damage(attacker) * multiplier * max(0.0, skill_damage_multiplier)
+        if defender.invulnerable:
+            return 0
+        if hp_scaled_damage:
+            damage = (
+                self._outgoing_damage(attacker, attacker_hp)
+                * max(0.0, 1 + attacker.skill_damage)
+                * multiplier
+                * max(0.0, skill_damage_multiplier)
+            )
+        else:
+            damage = self._skill_outgoing_damage(attacker) * multiplier * max(0.0, skill_damage_multiplier)
         mitigated = damage / self._defense_factor(defender, defender_hp, attacker.defense_ignore)
         estimated = max(1.0, mitigated * max(0.05, 1 - defender.damage_cut))
         spread = 0.95 + self.rng.random() * 0.10
@@ -4627,6 +4825,7 @@ class RPGService:
         )
 
     def _cleanup_profile(self, profile: PlayerProfile) -> None:
+        self._migrate_liberation_reset(profile)
         if profile.job_id not in JOB_BY_ID:
             profile.job_id = "novice"
         profile.exp = max(int(profile.exp), previous_level_exp(profile.level))
@@ -4679,6 +4878,40 @@ class RPGService:
             profile.next_item_uid,
             max((item.uid for item in profile.inventory), default=0) + 1,
         )
+
+    def _migrate_liberation_reset(self, profile: PlayerProfile) -> None:
+        if profile.liberation_reset_revision >= LIBERATION_RESET_REVISION:
+            return
+
+        trace_ids = self.liberation_trace_material_ids()
+        for material_id in trace_ids:
+            profile.materials.pop(material_id, None)
+
+        genesis = self.genesis_item(profile)
+        def is_genesis_weapon(item: ItemInstance) -> bool:
+            return item.template_id in ITEM_BY_ID and ITEM_BY_ID[item.template_id].genesis_weapon
+
+        if genesis is None:
+            # Genesis weapons are only issued through the tracked liberation
+            # claim. Stray copies are removed so the migration cannot be used to
+            # manufacture a new tracked weapon or duplicate its ability.
+            profile.inventory = [item for item in profile.inventory if not is_genesis_weapon(item)]
+            profile.genesis_item_uid = 0
+            profile.genesis_liberation_stage = -1
+        else:
+            profile.inventory = [
+                item
+                for item in profile.inventory
+                if item is genesis or not is_genesis_weapon(item)
+            ]
+            genesis.stars = 0
+            genesis.destroyed = False
+            genesis.potential_grade = ""
+            genesis.potential_lines = []
+            genesis.potential_locked = True
+            profile.genesis_item_uid = genesis.uid
+            profile.genesis_liberation_stage = 0
+        profile.liberation_reset_revision = LIBERATION_RESET_REVISION
 
     def _cleanup_equipped_items(self, profile: PlayerProfile) -> None:
         valid_uids = {

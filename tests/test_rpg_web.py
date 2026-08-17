@@ -17,6 +17,7 @@ django.setup()
 
 from django.test import Client, override_settings
 
+from bot.services.rpg.data import LIBERATION
 from bot.services.rpg.manager import RPGService
 from bot.services.rpg.models import ItemInstance
 from bot.services.rpg.store import RPGStore
@@ -81,6 +82,12 @@ class RPGWebTests(unittest.TestCase):
             {variant["difficulty"] for variant in boss["variants"]} == {"normal", "hard"}
             for boss in payload["content"]["bosses"]
         ))
+        lotus = next(boss for boss in payload["content"]["bosses"] if boss["base_id"] == "lotus")
+        normal = next(row for row in lotus["variants"] if row["difficulty"] == "normal")
+        hard = next(row for row in lotus["variants"] if row["difficulty"] == "hard")
+        self.assertEqual(hard["description"], normal["description"])
+        self.assertFalse(any("해방 전 하드 솔로" in reward for reward in normal["rewards"]))
+        self.assertTrue(any("해방 전 하드 솔로 확정 1개" in reward for reward in hard["rewards"]))
 
     def test_explore_and_practice_boss_use_shared_service(self) -> None:
         dungeon_id = self.runtime.engine.service.dungeons()[0].id
@@ -131,8 +138,45 @@ class RPGWebTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(
             payload["boss_session"]["participant"]["boss_stacks"],
-            "대적의 의지 lv.3",
+            "대적의 의지 (하드) lv.3",
         )
+
+    def test_genesis_weapon_skill_uses_its_own_web_slot_and_blocks_a_turn(self) -> None:
+        service = self.runtime.engine.service
+        profile = service.get_profile(9001, "웹 테스터")
+        profile.job_id = "hero"
+        profile.cleared_boss_ids.append(LIBERATION.boss_id)
+        claim = service.claim_genesis_weapon(9001, "웹 테스터")
+        self.assertTrue(claim.ok)
+        for stage in LIBERATION.stages:
+            profile.materials.update(stage.materials)
+            self.assertTrue(service.advance_genesis_liberation(9001, "웹 테스터").ok)
+        self.assertTrue(service.equip_item(9001, "웹 테스터", claim.item.uid).ok)
+
+        bootstrap = self.client.get("/api/bootstrap/").json()
+        genesis_skill = bootstrap["profile"]["genesis_weapon_skill"]
+        self.assertTrue(genesis_skill["unlocked"])
+        self.assertTrue(genesis_skill["active"])
+        self.assertEqual(genesis_skill["name"], "창조의 아이온")
+        self.assertIn("무적", genesis_skill["summary"])
+
+        response = self.post_action(
+            "boss_create",
+            boss_id="guardian_angel_slime",
+            practice=True,
+        )
+        self.assertTrue(response.json()["ok"])
+        started = self.post_action("boss_start").json()
+        self.assertTrue(started["ok"])
+        self.assertIn("genesis_creation_ion", {skill["id"] for skill in started["boss_session"]["skills"]})
+        before_hp = started["boss_session"]["participant"]["hp"]
+
+        activated = self.post_action("boss_ability", skill_id="genesis_creation_ion").json()
+        self.assertTrue(activated["ok"])
+        self.assertIn("무적", activated["boss_session"]["participant"]["player_effects"])
+        advanced = self.post_action("boss_attack").json()
+        self.assertTrue(advanced["ok"])
+        self.assertEqual(advanced["boss_session"]["participant"]["hp"], before_hp)
 
     def test_waiting_boss_cancel_returns_to_selection(self) -> None:
         boss = next(

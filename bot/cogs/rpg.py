@@ -170,6 +170,7 @@ class BossSession:
     boss_max_hp: int = 0
     ct_max: int = 4
     started: bool = False
+    started_solo: bool = False
     completed: bool = False
     failed: bool = False
     cancelled: bool = False
@@ -283,7 +284,7 @@ class RPGCog(commands.Cog):
             variant_lines = [
                 (
                     f"{self._boss_difficulty_label(boss)} Lv.{boss.level_req}: "
-                    f"{self.service.reward_summary(boss.rewards, base_gold=boss.gold, base_exp=boss.exp)}"
+                    f"{self._boss_reward_summary(boss)}"
                 )
                 for boss in variants
             ]
@@ -637,7 +638,12 @@ class RPGCog(commands.Cog):
             parts.append(f"장비 {', '.join(item_names)}")
         if boss.rewards.material_drops:
             material_names = ", ".join(
-                self.service.material_name(drop.id) for drop in boss.rewards.material_drops
+                (
+                    f"{self.service.material_name(drop.id)} (해방 전 하드 솔로 확정 1개)"
+                    if drop.id in self.service.liberation_trace_material_ids()
+                    else self.service.material_name(drop.id)
+                )
+                for drop in boss.rewards.material_drops
             )
             parts.append(f"재료 {material_names}")
         return " · ".join(parts) if parts else "보상 없음"
@@ -702,6 +708,7 @@ class RPGCog(commands.Cog):
                 victory=True,
                 reward_role="owner",
                 record_clear_history=True,
+                solo_clear=True,
             )
             skipped += 1
             lines.append(f"**{self._boss_display_name(boss)}**: {self._reward_text(reward).replace(chr(10), ', ')}")
@@ -799,6 +806,7 @@ class RPGCog(commands.Cog):
         if owner is None:
             return False, "자발자 정보를 찾을 수 없습니다."
         self._refresh_boss_permanent_effects(session)
+        session.started_solo = len(session.participants) == 1
         session.started = True
         session.log.append("보스전 시작")
         for participant in session.participants.values():
@@ -846,6 +854,7 @@ class RPGCog(commands.Cog):
         reason = self._boss_skip_unavailable_reason(session, user_id)
         if reason is not None:
             return False, reason
+        session.started_solo = len(session.participants) == 1
         session.started = True
         session.completed = True
         session.boss_hp = 0
@@ -1049,6 +1058,7 @@ class RPGCog(commands.Cog):
             ally_stack_effects=player_stack_lists,
             opponent_stack_effects=boss_stack_lists,
         )
+        participant.hp = max(0, participant.hp - skill_result.self_hp_loss)
         self._sync_shared_effect_changes(participant.boss_effects, boss_effect_lists, boss_effects_before)
         self._sync_participant_hps_from_snapshots(session, hp_snapshots)
         player_stats = self.service._stats_with_effects(player_base, participant.player_effects, participant.player_stack_effects)
@@ -1101,6 +1111,8 @@ class RPGCog(commands.Cog):
             bits.append(f"디스펠 {skill_result.dispels}회")
         if skill_result.clear_alls:
             bits.append(f"클리어 올 {skill_result.clear_alls}회")
+        if skill_result.self_hp_loss:
+            bits.append(f"HP {skill_result.self_hp_loss} 소모")
         if skill_heal > 0:
             bits.append(f"{skill_heal} 회복")
         if life_steal_heal > 0:
@@ -2472,7 +2484,8 @@ class RPGCog(commands.Cog):
             parts.append(
                 self._pattern_special_effect_text(
                     allies_label if effects.double_strike.target == "allies" else self_label,
-                    f"재행동 {effects.double_strike.count}회",
+                    f"총 {effects.double_strike.count}회 행동 "
+                    f"(추가 행동 {effects.double_strike.count - 1}회)",
                     effects.double_strike.duration,
                     effects.double_strike.undispellable,
                 )
@@ -2520,6 +2533,15 @@ class RPGCog(commands.Cog):
                     f"어빌리티 재발동 {recast.count}회",
                     recast.duration,
                     recast.undispellable,
+                )
+            )
+        for invulnerability in effects.invulnerability:
+            parts.append(
+                self._pattern_special_effect_text(
+                    allies_label if invulnerability.target == "allies" else self_label,
+                    "무적",
+                    invulnerability.duration,
+                    invulnerability.undispellable,
                 )
             )
         for guard in effects.dispel_guard:
@@ -2638,7 +2660,9 @@ class RPGCog(commands.Cog):
     def _grant_boss_session_rewards(self, session: BossSession) -> None:
         if session.rewards:
             return
-        solo_clear = len(session.participants) == 1
+        # Solo eligibility is fixed when combat starts. A party cannot become a
+        # solo clear by having everyone but one participant leave before rewards.
+        solo_clear = session.started_solo
         if session.practice:
             if solo_clear:
                 participant = next(iter(session.participants.values()))
@@ -2670,6 +2694,7 @@ class RPGCog(commands.Cog):
                 victory=True,
                 reward_role=reward_role,
                 record_clear_history=solo_clear,
+                solo_clear=solo_clear,
             )
             self._add_session_reward_materials(session, reward.materials)
             session.rewards[participant.user_id] = self._reward_text(reward).replace("\n", ", ")
@@ -2786,6 +2811,7 @@ class RPGCog(commands.Cog):
             tuple(effect.special.final_damage),
             tuple(effect.special.post_attack_ability_damage),
             tuple(effect.special.ability_recast),
+            tuple(effect.special.invulnerability),
             tuple(effect.special.dispel_guard),
             tuple(effect.special.veil),
             effect.undispellable,
@@ -2894,15 +2920,22 @@ class RPGCog(commands.Cog):
         skills = self.service.equipped_skills(profile)
         embed.add_field(
             name="장착 어빌리티",
-            value=self._trim("\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in skills), 1000) if skills else "없음",
+            value=self._trim("\n".join(self._skill_display_text(skill) for skill in skills), 1000) if skills else "없음",
             inline=False,
         )
         special_skill = self.service.equipped_special_skill(profile)
         embed.add_field(
             name="특수 어빌리티",
-            value=f"**{special_skill.name}** · {self.service.skill_summary(special_skill)}" if special_skill is not None else "없음",
+            value=self._skill_display_text(special_skill) if special_skill is not None else "없음",
             inline=False,
         )
+        genesis_skill = self.service.genesis_weapon_skill(profile)
+        if genesis_skill is not None:
+            embed.add_field(
+                name="제네시스 어빌리티",
+                value=self._skill_display_text(genesis_skill),
+                inline=False,
+            )
         equipped = self.service.equipped_items(profile)
         embed.add_field(
             name="장착 장비",
@@ -3614,18 +3647,10 @@ class RPGCog(commands.Cog):
         embed.add_field(name="전투 스탯", value=self.service.format_stats(self.service.profile_stats(profile)), inline=False)
         skills = self.service.unlocked_skills(profile)
         if skills:
-            embed.add_field(
-                name="사용 가능한 스킬",
-                value=self._trim("\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in skills), 1000),
-                inline=False,
-            )
+            self._add_skill_fields(embed, "사용 가능한 스킬", skills)
         special_skills = self.service.unlocked_special_skills(profile)
         if special_skills:
-            embed.add_field(
-                name="사용 가능한 특수 어빌리티",
-                value=self._trim("\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in special_skills), 1000),
-                inline=False,
-            )
+            self._add_skill_fields(embed, "사용 가능한 특수 어빌리티", special_skills)
         return embed
 
     def _ability_embed(
@@ -3650,24 +3675,30 @@ class RPGCog(commands.Cog):
         )
         embed.add_field(
             name=f"장착 어빌리티 {len(equipped)}/{MAX_EQUIPPED_SKILLS}",
-            value="\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in equipped) if equipped else "없음",
+            value=self._trim("\n".join(self._skill_display_text(skill) for skill in equipped), 1000) if equipped else "없음",
             inline=False,
         )
         embed.add_field(
             name="특수 어빌리티 0/1" if special_skill is None else "특수 어빌리티 1/1",
-            value=f"**{special_skill.name}** · {self.service.skill_summary(special_skill)}" if special_skill is not None else "없음",
+            value=self._skill_display_text(special_skill) if special_skill is not None else "없음",
             inline=False,
         )
-        embed.add_field(
-            name="사용 가능",
-            value=self._trim("\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in available), 1400) if available else "없음",
-            inline=False,
-        )
-        embed.add_field(
-            name="사용 가능한 특수 어빌리티",
-            value=self._trim("\n".join(f"**{skill.name}** · {self.service.skill_summary(skill)}" for skill in special_available), 1000) if special_available else "없음",
-            inline=False,
-        )
+        genesis_skill = self.service.genesis_weapon_skill(profile)
+        genesis_template = self.service.genesis_weapon_skill_template()
+        if genesis_skill is not None:
+            genesis_text = self._skill_display_text(genesis_skill)
+        elif profile.genesis_liberation_stage >= 2 and genesis_template is not None:
+            genesis_note = self._skill_note(genesis_template)
+            genesis_text = (
+                f"**{genesis_template.name}** · 제네시스 무기를 장착하면 활성화\n"
+                f"{self.service.skill_summary(genesis_template)}"
+                + (f"\n↳ {genesis_note}" if genesis_note else "")
+            )
+        else:
+            genesis_text = "2차 해방한 제네시스 무기를 장착하면 활성화"
+        embed.add_field(name="제네시스 어빌리티 · 전용 슬롯", value=genesis_text, inline=False)
+        self._add_skill_fields(embed, "사용 가능", available)
+        self._add_skill_fields(embed, "사용 가능한 특수 어빌리티", special_available)
         return embed
 
     def _materials_embed(self, profile: PlayerProfile) -> discord.Embed:
@@ -4067,7 +4098,13 @@ class RPGCog(commands.Cog):
         embed.add_field(name="현재 능력", value=self.service.item_stats_text(item), inline=False)
         next_stage = self.service.liberation_next_stage(profile)
         if next_stage is None:
-            embed.add_field(name="진행", value="해방 완료", inline=False)
+            genesis_template = self.service.genesis_weapon_skill_template()
+            ability_text = (
+                f"\n{genesis_template.name}: 제네시스 무기 장착 시 전용 슬롯에서 사용"
+                if genesis_template is not None
+                else ""
+            )
+            embed.add_field(name="진행", value=f"해방 완료{ability_text}", inline=False)
         else:
             material_lines = []
             for material_id, amount in next_stage.materials.items():
@@ -4396,7 +4433,10 @@ class RPGCog(commands.Cog):
         if effect.special.flurry is not None:
             parts.append(f"난격 {effect.special.flurry.count}")
         if effect.special.double_strike is not None:
-            parts.append(f"재행동 {effect.special.double_strike.count}회")
+            parts.append(
+                f"총 {effect.special.double_strike.count}회 행동 "
+                f"(추가 행동 {effect.special.double_strike.count - 1}회)"
+            )
         for bonus in effect.special.bonus_damage:
             parts.append(f"추격 {bonus.ratio * 100:.0f}%")
         for reinforce in effect.special.critical_reinforce:
@@ -4407,6 +4447,8 @@ class RPGCog(commands.Cog):
             parts.append(f"공격 후 어빌 피해 {post_attack.ratio * 100:.0f}% {post_attack.count}타")
         for recast in effect.special.ability_recast:
             parts.append(f"어빌리티 재발동 {recast.count}회")
+        if effect.special.invulnerability:
+            parts.append("무적")
         for guard in effect.special.dispel_guard:
             suffix = f" {guard.count}회" if guard.count > 0 else ""
             parts.append(f"디스펠 가드{suffix}")
@@ -4467,6 +4509,54 @@ class RPGCog(commands.Cog):
         if len(text) <= limit:
             return text
         return text[: limit - 3] + "..."
+
+    def _skill_display_text(self, skill: SkillTemplate) -> str:
+        text = f"**{skill.name}** · {self.service.skill_summary(skill)}"
+        note = self._skill_note(skill)
+        if note:
+            text += f"\n↳ {note}"
+        return text
+
+    def _skill_select_description(self, skill: SkillTemplate) -> str:
+        summary = self.service.skill_summary(skill)
+        note = self._skill_note(skill)
+        if note:
+            summary += f" · {note}"
+        return self._trim(summary.replace("\n", " "), 100)
+
+    def _skill_note(self, skill: SkillTemplate) -> str:
+        note = skill.note.strip()
+        return "" if note in {"", ".", "-"} else note
+
+    def _add_skill_fields(
+        self,
+        embed: discord.Embed,
+        name: str,
+        skills: list[SkillTemplate],
+        *,
+        limit: int = 1000,
+    ) -> None:
+        entries = [self._skill_display_text(skill) for skill in skills]
+        if not entries:
+            embed.add_field(name=name, value="없음", inline=False)
+            return
+
+        chunks: list[str] = []
+        current = ""
+        for entry in entries:
+            entry = self._trim(entry, limit)
+            candidate = f"{current}\n\n{entry}" if current else entry
+            if current and len(candidate) > limit:
+                chunks.append(current)
+                current = entry
+            else:
+                current = candidate
+        if current:
+            chunks.append(current)
+
+        for index, chunk in enumerate(chunks):
+            field_name = name if index == 0 else f"{name} · 계속 {index + 1}"
+            embed.add_field(name=field_name, value=chunk, inline=False)
 
     def _material_summary(self, profile: PlayerProfile, *, limit: int = 8) -> str:
         lines = []
@@ -5761,7 +5851,7 @@ class AbilityEquipView(discord.ui.View):
             discord.SelectOption(
                 label=skill.name,
                 value=skill.id,
-                description=self.cog.service.skill_summary(skill)[:100],
+                description=self.cog._skill_select_description(skill),
                 default=skill.id in equipped,
             )
             for skill in self.cog.service.unlocked_skills(profile)
@@ -5784,7 +5874,7 @@ class AbilityEquipView(discord.ui.View):
             discord.SelectOption(
                 label=skill.name,
                 value=skill.id,
-                description=self.cog.service.skill_summary(skill)[:100],
+                description=self.cog._skill_select_description(skill),
                 default=special_equipped is not None and skill.id == special_equipped.id,
             )
             for skill in special_candidates[:24]

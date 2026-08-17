@@ -161,14 +161,6 @@
         "participant_chance": 0.0,
         "participant_min": 1,
         "participant_max": 1
-      },
-      {
-        "id": "dusk_liberation_trace",
-        "chance": 1.0,
-        "min": 1,
-        "max": 1,
-        "owner_chance": 1.0,
-        "participant_chance": 1.0
       }
     ]
   },
@@ -177,10 +169,19 @@
     "level_req": 48,
     "stats": {
       "base_atk": 1,
-      "max_hp": 65000,
+      "max_hp": 3800000,
       "defense": 50,
       "dmg_mitigation": 30
     },
+    "stack_effect_id_overrides": {
+      "opened_eyes": "opened_eyes_hard"
+    },
+    "stack_effects": [
+      {
+        "stack_effect_id": "opened_eyes_hard",
+        "initial_stacks": 0
+      }
+    ],
     "warning_overrides": {
       "tentacle_attack": {
         "objectives": [
@@ -191,8 +192,41 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 50
-        }
+          "damage_multiplier": 50,
+          "effect_actions": [
+            {
+              "action": "stack_set",
+              "target": "self",
+              "stack_effect_id": "opened_eyes_hard",
+              "value": 1,
+              "duration": -1
+            }
+          ]
+        },
+        "success_pattern": {
+          "effect_actions": [
+            {
+              "action": "stack_set",
+              "target": "self",
+              "stack_effect_id": "opened_eyes_hard",
+              "value": 1,
+              "duration": -1
+            }
+          ]
+        },
+        "activation_conditions": [
+          {
+            "kind": "stack",
+            "stack_effect_id": "opened_eyes_hard",
+            "target": "boss",
+            "min_stacks": 0,
+            "max_stacks": 0
+          },
+          {
+            "kind": "turn_multiple",
+            "multiple": 5
+          }
+        ]
       },
       "laser": {
         "objectives": [
@@ -204,18 +238,35 @@
         ],
         "turns": 2,
         "pattern": {
-          "damage_multiplier": 1.0
-        }
+          "damage_multiplier": 1.0,
+          "effect_actions": [
+            {
+              "action": "stack_max",
+              "target": "self",
+              "stack_effect_id": "opened_eyes_hard",
+              "value": 2,
+              "duration": -1
+            }
+          ]
+        },
+        "activation_conditions": [
+          {
+            "kind": "stack",
+            "stack_effect_id": "opened_eyes_hard",
+            "target": "boss",
+            "min_stacks": 1,
+            "max_stacks": -1
+          }
+        ]
       }
     },
     "balance_notes": {
-      "durability": "낮은 원시 HP 대신 폐안 중 최대 방어와 감산 30으로 개안 화력 창의 가치를 높인다.",
-      "pressure": "개안 시 방어가 사라지고 고정 피해 경감도 5로 줄어 레이저 실패 피해가 즉시 위협한다.",
-      "omens": "촉수의 99타는 의도적 페이즈 전환이고, 실제 공략 검사는 개안 중 2턴에 2,500 피해다."
+      "durability": "낮은 원시 체력 대신 폐안 중 최대 방어와 30 경감을 유지하며, 5턴마다 개안한 뒤 레이저를 해제할 때까지 약점이 열린다.",
+      "pressure": "첫 레이저 실패는 격노 개안 2단계로 넘어가 공격과 연타가 강해지고 다음 레이저가 즉시 이어진다.",
+      "omens": "촉수는 5턴마다 개안을 강제하고 레이저는 폐안 복귀를 결정한다. 실패 시 격노 개안으로 넘어가므로 고정 길이가 아닌 전조 수행 기반 화력 창이다."
     },
     "gold": 15000,
     "exp": 1,
-    "description": "짧은 개안 사이에 모든 화력을 집중해야 하는 심연의 장기전이다.",
     "rewards": {
       "items": [
         {

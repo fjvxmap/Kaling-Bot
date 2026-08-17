@@ -105,6 +105,7 @@ class PlayerProfile:
     potential_pity: dict[str, int] = field(default_factory=dict)
     genesis_item_uid: int = 0
     genesis_liberation_stage: int = -1
+    liberation_reset_revision: int = 1
 
     @classmethod
     def create(cls, user_id: int, display_name: str) -> "PlayerProfile":
@@ -223,6 +224,13 @@ class PlayerProfile:
         }
         profile.genesis_item_uid = max(0, int(profile.genesis_item_uid))
         profile.genesis_liberation_stage = max(-1, min(2, int(profile.genesis_liberation_stage)))
+        # Profiles written before the liberation reset did not carry a revision.
+        # New profiles start at the current revision and therefore never run the
+        # destructive one-time migration intended for existing progress.
+        if "liberation_reset_revision" not in data:
+            profile.liberation_reset_revision = 0
+        else:
+            profile.liberation_reset_revision = max(0, int(profile.liberation_reset_revision or 0))
         return profile
 
     def to_dict(self) -> dict[str, Any]:
@@ -257,6 +265,7 @@ class CombatStats:
     life_steal_cap: float = 0.01
     healing_bonus: float = 0.0
     heal_cap_bonus: float = 0.0
+    invulnerable: bool = False
 
     @property
     def final_hp(self) -> int:

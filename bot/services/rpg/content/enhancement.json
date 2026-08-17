@@ -1,8 +1,8 @@
 {
   "star_multiplier": {
-    "linear": 0.14,
-    "quadratic": 0.01,
-    "early_bonus": 0.02,
+    "linear": 0.24,
+    "quadratic": 0.03,
+    "early_bonus": 0.03,
     "early_bonus_cap": 3
   },
   "odds": {

@@ -564,11 +564,56 @@
     "enabled": true,
     "level_req": 56,
     "stats": {
-      "base_atk": 60,
-      "max_hp": 250000,
+      "base_atk": 75,
+      "max_hp": 40000000,
       "defense": 0.3,
-      "triple_attack_rate": 0.45,
-      "double_attack_rate": 0.25
+      "triple_attack_rate": 0.85,
+      "double_attack_rate": 0.0
+    },
+    "stack_effect_id_overrides": {
+      "adversary_determination": "adversary_determination_hard"
+    },
+    "stack_effects": [
+      {
+        "stack_effect_id": "adversary_determination_hard",
+        "initial_stacks": 3
+      }
+    ],
+    "ct": {
+      "gauge_by_hp": [
+        {
+          "above": 0,
+          "max": 2
+        }
+      ],
+      "warnings_by_hp": [
+        {
+          "above": 1,
+          "warning_id": "spatial_slash",
+          "warning_ids": [
+            "spatial_slash",
+            "double_swing",
+            "stream_of_blade"
+          ]
+        },
+        {
+          "above": 0.666,
+          "warning_id": "scattering_arrows",
+          "warning_ids": [
+            "scattering_arrows",
+            "evolve"
+          ]
+        },
+        {
+          "above": 0.333,
+          "warning_id": "stream_of_blade",
+          "warning_ids": [
+            "stream_of_blade",
+            "spatial_slash",
+            "double_swing"
+          ]
+        }
+      ]
     },
     "warning_overrides": {
       "thousand_sword": {
@@ -585,7 +630,7 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 30
+          "damage_multiplier": 40
         }
       },
       "spatial_slash": {
@@ -597,7 +642,7 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 1.25,
+          "damage_multiplier": 1.9,
           "hits": 10
         }
       },
@@ -615,7 +660,7 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 8
+          "damage_multiplier": 8.5
         }
       },
       "cycle_of_power_phase_1": {
@@ -628,7 +673,82 @@
         ],
         "pattern": {
           "damage_multiplier": 0
-        }
+        },
+        "failure_variants": [
+          {
+            "name": "힘의 순환 (의지 붕괴)",
+            "conditions": [
+              {
+                "stack_effect_id": "adversary_determination_hard",
+                "target": "boss",
+                "min_stacks": 0,
+                "max_stacks": 1
+              }
+            ],
+            "pattern": {
+              "id": "cycle_of_power_hard_failure_low",
+              "name": "힘의 순환 (의지 붕괴)",
+              "damage_multiplier": 0,
+              "hits": 0,
+              "effect_actions": [
+                {
+                  "action": "stack_set",
+                  "target": "self",
+                  "count": 1,
+                  "stack_effect_id": "adversary_determination_hard",
+                  "value": 3,
+                  "duration": -1
+                }
+              ],
+              "plain_damage": {
+                "mode": "target_max_hp_ratio",
+                "value": 0.8
+              }
+            }
+          },
+          {
+            "name": "힘의 순환 (의지 잔존)",
+            "conditions": [
+              {
+                "stack_effect_id": "adversary_determination_hard",
+                "target": "boss",
+                "min_stacks": 2,
+                "max_stacks": 3
+              }
+            ],
+            "pattern": {
+              "id": "cycle_of_power_hard_failure_high",
+              "name": "힘의 순환 (의지 잔존)",
+              "damage_multiplier": 0,
+              "hits": 0,
+              "effect_actions": [
+                {
+                  "action": "stack_set",
+                  "target": "self",
+                  "count": 1,
+                  "stack_effect_id": "adversary_determination_hard",
+                  "value": 3,
+                  "duration": -1
+                }
+              ],
+              "plain_damage": {
+                "mode": "target_max_hp_ratio",
+                "value": 0.6
+              }
+            }
+          }
+        ],
+        "activation_conditions": [
+          {
+            "kind": "turn_multiple",
+            "multiple": 9
+          },
+          {
+            "kind": "boss_hp_ratio",
+            "min_ratio": 0.667,
+            "max_ratio": 1.0
+          }
+        ]
       },
       "stream_of_blade": {
         "objectives": [
@@ -639,7 +759,7 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 0.75
+          "damage_multiplier": 0.8
         }
       },
       "element_of_chaos": {
@@ -661,7 +781,7 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 17
+          "damage_multiplier": 18
         }
       },
       "cycle_of_power_phase_2_3": {
@@ -674,7 +794,82 @@
         ],
         "pattern": {
           "damage_multiplier": 0
-        }
+        },
+        "failure_variants": [
+          {
+            "name": "힘의 순환 (의지 붕괴)",
+            "conditions": [
+              {
+                "stack_effect_id": "adversary_determination_hard",
+                "target": "boss",
+                "min_stacks": 0,
+                "max_stacks": 1
+              }
+            ],
+            "pattern": {
+              "id": "cycle_of_power_phase_2_3_hard_failure_low",
+              "name": "힘의 순환 (의지 붕괴)",
+              "damage_multiplier": 0,
+              "hits": 0,
+              "effect_actions": [
+                {
+                  "action": "stack_set",
+                  "target": "self",
+                  "count": 1,
+                  "stack_effect_id": "adversary_determination_hard",
+                  "value": 3,
+                  "duration": -1
+                }
+              ],
+              "plain_damage": {
+                "mode": "target_max_hp_ratio",
+                "value": 0.8
+              }
+            }
+          },
+          {
+            "name": "힘의 순환 (의지 잔존)",
+            "conditions": [
+              {
+                "stack_effect_id": "adversary_determination_hard",
+                "target": "boss",
+                "min_stacks": 2,
+                "max_stacks": 3
+              }
+            ],
+            "pattern": {
+              "id": "cycle_of_power_phase_2_3_hard_failure_high",
+              "name": "힘의 순환 (의지 잔존)",
+              "damage_multiplier": 0,
+              "hits": 0,
+              "effect_actions": [
+                {
+                  "action": "stack_set",
+                  "target": "self",
+                  "count": 1,
+                  "stack_effect_id": "adversary_determination_hard",
+                  "value": 3,
+                  "duration": -1
+                }
+              ],
+              "plain_damage": {
+                "mode": "target_max_hp_ratio",
+                "value": 0.6
+              }
+            }
+          }
+        ],
+        "activation_conditions": [
+          {
+            "kind": "turn_multiple",
+            "multiple": 9
+          },
+          {
+            "kind": "boss_hp_ratio",
+            "min_ratio": 0.0,
+            "max_ratio": 0.666
+          }
+        ]
       },
       "scattering_arrows": {
         "objectives": [
@@ -685,8 +880,44 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 2.5
-        }
+          "damage_multiplier": 2.7
+        },
+        "failure_variants": [
+          {
+            "name": "연발 화살 (의지 저하)",
+            "conditions": [
+              {
+                "stack_effect_id": "adversary_determination_hard",
+                "target": "boss",
+                "min_stacks": 0,
+                "max_stacks": 2
+              }
+            ],
+            "pattern": {
+              "id": "scattering_arrows_hard_failure_low",
+              "name": "연발 화살 (의지 저하)",
+              "damage_multiplier": 2.7,
+              "hits": 3
+            }
+          },
+          {
+            "name": "연발 화살 (의지 고양)",
+            "conditions": [
+              {
+                "stack_effect_id": "adversary_determination_hard",
+                "target": "boss",
+                "min_stacks": 3,
+                "max_stacks": 3
+              }
+            ],
+            "pattern": {
+              "id": "scattering_arrows_hard_failure_high",
+              "name": "연발 화살 (의지 고양)",
+              "damage_multiplier": 2.7,
+              "hits": 7
+            }
+          }
+        ]
       },
       "evolve": {
         "objectives": [
@@ -697,7 +928,7 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 4.5
+          "damage_multiplier": 4.8
         }
       },
       "pincer_phantom": {
@@ -719,18 +950,28 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 10
-        }
+          "damage_multiplier": 11
+        },
+        "activation_conditions": [
+          {
+            "kind": "boss_hp_ratio",
+            "min_ratio": 0.0,
+            "max_ratio": 0.333
+          },
+          {
+            "kind": "turn_multiple",
+            "multiple": 5
+          }
+        ]
       }
     },
     "balance_notes": {
-      "durability": "최종 보스로서 가장 높은 원시 체력을 지니되 기본 방어는 낮추고, 대적의 의지에 따른 동적 차단을 실질 내구로 사용한다.",
-      "pressure": "긴 전투에서 무작위 평타 연타가 승패를 정하지 않도록 기본 공격 압박을 낮추고, 대적의 의지와 페이즈 전조에 위력을 집중한다.",
-      "omens": "세 페이즈가 화력, 유효 타수, 디버프, 어빌리티 운용을 복합 검사하고 힘의 순환은 의도된 상태 전환으로 유지한다."
+      "durability": "최대 원시 체력을 압도적으로 높이고, 하드 대적의 의지는 낮을수록 강한 차단·높을수록 큰 취약을 주어 전조 성패가 실질 내구도 흔든다.",
+      "pressure": "3단계에서 시작해 9턴마다 의지를 재편하며, 4·5단계의 취약 구간에서는 오히려 공격과 연속 공격이 함께 올라 극단적 화력 교환이 된다.",
+      "omens": "성공으로 의지를 밀어 취약 구간을 만들고 실패하면 두 단계 후퇴하는 흐름 위에, 노말보다 강한 전 패턴과 마지막 5턴 협공 환영을 배치했다."
     },
     "gold": 50000,
     "exp": 1,
-    "description": "최초의 대적자가 모든 검격을 망설임 없이 이어가는 최고 난도 결전이다.",
     "rewards": {
       "items": [
         {

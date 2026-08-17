@@ -129,8 +129,14 @@ class PotentialTests(unittest.TestCase):
             damage.values["legendary"] * 3,
             harmonia.stats["dmg_supplement"],
         )
-        self.assertEqual(damage.values["legendary"], 5.0)
-        self.assertEqual(skill_damage.values["legendary"], 8.0)
+        self.assertEqual(
+            damage.values,
+            {"normal": 0.75, "rare": 0.75, "epic": 1.5, "unique": 2.5, "legendary": 4.0},
+        )
+        self.assertEqual(
+            skill_damage.values,
+            {"normal": 0.75, "rare": 1.5, "epic": 2.5, "unique": 4.0, "legendary": 6.0},
+        )
 
         for grade in POTENTIAL_LINE_GRADES:
             eligible = [

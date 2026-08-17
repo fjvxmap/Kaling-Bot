@@ -2757,5 +2757,397 @@
     ],
     "note": "",
     "stats": {}
+  },
+  {
+    "id": "genesis_creation_ion",
+    "name": "창조의 아이온",
+    "unlock_level": 1,
+    "uses": 1,
+    "cooldown": 10,
+    "role": "defense",
+    "special": true,
+    "equipment_granted": true,
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_effects": {
+      "invulnerability": {
+        "duration": 1,
+        "undispellable": true,
+        "target": "self"
+      }
+    },
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [],
+    "note": "창조의 아이온을 전개해 한 턴 동안 모든 피해를 무효화한다.",
+    "stats": {}
+  },
+  {
+    "id": "sarasa_faultline",
+    "name": "단층",
+    "unlock_level": 3,
+    "uses": 0,
+    "cooldown": 2,
+    "role": "attack",
+    "special": false,
+    "damage_multiplier": 2.6,
+    "hits": 3,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "sarasa_1"
+    ],
+    "note": "도끼날로 지면의 결을 끊어 세 차례 충격을 밀어 보낸다.",
+    "stats": {}
+  },
+  {
+    "id": "sarasa_reverse_flow",
+    "name": "역류",
+    "unlock_level": 3,
+    "uses": 0,
+    "cooldown": 6,
+    "role": "buff",
+    "special": false,
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "self_hp_cost": {
+      "mode": "max_hp_ratio",
+      "value": 0.18,
+      "minimum_hp": 1
+    },
+    "player_stat_effects": [
+      {
+        "stat": "enmity",
+        "target": "self",
+        "value": 0.05,
+        "duration": 1,
+        "undispellable": false
+      },
+      {
+        "stat": "garrison",
+        "target": "self",
+        "value": 0.35,
+        "duration": 3,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "sarasa_1"
+    ],
+    "note": "최대 HP의 18%를 소모해 흐름을 뒤집는다. 1턴 동안 배수, 3턴 동안 견수가 증가한다.",
+    "stats": {}
+  },
+  {
+    "id": "sarasa_fracture_line",
+    "name": "파쇄선",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 3,
+    "role": "attack",
+    "special": false,
+    "damage_multiplier": 0.55,
+    "hits": 5,
+    "player_mods": {},
+    "enemy_mods": {},
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "sarasa_2"
+    ],
+    "note": "이미 벌어진 균열을 따라 도끼와 검을 연달아 꽂아 넣는다.",
+    "stats": {}
+  },
+  {
+    "id": "sarasa_blood_path",
+    "name": "환류",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 6,
+    "role": "buff",
+    "special": false,
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "self_hp_cost": {
+      "mode": "current_hp_ratio",
+      "value": 0.3,
+      "minimum_hp": 1
+    },
+    "player_stat_effects": [
+      {
+        "stat": "life_steal",
+        "target": "self",
+        "value": 0.07,
+        "duration": 2,
+        "undispellable": false
+      },
+      {
+        "stat": "life_steal_cap",
+        "target": "self",
+        "value": 0.12,
+        "duration": 2,
+        "undispellable": false
+      },
+      {
+        "stat": "critical_rate",
+        "target": "self",
+        "value": 0.2,
+        "duration": 2,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "sarasa_2"
+    ],
+    "note": "현재 HP의 30%를 내주고 2턴 동안 생명력 흡수와 크리티컬 확률을 높인다. 되찾을 피해를 먼저 확보해야 한다.",
+    "stats": {}
+  },
+  {
+    "id": "sarasa_enmity_form",
+    "name": "배수의 형",
+    "unlock_level": 10,
+    "uses": 0,
+    "cooldown": 5,
+    "role": "defense",
+    "special": false,
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "enmity",
+        "target": "self",
+        "value": 0.08,
+        "duration": 1,
+        "undispellable": false
+      },
+      {
+        "stat": "damage_cut",
+        "target": "self",
+        "value": 0.25,
+        "duration": 2,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "sarasa_2"
+    ],
+    "note": "남은 체력을 읽는 자세로 전환한다. 1턴 동안 배수, 2턴 동안 데미지 컷이 증가한다.",
+    "stats": {}
+  },
+  {
+    "id": "sarasa_vorpal_rage",
+    "name": "보팔 레이지",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 6,
+    "role": "attack",
+    "special": false,
+    "damage_multiplier": 3.4,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "enmity",
+        "target": "self",
+        "value": 0.08,
+        "duration": 1,
+        "undispellable": false
+      },
+      {
+        "stat": "dmg_amplification",
+        "target": "self",
+        "value": 0.1,
+        "duration": 3,
+        "undispellable": false
+      },
+      {
+        "stat": "life_steal",
+        "target": "self",
+        "value": 0.035,
+        "duration": 3,
+        "undispellable": false
+      },
+      {
+        "stat": "life_steal_cap",
+        "target": "self",
+        "value": 0.06,
+        "duration": 3,
+        "undispellable": false
+      }
+    ],
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "sarasa_3"
+    ],
+    "note": "네 번의 참격과 함께 1턴 동안 배수, 3턴 동안 데미지 증가와 생명력 흡수를 얻는다. 낮은 체력을 화력과 회복으로 동시에 바꾼다.",
+    "stats": {}
+  },
+  {
+    "id": "sarasa_berserk_forge",
+    "name": "베르세르크 포지",
+    "unlock_level": 25,
+    "uses": 0,
+    "cooldown": 7,
+    "role": "buff",
+    "special": false,
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "triple_attack_rate",
+        "target": "self",
+        "value": 1.0,
+        "duration": 1,
+        "undispellable": false
+      }
+    ],
+    "player_effects": {
+      "double_strike": {
+        "count": 2,
+        "target": "self",
+        "duration": 1,
+        "undispellable": false
+      },
+      "bonus_damage": [
+        {
+          "ratio": 0.2,
+          "target": "self",
+          "duration": 2,
+          "undispellable": false
+        }
+      ],
+      "final_damage": [
+        {
+          "ratio": 0.15,
+          "target": "self",
+          "duration": 1,
+          "undispellable": false
+        }
+      ]
+    },
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "sarasa_3"
+    ],
+    "note": "도끼의 관성을 검의 속도로 바꾼다. 이번 턴 트리플 어택과 재행동을 얻고, 2턴 동안 추격이 발생한다.",
+    "stats": {}
+  },
+  {
+    "id": "sarasa_ground_zero",
+    "name": "그라운드 제로",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 8,
+    "role": "attack",
+    "special": false,
+    "damage_multiplier": 0.8,
+    "hp_scaled_damage": true,
+    "hits": 4,
+    "player_mods": {},
+    "enemy_mods": {},
+    "self_hp_cost": {
+      "mode": "set",
+      "value": 1,
+      "minimum_hp": 1
+    },
+    "effect_actions": [
+      {
+        "action": "stack_max",
+        "target": "self",
+        "stack_effect_id": "sarasa_tiger_soul",
+        "duration": 1
+      }
+    ],
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "sarasa_4"
+    ],
+    "note": "HP를 1로 만들고, 소모 후 HP를 기준으로 네 차례 피해를 준다. 그 턴 동안 잔명이 발동해 피해를 무효화하고 흡수와 견수를 높인다.",
+    "stats": {}
+  },
+  {
+    "id": "sarasa_three_tigers_blessing",
+    "name": "삼인의 축복",
+    "unlock_level": 50,
+    "uses": 1,
+    "cooldown": 10,
+    "role": "buff",
+    "special": false,
+    "damage_multiplier": 0,
+    "hits": 0,
+    "player_mods": {},
+    "enemy_mods": {},
+    "player_stat_effects": [
+      {
+        "stat": "enmity",
+        "target": "self",
+        "value": 0.05,
+        "duration": 1,
+        "undispellable": true
+      },
+      {
+        "stat": "triple_attack_rate",
+        "target": "self",
+        "value": 1.0,
+        "duration": 3,
+        "undispellable": true
+      }
+    ],
+    "player_effects": {
+      "ability_recast": [
+        {
+          "count": 1,
+          "target": "self",
+          "duration": 1,
+          "undispellable": true
+        }
+      ],
+      "final_damage": [
+        {
+          "ratio": 0.2,
+          "target": "self",
+          "duration": 3,
+          "undispellable": true
+        }
+      ]
+    },
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "sarasa_4"
+    ],
+    "note": "전투당 한 번, 이번 턴의 공격 어빌리티를 한 차례 재발동한다. 1턴 동안 배수, 3턴 동안 확정 트리플 어택과 최종 데미지를 얻는다.",
+    "stats": {}
   }
 ]

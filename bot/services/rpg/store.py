@@ -14,6 +14,11 @@ from .models import PlayerProfile
 
 _MISSING = object()
 _UNION_LIST_FIELDS = {"cleared_boss_ids", "solo_cleared_boss_ids"}
+_REPLACE_NUMERIC_FIELDS = {
+    "genesis_item_uid",
+    "genesis_liberation_stage",
+}
+_MONOTONIC_NUMERIC_FIELDS = {"liberation_reset_revision"}
 
 
 class RPGStore:
@@ -93,18 +98,105 @@ class RPGStore:
     ) -> Any:
         if current is _MISSING and latest is _MISSING:
             return _MISSING
+        if current == latest:
+            return self._clone(current)
+
+        # Material quantities are additive counters. Treat an absent key as
+        # zero so a concurrent final-item consumption (key removal) and reward
+        # gain preserve both deltas regardless of save order.
+        if len(path) >= 2 and path[-2] == "materials":
+            values = (baseline, current, latest)
+            if all(
+                value is _MISSING
+                or (
+                    isinstance(value, (int, float))
+                    and not isinstance(value, bool)
+                )
+                for value in values
+            ):
+                baseline_amount = 0 if baseline is _MISSING else baseline
+                current_amount = 0 if current is _MISSING else current
+                latest_amount = 0 if latest is _MISSING else latest
+                merged_amount = max(
+                    0,
+                    int(latest_amount) + int(current_amount) - int(baseline_amount),
+                )
+                return merged_amount if merged_amount > 0 else _MISSING
+
         if baseline is _MISSING:
             if latest is _MISSING:
                 return self._clone(current)
             if current == latest:
                 return self._clone(current)
+
+        # Service startup applies profile migrations before it can accept user
+        # actions. If another process has already persisted the same (or a newer)
+        # migration revision, this process is holding a stale pre-migration
+        # snapshot. Keep the complete latest profile so a late bot/web startup
+        # cannot roll back liberation progress made after the first startup.
+        if (
+            len(path) == 2
+            and path[0] == "profiles"
+            and isinstance(baseline, dict)
+            and isinstance(current, dict)
+            and isinstance(latest, dict)
+        ):
+            baseline_revision = int(baseline.get("liberation_reset_revision", 0) or 0)
+            current_revision = int(current.get("liberation_reset_revision", 0) or 0)
+            latest_revision = int(latest.get("liberation_reset_revision", 0) or 0)
+            if latest_revision >= current_revision > baseline_revision:
+                return self._clone(latest)
+
+            # Liberation stages, their weapon stars/potential, and consumed
+            # trace materials form one progress snapshot. When two processes
+            # advance from the same stage but one is already further ahead,
+            # field-by-field numeric merging can roll the stage back and add
+            # the star deltas together. Keep the complete higher-stage snapshot
+            # instead; the lower-stage advance is fully subsumed by it.
+            if current_revision == latest_revision == baseline_revision:
+                baseline_stage = int(baseline.get("genesis_liberation_stage", -1) or 0)
+                current_stage = int(current.get("genesis_liberation_stage", -1) or 0)
+                latest_stage = int(latest.get("genesis_liberation_stage", -1) or 0)
+                if (
+                    current_stage > baseline_stage
+                    and latest_stage > baseline_stage
+                    and current_stage != latest_stage
+                ):
+                    higher_stage = current if current_stage > latest_stage else latest
+                    # Only liberation-owned state is subsumed by the higher
+                    # stage. Normalize that snapshot on both sides, then let
+                    # the ordinary three-way merge retain unrelated concurrent
+                    # changes such as gold, EXP, equipment, and new drops.
+                    normalized_current = self._with_liberation_snapshot(
+                        current,
+                        higher_stage,
+                        baseline,
+                        latest,
+                    )
+                    normalized_latest = self._with_liberation_snapshot(
+                        latest,
+                        higher_stage,
+                        baseline,
+                        current,
+                    )
+                    merged = self._three_way_merge(
+                        baseline,
+                        normalized_current,
+                        normalized_latest,
+                        path=path,
+                    )
+                    return self._with_liberation_material_snapshot(
+                        merged,
+                        higher_stage,
+                        baseline,
+                        current,
+                        latest,
+                    )
+
         if current == baseline:
             return self._clone(latest)
         if latest == baseline or latest is _MISSING:
             return self._clone(current)
-        if current == latest:
-            return self._clone(current)
-
         if isinstance(current, dict) and isinstance(latest, dict):
             base_dict = baseline if isinstance(baseline, dict) else {}
             keys = set(base_dict) | set(current) | set(latest)
@@ -137,6 +229,10 @@ class RPGStore:
             and isinstance(latest, (int, float))
             and not isinstance(latest, bool)
         ):
+            if field in _MONOTONIC_NUMERIC_FIELDS:
+                return max(current, latest)
+            if field in _REPLACE_NUMERIC_FIELDS:
+                return self._clone(current)
             return latest + (current - baseline)
 
         return self._clone(current)
@@ -144,6 +240,96 @@ class RPGStore:
     @staticmethod
     def _clone(value: Any) -> Any:
         return _MISSING if value is _MISSING else deepcopy(value)
+
+    @classmethod
+    def _with_liberation_snapshot(
+        cls,
+        target: dict[str, Any],
+        source: dict[str, Any],
+        *related: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Overlay the atomic liberation fields without replacing the profile."""
+        def item_uid(value: Any) -> int:
+            try:
+                return max(0, int(value or 0))
+            except (TypeError, ValueError):
+                return 0
+
+        normalized = deepcopy(target)
+        for field in (
+            "genesis_item_uid",
+            "genesis_liberation_stage",
+            "liberation_reset_revision",
+        ):
+            if field in source:
+                normalized[field] = deepcopy(source[field])
+            else:
+                normalized.pop(field, None)
+
+        tracked_uids = {
+            item_uid(profile.get("genesis_item_uid", 0))
+            for profile in (source, target, *related)
+            if isinstance(profile, dict)
+        }
+        tracked_uids.discard(0)
+        source_uid = item_uid(source.get("genesis_item_uid", 0))
+        source_inventory = source.get("inventory", [])
+        source_genesis = next(
+            (
+                deepcopy(row)
+                for row in source_inventory
+                if isinstance(row, dict) and item_uid(row.get("uid", 0)) == source_uid
+            ),
+            None,
+        ) if isinstance(source_inventory, list) else None
+        target_inventory = normalized.get("inventory", [])
+        if isinstance(target_inventory, list):
+            normalized_inventory = [
+                deepcopy(row)
+                for row in target_inventory
+                if not (
+                    isinstance(row, dict)
+                    and item_uid(row.get("uid", 0)) in tracked_uids
+                )
+            ]
+            if source_genesis is not None:
+                normalized_inventory.append(source_genesis)
+            normalized["inventory"] = normalized_inventory
+        return normalized
+
+    @staticmethod
+    def _with_liberation_material_snapshot(
+        target: dict[str, Any],
+        source: dict[str, Any],
+        *related: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Keep trace consumption aligned with the selected liberation stage."""
+        normalized = deepcopy(target)
+        material_maps = [
+            profile.get("materials", {})
+            for profile in (source, target, *related)
+            if isinstance(profile, dict)
+            and isinstance(profile.get("materials", {}), dict)
+        ]
+        trace_ids = {
+            str(material_id)
+            for materials in material_maps
+            for material_id in materials
+            if str(material_id).endswith("_liberation_trace")
+        }
+        source_materials = source.get("materials", {})
+        normalized_materials = normalized.get("materials", {})
+        if not isinstance(normalized_materials, dict):
+            normalized_materials = {}
+        else:
+            normalized_materials = deepcopy(normalized_materials)
+        for material_id in trace_ids:
+            if isinstance(source_materials, dict) and material_id in source_materials:
+                normalized_materials[material_id] = deepcopy(source_materials[material_id])
+            else:
+                normalized_materials.pop(material_id, None)
+        normalized["materials"] = normalized_materials
+        return normalized
 
     def _merge_inventory(
         self,

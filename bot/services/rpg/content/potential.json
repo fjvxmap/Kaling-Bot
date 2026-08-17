@@ -187,11 +187,11 @@
       "name": "가산 피해",
       "stat": "dmg_supplement",
       "values": {
-        "normal": 1.0,
-        "rare": 1.0,
-        "epic": 2.0,
-        "unique": 3.0,
-        "legendary": 5.0
+        "normal": 0.75,
+        "rare": 0.75,
+        "epic": 1.5,
+        "unique": 2.5,
+        "legendary": 4.0
       },
       "weights": {
         "normal": 1.0,
@@ -225,11 +225,11 @@
       "name": "스킬 가산 피해",
       "stat": "skill_dmg_supplement",
       "values": {
-        "normal": 1.0,
-        "rare": 2.0,
-        "epic": 3.0,
-        "unique": 5.0,
-        "legendary": 8.0
+        "normal": 0.75,
+        "rare": 1.5,
+        "epic": 2.5,
+        "unique": 4.0,
+        "legendary": 6.0
       },
       "weights": {
         "normal": 1.0,

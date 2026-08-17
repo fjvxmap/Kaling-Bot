@@ -199,6 +199,13 @@ class VeilEffect:
 
 
 @dataclass(frozen=True)
+class InvulnerabilityEffect:
+    duration: int
+    undispellable: bool = False
+    target: str = "self"
+
+
+@dataclass(frozen=True)
 class HealCap:
     mode: str = "none"
     value: float = 0.0
@@ -206,6 +213,19 @@ class HealCap:
     @property
     def has_cap(self) -> bool:
         return self.mode in {"flat", "max_hp_ratio"} and self.value > 0
+
+
+@dataclass(frozen=True)
+class SelfHpCost:
+    mode: str = "none"
+    value: float = 0.0
+    minimum_hp: int = 1
+
+    @property
+    def has_cost(self) -> bool:
+        if self.mode == "set":
+            return self.value >= 0
+        return self.mode in {"max_hp_ratio", "current_hp_ratio"} and self.value > 0
 
 
 @dataclass(frozen=True)
@@ -237,6 +257,7 @@ class CombatSpecialEffects:
     final_damage: list[FinalDamageEffect] = field(default_factory=list)
     post_attack_ability_damage: list[PostAttackAbilityDamageEffect] = field(default_factory=list)
     ability_recast: list[AbilityRecastEffect] = field(default_factory=list)
+    invulnerability: list[InvulnerabilityEffect] = field(default_factory=list)
     dispel_guard: list[DispelGuardEffect] = field(default_factory=list)
     veil: list[VeilEffect] = field(default_factory=list)
 
@@ -250,6 +271,7 @@ class CombatSpecialEffects:
             or bool(self.final_damage)
             or bool(self.post_attack_ability_damage)
             or bool(self.ability_recast)
+            or bool(self.invulnerability)
             or bool(self.dispel_guard)
             or bool(self.veil)
         )
@@ -368,7 +390,9 @@ class SkillTemplate:
     cooldown: int = 0
     role: str = "attack"
     special: bool = False
+    equipment_granted: bool = False
     damage_multiplier: float = 0.0
+    hp_scaled_damage: bool = False
     hits: int = 0
     player_mods: dict[str, float] = field(default_factory=dict)
     enemy_mods: dict[str, float] = field(default_factory=dict)
@@ -382,6 +406,7 @@ class SkillTemplate:
     duration: int = 0
     heal_power: float = 0.0
     heal_cap: HealCap = field(default_factory=HealCap)
+    self_hp_cost: SelfHpCost = field(default_factory=SelfHpCost)
     heal_target: str = "self"
     damage_cut: float = 0.0
     job_ids: tuple[str, ...] = ()
@@ -833,6 +858,44 @@ def _heal_cap(raw: Any) -> HealCap:
     return HealCap(mode=mode, value=max(0.0, value))
 
 
+def _self_hp_cost(raw: Any) -> SelfHpCost:
+    if not isinstance(raw, dict):
+        return SelfHpCost()
+    cost = raw.get("self_hp_cost", raw.get("hp_cost"))
+    if not isinstance(cost, dict):
+        return SelfHpCost()
+
+    raw_mode = str(cost.get("mode", cost.get("type", "none")) or "none")
+    aliases = {
+        "max_hp": "max_hp_ratio",
+        "max_hp_percent": "max_hp_ratio",
+        "current_hp": "current_hp_ratio",
+        "current_hp_percent": "current_hp_ratio",
+        "hp_ratio": "current_hp_ratio",
+        "set_hp": "set",
+        "fixed": "set",
+    }
+    mode = aliases.get(raw_mode, raw_mode)
+    if mode not in {"max_hp_ratio", "current_hp_ratio", "set"}:
+        return SelfHpCost()
+
+    value = _safe_float(cost.get("value", cost.get("amount", 0.0)), 0.0)
+    if mode in {"max_hp_ratio", "current_hp_ratio"}:
+        if raw_mode.endswith("_percent") or value > 1:
+            value /= 100.0
+        value = max(0.0, min(1.0, value))
+        if value <= 0:
+            return SelfHpCost()
+    else:
+        value = max(0.0, value)
+
+    return SelfHpCost(
+        mode=mode,
+        value=value,
+        minimum_hp=max(1, _safe_int(cost.get("minimum_hp", cost.get("floor", 1)), 1)),
+    )
+
+
 def _combat_effects(
     raw: Any,
     default_duration: int = 1,
@@ -977,6 +1040,17 @@ def _combat_effects(
             )
         )
 
+    invulnerability: list[InvulnerabilityEffect] = []
+    invulnerability_raw = raw.get("invulnerability", raw.get("invulnerable"))
+    for effect in _guard_rows(invulnerability_raw):
+        invulnerability.append(
+            InvulnerabilityEffect(
+                duration=_effect_duration(effect if isinstance(effect, dict) else None, default_duration),
+                undispellable=_effect_undispellable(effect, fallback_undispellable),
+                target=_effect_target(effect),
+            )
+        )
+
     dispel_guard: list[DispelGuardEffect] = []
     for guard in _guard_rows(raw.get("dispel_guard")):
         dispel_guard.append(
@@ -1007,6 +1081,7 @@ def _combat_effects(
         final_damage=final_damage,
         post_attack_ability_damage=post_attack_ability_damage,
         ability_recast=ability_recast,
+        invulnerability=invulnerability,
         dispel_guard=dispel_guard,
         veil=veil,
     )
@@ -1371,7 +1446,9 @@ def _skill(raw: dict[str, Any]) -> SkillTemplate:
         cooldown=int(raw.get("cooldown", 0)),
         role=str(raw.get("role", "attack")),
         special=bool(raw.get("special", raw.get("is_special", False))),
+        equipment_granted=bool(raw.get("equipment_granted", False)),
         damage_multiplier=float(raw.get("damage_multiplier", 0.0)),
+        hp_scaled_damage=bool(raw.get("hp_scaled_damage", False)),
         hits=int(raw.get("hits", 0)),
         player_mods=_stat_effect_totals(player_stat_effects),
         enemy_mods=_stat_effect_totals(enemy_stat_effects),
@@ -1385,6 +1462,7 @@ def _skill(raw: dict[str, Any]) -> SkillTemplate:
         duration=duration,
         heal_power=float(raw.get("heal_power", 0.0)),
         heal_cap=_heal_cap(raw),
+        self_hp_cost=_self_hp_cost(raw),
         heal_target=_target_value(raw.get("heal_target", raw.get("healTarget", "self"))),
         damage_cut=damage_cut,
         job_ids=tuple(str(job_id) for job_id in raw.get("job_ids", ())),
@@ -2264,10 +2342,19 @@ def _replace_hard_stack_effect_ids(value: Any, replacements: Any) -> None:
         return
     if not isinstance(value, dict):
         return
-    stack_effect_id = value.get("stack_effect_id")
-    replacement = replacements.get(str(stack_effect_id))
-    if replacement:
-        value["stack_effect_id"] = str(replacement)
+    # Activation rules can compare two independent stacks.  Both references
+    # belong to the hard-mode namespace; leaving the comparison side on the
+    # normal template makes conditions such as Verus Hilla's skull/thread
+    # equality silently impossible in hard mode.
+    for key in (
+        "stack_effect_id",
+        "compare_stack_effect_id",
+        "value_from_stack_effect_id",
+    ):
+        stack_effect_id = value.get(key)
+        replacement = replacements.get(str(stack_effect_id))
+        if replacement:
+            value[key] = str(replacement)
     for child in value.values():
         _replace_hard_stack_effect_ids(child, replacements)
 
@@ -2285,7 +2372,10 @@ def _hard_boss_raw(raw: dict[str, Any]) -> dict[str, Any] | None:
     hard["stats"] = deepcopy(config.get("stats", raw.get("stats", {})))
     hard["gold"] = max(0, _safe_int(config.get("gold"), _safe_int(raw.get("gold"), 0)))
     hard["exp"] = max(0, _safe_int(config.get("exp"), _safe_int(raw.get("exp"), 0)))
-    hard["description"] = str(config.get("description", raw.get("description", "")))
+    # Difficulty changes the encounter, not its public lore copy. Keeping the
+    # description sourced from the normal template also prevents hard-mode
+    # tuning notes from leaking into the boss list as substitute flavour text.
+    hard["description"] = str(raw.get("description", ""))
     hard["rewards"] = deepcopy(config.get("rewards", {}))
     hard["difficulty"] = "hard"
     hard["base_boss_id"] = base_id

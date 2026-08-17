@@ -387,11 +387,113 @@
     "enabled": true,
     "level_req": 54,
     "stats": {
-      "base_atk": 50,
-      "max_hp": 205000,
+      "base_atk": 45,
+      "max_hp": 14000000,
       "defense": 0.65,
       "triple_attack_rate": 0.55,
-      "double_attack_rate": 0.25
+      "double_attack_rate": 0.0
+    },
+    "stack_effect_id_overrides": {
+      "evangelists_blade": "evangelists_blade_hard"
+    },
+    "stack_effects": [
+      {
+        "stack_effect_id": "evangelists_blade_hard",
+        "initial_stacks": 0
+      }
+    ],
+    "hp_effects": [
+      {
+        "thresholds": [
+          1.0
+        ],
+        "pattern": {
+          "id": "lucilius_hard_opener",
+          "name": "파라다이스 로스트",
+          "plain_damage": {
+            "mode": "target_max_hp_ratio",
+            "value": 0.5
+          },
+          "effect_actions": [
+            {
+              "action": "stack_increase",
+              "target": "self",
+              "stack_effect_id": "evangelists_blade_hard",
+              "value": 1,
+              "duration": -1
+            }
+          ]
+        }
+      },
+      {
+        "thresholds": [
+          0.75,
+          0.5,
+          0.25
+        ],
+        "pattern": {
+          "id": "lucilius_hard_blade_awakening",
+          "name": "혁인의 각성",
+          "effect_actions": [
+            {
+              "action": "stack_increase",
+              "target": "self",
+              "stack_effect_id": "evangelists_blade_hard",
+              "value": 1,
+              "duration": -1
+            }
+          ]
+        }
+      }
+    ],
+    "ct": {
+      "gauge_by_hp": [
+        {
+          "above": 0.75,
+          "max": 3
+        },
+        {
+          "above": 0,
+          "max": 2
+        }
+      ],
+      "warnings_by_hp": [
+        {
+          "above": 1,
+          "warning_id": "phosphorus",
+          "warning_ids": [
+            "phosphorus"
+          ]
+        },
+        {
+          "above": 0.9,
+          "warning_id": "iblis",
+          "warning_ids": [
+            "iblis"
+          ]
+        },
+        {
+          "above": 0.75,
+          "warning_id": "axion",
+          "warning_ids": [
+            "axion"
+          ]
+        },
+        {
+          "above": 0.5,
+          "warning_id": "orbital_blackness",
+          "warning_ids": [
+            "orbital_blackness"
+          ]
+        },
+        {
+          "above": 0.25,
+          "warning_id": "paradise_lost",
+          "warning_ids": [
+            "paradise_lost"
+          ]
+        }
+      ]
     },
     "warning_overrides": {
       "paradise_lost": {
@@ -502,24 +604,13 @@
         }
       }
     },
-    "hp_effect_overrides": {
-      "lucilius_hp_effect": {
-        "pattern": {
-          "plain_damage": {
-            "mode": "target_max_hp_ratio",
-            "value": 0.5
-          }
-        }
-      }
-    },
     "balance_notes": {
-      "durability": "높은 체력으로 후반 장기전을 만들되 방어는 중간 수준으로 두어 화력 성장을 체감시킨다.",
-      "pressure": "시작 시 최대 HP 50% 피해와 혁인 누적이 자원 관리 압박을 담당하며 일반보다 약해지던 연속 공격률을 바로잡는다.",
-      "omens": "반복 숫자 테마를 유지하고 디 엔드는 3턴 결전 과제로 바꿔 준비된 솔로 플레이가 대응할 수 있게 한다."
+      "durability": "벨제바브보다 높은 원시 체력에 더해 혁인이 시작과 75%·50%·25%에서 반드시 오르고, 단계별 방어·경감이 장기전의 벽이 된다.",
+      "pressure": "오프닝 최대 HP 50% 피해, 노말보다 높은 기본 연속 공격과 혁인 공격 상승이 겹치므로 해제 어빌리티로 벗길 시점을 계획해야 한다.",
+      "omens": "반복 숫자 테마와 3턴 디 엔드는 유지하되, 페이즈 진입 자체가 혁인을 각성시켜 같은 전조도 후반에는 다른 위력을 낸다."
     },
     "gold": 40000,
     "exp": 1,
-    "description": "파라다이스 로스트와 궤도 흑색이 연속으로 전장을 압박한다.",
     "rewards": {
       "items": [],
       "materials": [

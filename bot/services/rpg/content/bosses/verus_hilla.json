@@ -364,14 +364,6 @@
         "participant_chance": 0.0,
         "participant_min": 1,
         "participant_max": 1
-      },
-      {
-        "id": "verus_hilla_liberation_trace",
-        "chance": 1.0,
-        "min": 1,
-        "max": 1,
-        "owner_chance": 1.0,
-        "participant_chance": 1.0
       }
     ]
   },
@@ -379,11 +371,25 @@
     "enabled": true,
     "level_req": 50,
     "stats": {
-      "base_atk": 48,
-      "max_hp": 120000,
+      "base_atk": 36,
+      "max_hp": 6600000,
       "defense": 0.6,
-      "dmg_mitigation": 10
+      "dmg_mitigation": 15
     },
+    "stack_effect_id_overrides": {
+      "verus_hilla_skulls": "verus_hilla_skulls_hard",
+      "verus_hilla_red_thread": "verus_hilla_red_thread_hard"
+    },
+    "stack_effects": [
+      {
+        "stack_effect_id": "verus_hilla_skulls_hard",
+        "initial_stacks": 5
+      },
+      {
+        "stack_effect_id": "verus_hilla_red_thread_hard",
+        "initial_stacks": 0
+      }
+    ],
     "warning_overrides": {
       "red_thread": {
         "objectives": [
@@ -394,8 +400,23 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 0
-        }
+          "damage_multiplier": 0,
+          "effect_actions": [
+            {
+              "action": "stack_increase",
+              "target": "self",
+              "stack_effect_id": "verus_hilla_red_thread_hard",
+              "value": 2,
+              "duration": -1
+            }
+          ]
+        },
+        "activation_conditions": [
+          {
+            "kind": "turn_multiple",
+            "multiple": 2
+          }
+        ]
       },
       "fragment": {
         "objectives": [
@@ -431,7 +452,34 @@
         ],
         "pattern": {
           "damage_multiplier": 0
-        }
+        },
+        "success_pattern": {
+          "effect_actions": [
+            {
+              "action": "stack_remove",
+              "target": "self",
+              "stack_effect_id": "verus_hilla_red_thread_hard",
+              "value": 1,
+              "duration": -1
+            }
+          ]
+        },
+        "activation_conditions": [
+          {
+            "kind": "stack_compare",
+            "stack_effect_id": "verus_hilla_red_thread_hard",
+            "target": "boss",
+            "compare_stack_effect_id": "verus_hilla_skulls_hard",
+            "compare_target": "boss",
+            "operator": "majority",
+            "multiplier": 1.0,
+            "offset": 0
+          },
+          {
+            "kind": "turn_multiple",
+            "multiple": 6
+          }
+        ]
       },
       "soul_harvest": {
         "objectives": [
@@ -443,7 +491,20 @@
         ],
         "pattern": {
           "damage_multiplier": 0
-        }
+        },
+        "activation_conditions": [
+          {
+            "kind": "turn_multiple",
+            "multiple": 14
+          },
+          {
+            "kind": "stack",
+            "stack_effect_id": "verus_hilla_red_thread_hard",
+            "target": "boss",
+            "min_stacks": 1,
+            "max_stacks": -1
+          }
+        ]
       },
       "bone_wave_a": {
         "objectives": [
@@ -483,13 +544,12 @@
       }
     },
     "balance_notes": {
-      "durability": "중상위 HP와 감산을 갖지만 승패는 영혼 다섯 개의 관리에서 결정된다.",
-      "pressure": "2턴 붉은 실과 16턴 영혼 수확이 약 50턴 전투에서 세 번의 결산을 만든다.",
-      "omens": "제단은 어빌리티 운용, 파편과 욕망은 화력, 뼈 파동은 타수와 디버프를 검사한다."
+      "durability": "중후반 원시 체력과 15 경감 위에 영혼 다섯 개라는 별도 제한을 두며, 영혼 강탈이 많을수록 공격과 연속 공격도 강해진다.",
+      "pressure": "붉은 실 실패가 두 단계씩 쌓이고 영혼 수확은 16턴이 아닌 14턴마다 와서 방치한 실을 빠르게 결산한다.",
+      "omens": "6턴 제단에서 실을 전부 끊을 수 있어, 어빌리티를 아낄지 즉사 카운트를 안전하게 관리할지 선택하게 한다."
     },
     "gold": 20000,
     "exp": 1,
-    "description": "붉은 실과 영혼 수확의 압박이 끊임없이 이어지는 고난도 결전이다.",
     "rewards": {
       "items": [
         {

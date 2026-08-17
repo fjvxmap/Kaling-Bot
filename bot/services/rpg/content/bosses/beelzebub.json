@@ -438,8 +438,88 @@
     "level_req": 54,
     "stats": {
       "base_atk": 60,
-      "max_hp": 180000,
+      "max_hp": 9000000,
       "defense": 0.75
+    },
+    "stack_effect_id_overrides": {
+      "trance": "trance_hard"
+    },
+    "stack_effects": [
+      {
+        "stack_effect_id": "trance_hard",
+        "initial_stacks": 0
+      }
+    ],
+    "hp_effects": [
+      {
+        "thresholds": [
+          0.75,
+          0.5,
+          0.25
+        ],
+        "pattern": {
+          "id": "beelzebub_hard_langelaan_field",
+          "name": "란쥬란 필드 재전개",
+          "boss_stat_effects": [
+            {
+              "stat": "atk",
+              "target": "self",
+              "value": 1.0,
+              "duration": -1,
+              "undispellable": false
+            },
+            {
+              "stat": "defense",
+              "target": "self",
+              "value": 1.0,
+              "duration": -1,
+              "undispellable": false
+            },
+            {
+              "stat": "damage_cut",
+              "target": "self",
+              "value": 1.0,
+              "duration": -1,
+              "undispellable": false
+            }
+          ]
+        }
+      }
+    ],
+    "ct": {
+      "gauge_by_hp": [
+        {
+          "above": 0.5,
+          "max": 2
+        },
+        {
+          "above": 0,
+          "max": 1
+        }
+      ],
+      "warnings_by_hp": [
+        {
+          "above": 1,
+          "warning_id": "unisonic",
+          "warning_ids": [
+            "unisonic"
+          ]
+        },
+        {
+          "above": 0.75,
+          "warning_id": "black_flies",
+          "warning_ids": [
+            "black_flies"
+          ]
+        },
+        {
+          "above": 0,
+          "warning_id": "just_execution",
+          "warning_ids": [
+            "just_execution"
+          ]
+        }
+      ]
     },
     "warning_overrides": {
       "chaoscaliber": {
@@ -504,7 +584,7 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 1
+          "damage_multiplier": 1.0
         }
       },
       "langelaan_field": {
@@ -529,7 +609,42 @@
         ],
         "pattern": {
           "damage_multiplier": 3.3
-        }
+        },
+        "failure_variants": [
+          {
+            "name": "블랙 스피어 트랜스",
+            "conditions": [
+              {
+                "stack_effect_id": "trance_hard",
+                "target": "boss",
+                "min_stacks": 3,
+                "max_stacks": -1
+              }
+            ],
+            "pattern": {
+              "id": "black_spear_hard_failure_variant",
+              "name": "블랙 스피어 트랜스",
+              "damage_multiplier": 3.5,
+              "hits": 1,
+              "player_stat_effects": [
+                {
+                  "stat": "hp_bonus",
+                  "target": "self",
+                  "value": -0.3,
+                  "duration": -1,
+                  "undispellable": true
+                },
+                {
+                  "stat": "defense",
+                  "target": "self",
+                  "value": -1.0,
+                  "duration": 3,
+                  "undispellable": true
+                }
+              ]
+            }
+          }
+        ]
       },
       "chaos_legion": {
         "objectives": [
@@ -541,17 +656,39 @@
         ],
         "pattern": {
           "damage_multiplier": 22
-        }
+        },
+        "failure_variants": [
+          {
+            "name": "케이오스 레기온 트랜스",
+            "conditions": [
+              {
+                "stack_effect_id": "trance_hard",
+                "target": "boss",
+                "min_stacks": 3,
+                "max_stacks": -1
+              }
+            ],
+            "pattern": {
+              "id": "chaos_legion_hard_failure_variant",
+              "name": "케이오스 레기온 트랜스",
+              "damage_multiplier": 22,
+              "hits": 1,
+              "plain_damage": {
+                "mode": "target_max_hp_ratio",
+                "value": 0.8
+              }
+            }
+          }
+        ]
       }
     },
     "balance_notes": {
-      "durability": "원시 체력은 동급 후반 보스보다 낮지만 50%의 해제 가능한 방어막이 실질 내구를 만든다.",
-      "pressure": "짧은 CT와 처형 패턴이 이어지므로 기본 공격력은 방어막 해제 판단을 허용하는 수준으로 둔다.",
-      "omens": "연타, 화력, 디버프를 분리해 요구하고 보호막 이후에는 해제 어빌리티 준비가 핵심이다."
+      "durability": "검은 마법사보다 낮은 원시 체력은 75%·50%·25%에 재전개되는 해제 가능 란쥬란 필드와 트랜스 방어·경감으로 더 높은 실질 내구를 만든다.",
+      "pressure": "노말 이상 패턴 배율과 50% 아래 1턴 CT에 더해 보스의 18타마다 트랜스가 올라, 실패하지 않아도 처형 단계에 접근한다.",
+      "omens": "성공은 트랜스를 한 단계만 낮추므로 연타, 화력, 디버프 전조를 연속으로 풀어 처형 변형을 봉쇄해야 한다."
     },
     "gold": 38000,
     "exp": 1,
-    "description": "검은 파리 떼와 처형 패턴이 쉼 없이 겹치는 심연의 결전이다.",
     "rewards": {
       "items": [],
       "materials": [

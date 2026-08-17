@@ -189,21 +189,32 @@ shutdown_service() {
   echo "$service: sent Ctrl-C; tmux session '$session' kept alive"
 }
 
-restart_service() {
-  local service="$1"
-  local session
+restart_services() {
+  local service session
+  local wait_failed=0
 
-  session="$(session_for "$service")"
-  shutdown_service "$service"
+  # Stop every selected writer before starting any replacement. This avoids an
+  # old bot/backend process writing stale RPG profile data while a new process
+  # is applying startup migrations.
+  for service in "$@"; do
+    shutdown_service "$service"
+  done
 
-  if has_session "$session"; then
-    if ! wait_until_idle "$session"; then
-      echo "$service: session '$session' did not become idle; start skipped" >&2
-      return 1
+  for service in "$@"; do
+    session="$(session_for "$service")"
+    if has_session "$session" && ! wait_until_idle "$session"; then
+      echo "$service: session '$session' did not become idle; restart aborted" >&2
+      wait_failed=1
     fi
+  done
+
+  if [ "$wait_failed" -ne 0 ]; then
+    return 1
   fi
 
-  start_service "$service"
+  for service in "$@"; do
+    start_service "$service"
+  done
 }
 
 status_service() {
@@ -252,9 +263,7 @@ main() {
       done
       ;;
     restart)
-      for service in "${services[@]}"; do
-        restart_service "$service"
-      done
+      restart_services "${services[@]}"
       ;;
     status|ps)
       for service in "${services[@]}"; do

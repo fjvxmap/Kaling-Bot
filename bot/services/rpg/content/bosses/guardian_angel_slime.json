@@ -172,9 +172,34 @@
     "enabled": true,
     "level_req": 45,
     "stats": {
-      "base_atk": 34,
-      "max_hp": 50000,
+      "base_atk": 25,
+      "max_hp": 2400000,
       "defense": 0.25
+    },
+    "stack_effects": [
+      {
+        "stack_effect_id": "guardian_resilience_hard",
+        "initial_stacks": 0
+      }
+    ],
+    "ct": {
+      "gauge_by_hp": [
+        {
+          "above": 0,
+          "max": 4
+        }
+      ],
+      "warnings_by_hp": [
+        {
+          "above": 0,
+          "warning_id": "guardian_jump",
+          "warning_ids": [
+            "guardian_jump",
+            "guardian_bonk",
+            "guardian_laser"
+          ]
+        }
+      ]
     },
     "warning_overrides": {
       "guardian_jump": {
@@ -186,7 +211,7 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 12
+          "damage_multiplier": 10
         }
       },
       "guardian_bonk": {
@@ -198,7 +223,7 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 1.8
+          "damage_multiplier": 1.5
         }
       },
       "guardian_laser": {
@@ -210,18 +235,17 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 3.0
+          "damage_multiplier": 2.5
         }
       }
     },
     "balance_notes": {
-      "durability": "입문 하드 보스답게 낮은 방어와 5만 HP로 장기전의 기준만 익히게 한다.",
-      "pressure": "실패 피해는 읽기 쉽지만 연속 실패 시 회복 여유를 잃는다.",
-      "omens": "피해와 타수 전조를 번갈아 요구해 기본 장비와 어빌리티 운용을 확인한다."
+      "durability": "입문 하드의 원시 체력은 가장 낮지만 전조를 놓칠 때마다 수호의 탄성이 방어와 경감을 올리고, 성공해야 한 단계씩 벗겨진다.",
+      "pressure": "CT를 5턴에서 4턴으로 당겨 실패 누적을 방치할 수 없게 하되, 세 종류 전조를 모두 반복 풀에 넣어 복구 기회를 계속 제공한다.",
+      "omens": "피해와 타수 요구가 다른 점프·바닥 찍기·레이저를 번갈아 해결하며 탄성을 낮게 유지하는 입문형 상태 관리전이다."
     },
     "gold": 6000,
     "exp": 1,
-    "description": "더 단단해진 가디언 엔젤 슬라임이 모든 패턴을 쏟아낸다.",
     "rewards": {
       "items": [
         {

@@ -56,6 +56,15 @@
       ]
     },
     {
+      "template_id": "genesis_axe",
+      "job_ids": [
+        "sarasa_1",
+        "sarasa_2",
+        "sarasa_3",
+        "sarasa_4"
+      ]
+    },
+    {
       "template_id": "genesis_creation_sword",
       "job_ids": [
         "len_0",
@@ -80,7 +89,7 @@
     {
       "stage": 2,
       "name": "2차 해방",
-      "stars": 7,
+      "stars": 8,
       "materials": {
         "dusk_liberation_trace": 1,
         "dunkel_liberation_trace": 1,

@@ -530,7 +530,7 @@
           {
             "stat": "defense",
             "target": "self",
-            "value": -0.25,
+            "value": -0.1,
             "duration": -1,
             "undispellable": true
           }
@@ -550,7 +550,7 @@
           {
             "stat": "defense",
             "target": "self",
-            "value": -0.3,
+            "value": -0.15,
             "duration": -1,
             "undispellable": true
           }
@@ -570,7 +570,7 @@
           {
             "stat": "defense",
             "target": "self",
-            "value": -0.4,
+            "value": -0.2,
             "duration": -1,
             "undispellable": true
           }
@@ -590,7 +590,7 @@
           {
             "stat": "defense",
             "target": "self",
-            "value": -0.5,
+            "value": -0.25,
             "duration": -1,
             "undispellable": true
           }
@@ -610,7 +610,7 @@
           {
             "stat": "defense",
             "target": "self",
-            "value": -0.75,
+            "value": -0.3,
             "duration": -1,
             "undispellable": true
           }
@@ -630,7 +630,7 @@
           {
             "stat": "defense",
             "target": "self",
-            "value": -1.0,
+            "value": -0.4,
             "duration": -1,
             "undispellable": true
           }
@@ -650,7 +650,7 @@
           {
             "stat": "defense",
             "target": "self",
-            "value": -1.25,
+            "value": -0.5,
             "duration": -1,
             "undispellable": true
           }
@@ -664,14 +664,22 @@
         "target": "opponent",
         "operation": "increase",
         "value": 1,
-        "required": 2000,
+        "required": 1200,
         "min_damage": 0
       },
       {
         "objective": "warning_success",
         "target": "none",
         "operation": "decrease",
-        "value": 2,
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "objective": "warning_failure",
+        "target": "none",
+        "operation": "increase",
+        "value": 1,
         "required": 1,
         "min_damage": 0
       }
@@ -984,6 +992,416 @@
               "undispellable": true
             }
           ]
+        },
+        "stats": {}
+      }
+    ],
+    "conditions": [],
+    "reactions": [],
+    "stats": {}
+  },
+  {
+    "id": "guardian_resilience_hard",
+    "name": "수호의 탄성",
+    "max_stacks": 3,
+    "description": "전조 실패로 단단해지고 전조 성공으로 한 단계씩 무너지는 하드 가디언 엔젤 슬라임의 수호막이다.",
+    "tiers": [
+      {
+        "stack": 1,
+        "stat_effects": [
+          {"stat": "defense", "target": "self", "value": 0.1, "duration": -1, "undispellable": true}
+        ]
+      },
+      {
+        "stack": 2,
+        "stat_effects": [
+          {"stat": "defense", "target": "self", "value": 0.2, "duration": -1, "undispellable": true},
+          {"stat": "dmg_mitigation", "target": "self", "value": 5.0, "duration": -1, "undispellable": true}
+        ]
+      },
+      {
+        "stack": 3,
+        "stat_effects": [
+          {"stat": "defense", "target": "self", "value": 0.35, "duration": -1, "undispellable": true},
+          {"stat": "dmg_mitigation", "target": "self", "value": 10.0, "duration": -1, "undispellable": true}
+        ]
+      }
+    ],
+    "conditions": [
+      {"objective": "warning_failure", "target": "none", "operation": "increase", "value": 1, "required": 1},
+      {"objective": "warning_success", "target": "none", "operation": "decrease", "value": 1, "required": 1}
+    ],
+    "reactions": []
+  },
+  {
+    "id": "annihilation_hard",
+    "name": "섬멸 (하드)",
+    "max_stacks": 3,
+    "description": "보스의 공격 타수와 코어 과부하로 상승하고 큰 피해를 받으면 냉각되는 하드 스우의 출력 단계다.",
+    "tiers": [
+      {
+        "stack": 1,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 0.2, "duration": -1, "undispellable": true}
+        ]
+      },
+      {
+        "stack": 2,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 0.4, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 0.15, "duration": -1, "undispellable": true}
+        ]
+      },
+      {
+        "stack": 3,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 0.8, "duration": -1, "undispellable": true},
+          {"stat": "defense", "target": "self", "value": 0.2, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 0.35, "duration": -1, "undispellable": true}
+        ]
+      }
+    ],
+    "conditions": [
+      {"objective": "hits", "target": "self", "operation": "increase", "value": 1, "required": 4},
+      {"objective": "received_damage", "target": "self", "operation": "decrease", "value": 1, "required": 1200}
+    ],
+    "reactions": []
+  },
+  {
+    "id": "phantasmal_waltz_hard",
+    "name": "판타즈멀 왈츠 (하드)",
+    "max_stacks": 7,
+    "description": "체력 구간과 전조 실패로 빠르게 깊어지며 유효 타격으로 조금씩 깨어나는 하드 루시드의 꿈 단계다.",
+    "tiers": [
+      {"stack": 1, "stat_effects": [{"stat": "dmg_supplement", "target": "self", "value": 4.0, "duration": -1, "undispellable": true}]},
+      {"stack": 2, "stat_effects": [{"stat": "dmg_supplement", "target": "self", "value": 6.0, "duration": -1, "undispellable": true}]},
+      {"stack": 3, "stat_effects": [{"stat": "dmg_supplement", "target": "self", "value": 8.0, "duration": -1, "undispellable": true}]},
+      {"stack": 4, "stat_effects": [{"stat": "dmg_supplement", "target": "self", "value": 10.0, "duration": -1, "undispellable": true}]},
+      {
+        "stack": 5,
+        "stat_effects": [
+          {"stat": "dmg_supplement", "target": "self", "value": 13.0, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 0.15, "duration": -1, "undispellable": true}
+        ]
+      },
+      {
+        "stack": 6,
+        "stat_effects": [
+          {"stat": "dmg_supplement", "target": "self", "value": 16.0, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 0.3, "duration": -1, "undispellable": true}
+        ]
+      },
+      {
+        "stack": 7,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 0.3, "duration": -1, "undispellable": true},
+          {"stat": "dmg_supplement", "target": "self", "value": 20.0, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 0.5, "duration": -1, "undispellable": true}
+        ]
+      }
+    ],
+    "conditions": [
+      {"objective": "warning_failure", "target": "none", "operation": "increase", "value": 4, "required": 1},
+      {"objective": "hits", "target": "opponent", "operation": "decrease", "value": 1, "required": 6}
+    ],
+    "reactions": []
+  },
+  {
+    "id": "opened_eyes_hard",
+    "name": "개안 (하드)",
+    "max_stacks": 2,
+    "description": "개안 중 약점이 열리며, 레이저 실패 시 격노 개안으로 넘어가 다음 레이저가 해제될 때까지 지속된다.",
+    "tiers": [
+      {
+        "stack": 1,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 59.0, "duration": -1, "undispellable": true},
+          {"stat": "defense", "target": "self", "value": -50.0, "duration": -1, "undispellable": true},
+          {"stat": "dmg_mitigation", "target": "self", "value": -30.0, "duration": -1, "undispellable": true}
+        ]
+      },
+      {
+        "stack": 2,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 79.0, "duration": -1, "undispellable": true},
+          {"stat": "defense", "target": "self", "value": -50.0, "duration": -1, "undispellable": true},
+          {"stat": "dmg_mitigation", "target": "self", "value": -30.0, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 0.5, "duration": -1, "undispellable": true}
+        ]
+      }
+    ],
+    "conditions": [],
+    "reactions": []
+  },
+  {
+    "id": "verus_hilla_skulls_hard",
+    "name": "영혼 (하드)",
+    "max_stacks": 5,
+    "description": "영혼 수확으로 모두 사라지면 디 엔드가 발동하는 하드 진 힐라의 생존 한계다.",
+    "tiers": [],
+    "conditions": [],
+    "reactions": []
+  },
+  {
+    "id": "verus_hilla_red_thread_hard",
+    "name": "영혼 강탈 (하드)",
+    "max_stacks": 5,
+    "description": "붉은 실 실패 시 두 단계씩 쌓여 영혼 수확량과 진 힐라의 공격 성능을 함께 높인다.",
+    "tiers": [
+      {"stack": 1, "stat_effects": [{"stat": "atk", "target": "self", "value": 0.05, "duration": -1, "undispellable": true}]},
+      {"stack": 2, "stat_effects": [{"stat": "atk", "target": "self", "value": 0.1, "duration": -1, "undispellable": true}]},
+      {
+        "stack": 3,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 0.15, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 0.05, "duration": -1, "undispellable": true}
+        ]
+      },
+      {
+        "stack": 4,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 0.2, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 0.1, "duration": -1, "undispellable": true}
+        ]
+      },
+      {
+        "stack": 5,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 0.3, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 0.2, "duration": -1, "undispellable": true}
+        ]
+      }
+    ],
+    "conditions": [],
+    "reactions": []
+  },
+  {
+    "id": "dunkel_elite_pressure_hard",
+    "name": "친위대 압박",
+    "max_stacks": 3,
+    "description": "체력 구간과 전조 실패로 증원되고 전조 성공으로 물러나는 하드 듄켈의 정예 친위대 단계다.",
+    "tiers": [
+      {"stack": 1, "stat_effects": [
+        {"stat": "atk", "target": "self", "value": 0.15, "duration": -1, "undispellable": true},
+        {"stat": "triple_attack_rate", "target": "self", "value": 0.05, "duration": -1, "undispellable": true}
+      ]},
+      {
+        "stack": 2,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 0.35, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 0.12, "duration": -1, "undispellable": true}
+        ]
+      },
+      {
+        "stack": 3,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 0.65, "duration": -1, "undispellable": true},
+          {"stat": "defense", "target": "self", "value": 0.1, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 0.25, "duration": -1, "undispellable": true}
+        ]
+      }
+    ],
+    "conditions": [
+      {"objective": "warning_failure", "target": "none", "operation": "increase", "value": 1, "required": 1},
+      {"objective": "warning_success", "target": "none", "operation": "decrease", "value": 1, "required": 1}
+    ],
+    "reactions": []
+  },
+  {
+    "id": "black_mage_creation_curse_hard",
+    "name": "창조의 저주 (하드)",
+    "max_stacks": 1,
+    "description": "최종 데미지를 낮추고 피격을 줄이지만 파괴의 저주와 만나면 최대 HP의 45%를 잃는다.",
+    "tiers": [
+      {
+        "stack": 1,
+        "stat_effects": [
+          {"stat": "damage_cut", "target": "self", "value": 0.05, "duration": -1, "undispellable": true}
+        ],
+        "effects": {
+          "final_damage": [
+            {"ratio": -0.15, "duration": -1, "target": "self", "undispellable": true}
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "reactions": [
+      {
+        "with_stack_effect_id": "black_mage_destruction_curse_hard",
+        "plain_damage": {"mode": "target_max_hp_ratio", "value": 0.45},
+        "remove_self": true,
+        "remove_other": true
+      }
+    ]
+  },
+  {
+    "id": "black_mage_destruction_curse_hard",
+    "name": "파괴의 저주 (하드)",
+    "max_stacks": 1,
+    "description": "최종 데미지를 높이는 대신 피격 데미지를 크게 늘리고 창조의 저주와 충돌한다.",
+    "tiers": [
+      {
+        "stack": 1,
+        "stat_effects": [
+          {"stat": "damage_cut", "target": "self", "value": -0.25, "duration": -1, "undispellable": true}
+        ],
+        "effects": {
+          "final_damage": [
+            {"ratio": 0.1, "duration": -1, "target": "self", "undispellable": true}
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "reactions": []
+  },
+  {
+    "id": "trance_hard",
+    "name": "트랜스 (하드)",
+    "max_stacks": 3,
+    "description": "전조 실패뿐 아니라 벨제바브의 공격 타수로도 상승하며 전조 성공 시 한 단계만 낮아진다.",
+    "tiers": [
+      {
+        "stack": 1,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 0.1, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 0.3, "duration": -1, "undispellable": true}
+        ]
+      },
+      {
+        "stack": 2,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 0.4, "duration": -1, "undispellable": true},
+          {"stat": "defense", "target": "self", "value": 0.1, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 0.6, "duration": -1, "undispellable": true}
+        ]
+      },
+      {
+        "stack": 3,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 1.25, "duration": -1, "undispellable": true},
+          {"stat": "defense", "target": "self", "value": 0.2, "duration": -1, "undispellable": true},
+          {"stat": "dmg_mitigation", "target": "self", "value": 5.0, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 1.0, "duration": -1, "undispellable": true}
+        ]
+      }
+    ],
+    "conditions": [
+      {"objective": "warning_success", "target": "none", "operation": "decrease", "value": 1, "required": 1},
+      {"objective": "warning_failure", "target": "none", "operation": "increase", "value": 1, "required": 1},
+      {"objective": "hits", "target": "self", "operation": "increase", "value": 1, "required": 18}
+    ],
+    "reactions": []
+  },
+  {
+    "id": "evangelists_blade_hard",
+    "name": "혁인 (하드)",
+    "max_stacks": 5,
+    "description": "전조 실패와 체력 구간으로 각성하고 상대의 해제로만 한 단계씩 벗겨지는 하드 루시퍼의 혁인이다.",
+    "tiers": [
+      {"stack": 1, "stat_effects": [{"stat": "atk", "target": "self", "value": 0.25, "duration": -1, "undispellable": true}]},
+      {
+        "stack": 2,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 0.5, "duration": -1, "undispellable": true},
+          {"stat": "defense", "target": "self", "value": 0.1, "duration": -1, "undispellable": true}
+        ]
+      },
+      {
+        "stack": 3,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 0.75, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 0.5, "duration": -1, "undispellable": true}
+        ]
+      },
+      {
+        "stack": 4,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 1.0, "duration": -1, "undispellable": true},
+          {"stat": "defense", "target": "self", "value": 0.2, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 1.0, "duration": -1, "undispellable": true}
+        ]
+      },
+      {
+        "stack": 5,
+        "stat_effects": [
+          {"stat": "atk", "target": "self", "value": 1.25, "duration": -1, "undispellable": true},
+          {"stat": "defense", "target": "self", "value": 0.35, "duration": -1, "undispellable": true},
+          {"stat": "dmg_mitigation", "target": "self", "value": 10.0, "duration": -1, "undispellable": true},
+          {"stat": "triple_attack_rate", "target": "self", "value": 1.0, "duration": -1, "undispellable": true}
+        ]
+      }
+    ],
+    "conditions": [
+      {"objective": "warning_failure", "target": "none", "operation": "increase", "value": 1, "required": 1},
+      {"objective": "dispel", "target": "opponent", "operation": "decrease", "value": 1, "required": 1}
+    ],
+    "reactions": []
+  },
+  {
+    "id": "adversary_determination_hard",
+    "name": "대적의 의지 (하드)",
+    "max_stacks": 5,
+    "description": "전조 성공으로 밀어 올리면 대적자가 취약해지고 실패하면 두 단계 후퇴해 강한 차단을 회복한다.",
+    "tiers": [
+      {"stack": 1, "stat_effects": [{"stat": "damage_cut", "target": "self", "value": 0.5, "duration": -1, "undispellable": true}]},
+      {"stack": 2, "stat_effects": [{"stat": "damage_cut", "target": "self", "value": 0.25, "duration": -1, "undispellable": true}]},
+      {"stack": 3, "stat_effects": [{"stat": "damage_cut", "target": "self", "value": 0.05, "duration": -1, "undispellable": true}]},
+      {"stack": 4, "stat_effects": [
+        {"stat": "damage_cut", "target": "self", "value": -0.15, "duration": -1, "undispellable": true},
+        {"stat": "atk", "target": "self", "value": 0.35, "duration": -1, "undispellable": true},
+        {"stat": "triple_attack_rate", "target": "self", "value": 0.1, "duration": -1, "undispellable": true}
+      ]},
+      {"stack": 5, "stat_effects": [
+        {"stat": "damage_cut", "target": "self", "value": -0.3, "duration": -1, "undispellable": true},
+        {"stat": "atk", "target": "self", "value": 0.75, "duration": -1, "undispellable": true},
+        {"stat": "triple_attack_rate", "target": "self", "value": 0.2, "duration": -1, "undispellable": true}
+      ]}
+    ],
+    "conditions": [
+      {"objective": "warning_success", "target": "none", "operation": "increase", "value": 1, "required": 1},
+      {"objective": "warning_failure", "target": "none", "operation": "decrease", "value": 2, "required": 1}
+    ],
+    "reactions": []
+  },
+  {
+    "id": "sarasa_tiger_soul",
+    "name": "잔명",
+    "max_stacks": 1,
+    "description": "그라운드 제로가 남긴 한 호흡의 여유다. 지속 중 피해를 무효화하고 생명력 흡수와 배수 방어가 강화되며, 턴 종료 시 사라진다.",
+    "tiers": [
+      {
+        "stack": 1,
+        "stat_effects": [
+          {
+            "stat": "garrison",
+            "target": "self",
+            "value": 0.75,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "life_steal",
+            "target": "self",
+            "value": 0.015,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "life_steal_cap",
+            "target": "self",
+            "value": 0.015,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "effects": {
+          "invulnerability": {
+            "duration": -1,
+            "undispellable": true,
+            "target": "self"
+          }
         },
         "stats": {}
       }

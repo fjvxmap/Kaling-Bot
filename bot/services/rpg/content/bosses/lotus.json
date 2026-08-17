@@ -290,14 +290,6 @@
         "participant_chance": 0.0,
         "participant_min": 1,
         "participant_max": 1
-      },
-      {
-        "id": "lotus_liberation_trace",
-        "chance": 1.0,
-        "min": 1,
-        "max": 1,
-        "owner_chance": 1.0,
-        "participant_chance": 1.0
       }
     ]
   },
@@ -305,11 +297,93 @@
     "enabled": true,
     "level_req": 45,
     "stats": {
-      "base_atk": 30,
-      "max_hp": 68000,
+      "base_atk": 12,
+      "max_hp": 15000000,
       "defense": 0.45,
       "triple_attack_rate": 0.55,
-      "double_attack_rate": 0.45
+      "double_attack_rate": 0.5
+    },
+    "stack_effect_id_overrides": {
+      "annihilation": "annihilation_hard"
+    },
+    "stack_effects": [
+      {
+        "stack_effect_id": "annihilation_hard",
+        "initial_stacks": 0
+      }
+    ],
+    "hp_effects": [
+      {
+        "thresholds": [
+          0.7
+        ],
+        "pattern": {
+          "id": "lotus_hard_overclock",
+          "name": "코어 과부하",
+          "effect_actions": [
+            {
+              "action": "stack_increase",
+              "target": "self",
+              "stack_effect_id": "annihilation_hard",
+              "value": 1,
+              "duration": -1
+            }
+          ]
+        }
+      },
+      {
+        "thresholds": [
+          0.3
+        ],
+        "pattern": {
+          "id": "lotus_hard_annihilation",
+          "name": "섬멸 모드",
+          "effect_actions": [
+            {
+              "action": "stack_max",
+              "target": "self",
+              "stack_effect_id": "annihilation_hard",
+              "value": 3,
+              "duration": -1
+            }
+          ]
+        }
+      }
+    ],
+    "ct": {
+      "gauge_by_hp": [
+        {
+          "above": 0,
+          "max": 2
+        }
+      ],
+      "warnings_by_hp": [
+        {
+          "above": 1,
+          "warning_id": "tracking_lasers",
+          "warning_ids": [
+            "tracking_lasers",
+            "levitation_beam"
+          ]
+        },
+        {
+          "above": 0.7,
+          "warning_id": "tracking_lasers",
+          "warning_ids": [
+            "tracking_lasers",
+            "levitation_beam",
+            "laser_web"
+          ]
+        },
+        {
+          "above": 0.3,
+          "warning_id": "laser_web",
+          "warning_ids": [
+            "laser_web",
+            "small_mechanical_arms"
+          ]
+        }
+      ]
     },
     "warning_overrides": {
       "tracking_lasers": {
@@ -324,7 +398,7 @@
           "damage_multiplier": 1.6
         },
         "success_pattern": {
-          "self_hp_loss_ratio": 0.03
+          "self_hp_loss_ratio": 0.02
         },
         "failure_variants": [
           {
@@ -362,7 +436,7 @@
           "damage_multiplier": 0.75
         },
         "success_pattern": {
-          "self_hp_loss_ratio": 0.03
+          "self_hp_loss_ratio": 0.02
         },
         "failure_variants": [
           {
@@ -400,7 +474,7 @@
           "damage_multiplier": 1.25
         },
         "success_pattern": {
-          "self_hp_loss_ratio": 0.03
+          "self_hp_loss_ratio": 0.02
         },
         "failure_variants": [
           {
@@ -438,7 +512,7 @@
           "damage_multiplier": 1.6
         },
         "success_pattern": {
-          "self_hp_loss_ratio": 0.03
+          "self_hp_loss_ratio": 0.02
         },
         "failure_variants": [
           {
@@ -466,13 +540,12 @@
       }
     },
     "balance_notes": {
-      "durability": "낮은 중반 HP 대신 섬멸 3단계의 실질 페이즈 전환으로 내구를 만든다.",
-      "pressure": "다단 레이저와 강화 실패 패턴이 후반으로 갈수록 행동 선택을 압박한다.",
-      "omens": "피해, 타수, 어빌리티 전조가 코어 제어망의 서로 다른 공략 수단을 요구한다."
+      "durability": "큰 원시 체력은 전조 성공 시 스스로 잃는 HP와 맞물리고, 70% 과부하와 30% 섬멸 고정이 체력 구간마다 실질 내구를 바꾼다.",
+      "pressure": "4타마다 섬멸이 오르고 CT도 2턴이라, 큰 피해로 코어를 식히지 못하면 강화 실패 패턴이 빠르게 열린다.",
+      "omens": "초·중·후반 CT 풀을 달리해 네 기계 패턴이 반복되고, 피해·타수·어빌리티로 섬멸을 낮추는 제어전과 막판 강제 폭주를 분리했다."
     },
     "gold": 8000,
     "exp": 1,
-    "description": "강화된 코어와 레이저 제어망이 전장을 빈틈없이 봉쇄한다.",
     "rewards": {
       "items": [
         {

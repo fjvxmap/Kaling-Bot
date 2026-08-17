@@ -903,6 +903,10 @@ summary:focus-visible {
   border-bottom: 1px solid var(--line);
 }
 
+.skill-row-static {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .skill-row:last-child {
   border-bottom: 0;
 }

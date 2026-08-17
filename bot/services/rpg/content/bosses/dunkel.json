@@ -193,14 +193,6 @@
         "min": 1,
         "max": 1,
         "participant_chance": 0.0
-      },
-      {
-        "id": "dunkel_liberation_trace",
-        "chance": 1.0,
-        "min": 1,
-        "max": 1,
-        "owner_chance": 1.0,
-        "participant_chance": 1.0
       }
     ]
   },
@@ -208,9 +200,57 @@
     "enabled": true,
     "level_req": 50,
     "stats": {
-      "base_atk": 48,
-      "max_hp": 140000,
+      "base_atk": 40,
+      "max_hp": 8000000,
       "defense": 1.0
+    },
+    "stack_effects": [
+      {
+        "stack_effect_id": "dunkel_elite_pressure_hard",
+        "initial_stacks": 0
+      }
+    ],
+    "hp_effects": [
+      {
+        "thresholds": [
+          0.75,
+          0.5,
+          0.25
+        ],
+        "pattern": {
+          "id": "dunkel_hard_reinforcements",
+          "name": "정예 친위대 증원",
+          "effect_actions": [
+            {
+              "action": "stack_increase",
+              "target": "self",
+              "stack_effect_id": "dunkel_elite_pressure_hard",
+              "value": 1,
+              "duration": -1
+            }
+          ]
+        }
+      }
+    ],
+    "ct": {
+      "gauge_by_hp": [
+        {
+          "above": 0,
+          "max": 3
+        }
+      ],
+      "warnings_by_hp": [
+        {
+          "above": 1,
+          "warning_id": "swipe",
+          "warning_ids": [
+            "swipe",
+            "dive",
+            "charge",
+            "attack_up"
+          ]
+        }
+      ]
     },
     "warning_overrides": {
       "swipe": {
@@ -263,7 +303,7 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 32
+          "damage_multiplier": 38
         }
       },
       "attack_up": {
@@ -275,18 +315,26 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 0
+          "damage_multiplier": 0,
+          "effect_actions": [
+            {
+              "action": "stack_max",
+              "target": "self",
+              "stack_effect_id": "dunkel_elite_pressure_hard",
+              "value": 3,
+              "duration": -1
+            }
+          ]
         }
       }
     },
     "balance_notes": {
-      "durability": "높은 방어와 후반 영구 공격 강화로 체력 이상의 압박을 만든다.",
-      "pressure": "단타와 정예 친위대의 연속 공격은 강하지만 기본 공격력은 생존 가능한 범위로 제한한다.",
-      "omens": "단타 화력, 연타, 어빌리티, 복합 검기를 각각 다른 대응으로 검사한다."
+      "durability": "힐라보다 높은 원시 체력과 방어 위에 75%, 50%, 25% 친위대 증원을 얹어 체력 외의 명확한 페이즈를 만든다.",
+      "pressure": "전조 실패가 친위대의 공격·연속 공격·방어를 단계적으로 올리고, 공격력 강화가 나오면 즉시 3단계로 전환된다.",
+      "omens": "단타 화력, 연타, 어빌리티, 복합 검기를 해결하면 증원 압박을 한 단계 물려 장기전의 흐름을 되돌릴 수 있다."
     },
     "gold": 24000,
     "exp": 1,
-    "description": "정예 친위대의 공세와 듄켈의 연속 공격이 동시에 몰아친다.",
     "rewards": {
       "items": [
         {

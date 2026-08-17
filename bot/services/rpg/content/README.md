@@ -21,6 +21,9 @@ RPG 운영 데이터는 이 폴더에서 수정합니다.
 보스나 던전을 추가할 때는 새 JSON 파일을 만들고 `id`를 고유하게 지정하세요. 화면 표시 순서는 `sort_order`가 낮을수록 먼저 나옵니다.
 
 전투 특수 효과는 장비 `effects`, 스킬 `player_effects`/`enemy_effects`, 보스 전조 실패 효과의 `player_effects`/`boss_effects`에 설정합니다. `duration`을 `-1`로 두면 무한 지속입니다.
+`invulnerability`는 지속 중 일반 피해와 방어 무시 무속성 피해를 모두 0으로 만듭니다. 예: `{"invulnerability": {"duration": 1, "undispellable": true}}`.
+스킬의 `self_hp_cost`는 `max_hp_ratio`, `current_hp_ratio`, `set` 모드를 지원하며 `minimum_hp` 아래로는 소모하지 않습니다. 비용은 어빌리티 재발동 횟수와 무관하게 한 번만 지불합니다.
+`hp_scaled_damage: true`인 스킬은 HP 비용을 지불한 뒤의 HP로 공격력·혼신·배수·데미지 증가를 계산하고, 여기에 스킬 데미지를 함께 적용합니다. 기존 스킬 공식은 기본값 `false`를 유지합니다.
 디스펠/클리어 올은 `effect_actions`에 설정하고, 전조는 `turns`로 제한 턴을 지정합니다.
 스택형 버프/디버프는 `stack_effects.json`에 정의하고, 스킬/보스 패턴의 `effect_actions`에서 스택 증가, 감소, 지정, 제거, 최대화 액션으로 조작합니다.
 `effect_actions`의 각 액션에는 `conditions`로 특정 스택의 최소/최대 조건을 붙일 수 있으며, 조건을 모두 만족할 때만 해당 액션이 실행됩니다.

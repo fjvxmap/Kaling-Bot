@@ -56,8 +56,8 @@
     "name": "에덴",
     "rarity": "unique",
     "stats": {
-      "atk": 0.18,
-      "strength": 0.08
+      "atk": 0.28,
+      "strength": 0.14
     },
     "base_price": 1,
     "description": "샛별이자 빛의 인도자, 금단의 어둠으로 추락하노라.\n한때 새벽의 자식이었던 그는, 이제 금기를 범한 죄로 몸을 씻었다.\n그러나 더럽혀진 날개일지라도, 끝내 그는 어리석은 자의 심연을 밝히리라.",
@@ -2100,15 +2100,15 @@
     "name": "카라쿠리토우・쿠모가쿠레",
     "rarity": "unique",
     "stats": {
-      "atk": 0.14,
-      "critical_rate": 0.04,
-      "triple_attack_rate": 0.08
+      "atk": 0.24,
+      "critical_rate": 0.06,
+      "triple_attack_rate": 0.16
     },
     "base_price": 1,
     "effects": {
       "bonus_damage": [
         {
-          "ratio": 0.06,
+          "ratio": 0.1,
           "target": "self",
           "duration": -1,
           "undispellable": true
@@ -2218,16 +2218,15 @@
     "name": "매버릭 에테리얼",
     "rarity": "unique",
     "stats": {
-      "atk": 0.04,
-      "defense_ignore": 0.05,
-      "skill_damage": 0.07,
-      "skill_dmg_supplement": 18
+      "atk": 0.05,
+      "defense_ignore": 0.06,
+      "skill_damage": 0.1,
+      "skill_dmg_supplement": 30
     },
     "base_price": 1,
     "description": "마법을 화살로 엮고, 화살로 춤을 수놓는다.\n쏘아진 화살마다 새벽빛에 반짝이는 꽃잎처럼 눈부시고 덧없이 흩날리나,\n그 끝에 꿰뚫린 자에게만큼은 더없이 선명한 현실이 된다.",
     "fixed_stats": [
-      "defense_ignore",
-      "skill_dmg_supplement"
+      "defense_ignore"
     ],
     "enhancement_disabled": false,
     "unsellable": false,
@@ -2771,6 +2770,34 @@
     }
   },
   {
+    "id": "genesis_axe",
+    "name": "제네시스 엑스",
+    "rarity": "unique",
+    "stats": {
+      "base_atk": 8,
+      "max_hp": 20,
+      "hp_bonus": 0.35,
+      "atk": 0.08,
+      "enmity": 0.04
+    },
+    "base_price": 1,
+    "excluded_from_gacha": true,
+    "enhancement_disabled": true,
+    "unsellable": true,
+    "genesis_weapon": true,
+    "description": "검은 마법사의 힘을 품은 도끼이다.",
+    "effects": {
+      "final_damage": [
+        {
+          "ratio": 0.1,
+          "target": "self",
+          "duration": -1,
+          "undispellable": true
+        }
+      ]
+    }
+  },
+  {
     "id": "genesis_bow",
     "name": "제네시스 보우",
     "rarity": "unique",
@@ -2915,9 +2942,9 @@
     "name": "창세의 뱃지",
     "rarity": "unique",
     "stats": {
-      "base_atk": 35,
-      "garrison": 0.35,
-      "dmg_mitigation": -12
+      "base_atk": 75,
+      "garrison": 0.8,
+      "dmg_mitigation": -25
     },
     "base_price": 1,
     "excluded_from_gacha": true,
@@ -2925,7 +2952,7 @@
     "effects": {
       "final_damage": [
         {
-          "ratio": 0.05,
+          "ratio": 0.08,
           "target": "self",
           "duration": -1,
           "undispellable": true

@@ -439,5 +439,79 @@
     },
     "undispellable": true,
     "description": "."
+  },
+  {
+    "id": "sarasa_1",
+    "name": "사라사",
+    "tier": 2,
+    "level_req": 3,
+    "parent_id": "novice",
+    "stats": {
+      "base_atk": 15,
+      "hp_bonus": 0.12,
+      "enmity": 0.03,
+      "defense": 0.05,
+      "skill_dmg_supplement": 10,
+      "life_steal": 0.01,
+      "life_steal_cap": 0.01
+    },
+    "undispellable": true,
+    "description": "거대한 도끼를 휘두르며, 상처가 깊어질수록 더 거세게 몰아붙인다."
+  },
+  {
+    "id": "sarasa_2",
+    "name": "삼인부",
+    "tier": 3,
+    "level_req": 10,
+    "parent_id": "sarasa_1",
+    "stats": {
+      "base_atk": 28,
+      "hp_bonus": 0.18,
+      "enmity": 0.04,
+      "defense": 0.1,
+      "skill_dmg_supplement": 25,
+      "life_steal": 0.015,
+      "life_steal_cap": 0.015
+    },
+    "undispellable": true,
+    "description": "삼인부의 무게를 온몸으로 받아낸다. 스스로 흘린 피는 다음 일격이 되며, 적에게 낸 상처는 다시 생명이 된다."
+  },
+  {
+    "id": "sarasa_3",
+    "name": "괴력난신",
+    "tier": 4,
+    "level_req": 25,
+    "parent_id": "sarasa_2",
+    "stats": {
+      "base_atk": 30,
+      "hp_bonus": 0.22,
+      "enmity": 0.05,
+      "defense": 0.12,
+      "skill_damage": 0.03,
+      "skill_dmg_supplement": 30,
+      "life_steal": 0.02,
+      "life_steal_cap": 0.02
+    },
+    "undispellable": true,
+    "description": "도끼와 검 사이에 망설임이 없다. 죽음에 가까울수록 예리해지는 힘은 물러설 순간까지 직접 고르게 한다."
+  },
+  {
+    "id": "sarasa_4",
+    "name": "십천중 사라사",
+    "tier": 5,
+    "level_req": 50,
+    "parent_id": "sarasa_3",
+    "stats": {
+      "base_atk": 30,
+      "hp_bonus": 0.28,
+      "enmity": 0.05,
+      "defense": 0.15,
+      "skill_damage": 0.05,
+      "skill_dmg_supplement": 30,
+      "life_steal": 0.025,
+      "life_steal_cap": 0.025
+    },
+    "undispellable": true,
+    "description": "하늘의 모든 위협을 꺾는 십천중의 삼인. 단 하나의 생명마저 공격에 내걸고, 빼앗은 숨으로 다시 선다."
   }
 ]
