@@ -251,6 +251,15 @@ class CombatStats:
     garrison: float = 0.0
     strength: float = 0.0
     enmity: float = 0.0
+    # Optional passive-owned curve.  Raw Enmity remains visible and keeps all
+    # of its Starforce growth; these fields only describe how a job converts
+    # unusually large values into combat damage.
+    enmity_soft_cap: float = -1.0
+    enmity_overflow_ratio: float = 1.0
+    enmity_hard_cap: float = -1.0
+    enmity_hp_activation_floor: float = 0.0
+    enmity_curve_base_raw: float = -1.0
+    enmity_curve_base_effective: float = -1.0
     damage_cut: float = 0.0
     dmg_mitigation: float = 0.0
     dmg_amplification: float = 0.0

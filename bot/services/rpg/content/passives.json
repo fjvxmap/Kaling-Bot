@@ -1,0 +1,106 @@
+[
+  {
+    "id": "sarasa_kaikiryanshin",
+    "name": "괴력난신",
+    "unlock_level": 3,
+    "job_ids": [
+      "sarasa_1"
+    ],
+    "description": "성공한 어빌리티 사용, 실제 트리플 어택, HP 35% 이하로 적의 행동을 버틴 턴마다 분노가 오른다. 고체력 턴 종료에는 1단계, 가드하면 즉시 2단계 가라앉는다. 격앙 상태로 저체력 턴을 버티면 분노가 2단계로 진정되고 사라사 어빌리티의 쿨타임이 1턴 더 감소한다. 어빌리티 한 번의 생명력 흡수는 최대 HP의 5%를 넘지 않는다. 장비·직업의 기본 배수는 80%까지 온전히, 초과분은 6% 효율로 최대 110%까지 적용되며 전투 중 얻는 배수는 별도로 더해진다. 기본 배수 효과의 50%는 HP와 무관하게 유지된다.",
+    "initial_stack_effects": [
+      {
+        "stack_effect_id": "sarasa_fury",
+        "stacks": 0
+      }
+    ],
+    "stack_rules": [
+      {
+        "stack_effect_id": "sarasa_fury",
+        "objective": "ability",
+        "target": "self",
+        "operation": "increase",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "stack_effect_id": "sarasa_fury",
+        "objective": "triple_attack",
+        "target": "self",
+        "operation": "increase",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "stack_effect_id": "sarasa_fury",
+        "objective": "guard",
+        "target": "self",
+        "operation": "decrease",
+        "value": 2,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "stack_effect_id": "sarasa_fury",
+        "objective": "turn_end",
+        "target": "self",
+        "operation": "increase",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0,
+        "max_hp_ratio": 0.35,
+        "max_stacks": 4
+      },
+      {
+        "stack_effect_id": "sarasa_fury",
+        "objective": "turn_end",
+        "target": "self",
+        "operation": "set",
+        "value": 2,
+        "required": 1,
+        "min_damage": 0,
+        "max_hp_ratio": 0.35,
+        "min_stacks": 5
+      },
+      {
+        "stack_effect_id": "sarasa_fury",
+        "objective": "turn_end",
+        "target": "self",
+        "operation": "decrease",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0,
+        "min_hp_ratio": 0.350001
+      }
+    ],
+    "ability_life_steal_cap": 0.05,
+    "low_hp_cooldown": {
+      "max_hp_ratio": 0.35,
+      "reduction": 1,
+      "trigger_stack_effect_id": "sarasa_fury",
+      "trigger_stacks": 5
+    },
+    "enmity_curve": {
+      "soft_cap": 0.8,
+      "overflow_ratio": 0.06,
+      "hard_cap": 1.1,
+      "hp_activation_floor": 0.5
+    }
+  },
+  {
+    "id": "sarasa_astral_arms",
+    "name": "삼인부의 형",
+    "unlock_level": 50,
+    "job_ids": [
+      "sarasa_4"
+    ],
+    "description": "전투 시작 시 도끼 형태를 취해 방어와 견수를 얻는다. 아스트로 다이버전스를 사용하면 검 형태와 도끼 형태를 오가며 전투 방식이 달라진다.",
+    "initial_stack_effects": [
+      {
+        "stack_effect_id": "sarasa_astral_form",
+        "stacks": 1
+      }
+    ]
+  }
+]

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from math import ceil, isfinite
 from pathlib import Path
@@ -25,7 +25,8 @@ WARNING_OBJECTIVES = {
     "warning_success",
     "warning_failure",
 }
-STACK_CONDITION_OBJECTIVES = WARNING_OBJECTIVES | {"received_damage", "turn_end"}
+STACK_CONDITION_OBJECTIVES = WARNING_OBJECTIVES | {"received_damage", "turn_end", "guard"}
+STACK_CONDITION_OPERATIONS = {"increase", "decrease", "set", "remove", "max"}
 WARNING_ACTIVATION_CONDITIONS = {
     "stack",
     "stack_compare",
@@ -109,6 +110,9 @@ def _load_content() -> dict[str, Any]:
             "gacha": _read_json(CONTENT_DIR / "gacha.json"),
             "items": _read_json(CONTENT_DIR / "items.json"),
             "jobs": _read_json(CONTENT_DIR / "jobs.json"),
+            "passives": _read_json(CONTENT_DIR / "passives.json")
+            if (CONTENT_DIR / "passives.json").exists()
+            else [],
             "skills": _read_json(CONTENT_DIR / "skills.json"),
             "stack_effects": _read_json(CONTENT_DIR / "stack_effects.json")
             if (CONTENT_DIR / "stack_effects.json").exists()
@@ -310,6 +314,8 @@ class StackEffectCondition:
     min_damage: int = 0
     min_hp_ratio: float = 0.0
     max_hp_ratio: float = 1.0
+    min_stacks: int = 0
+    max_stacks: int = -1
 
 
 @dataclass(frozen=True)
@@ -339,6 +345,7 @@ class StackEffectTemplate:
     reactions: list[StackEffectReaction] = field(default_factory=list)
     show_at_zero: bool = False
     zero_note: str = ""
+    show_status_note: bool = True
 
 
 @dataclass(frozen=True)
@@ -441,12 +448,46 @@ class LowHpCooldownRule:
     reduction: int = 0
     disabled_at_stack_effect_id: str = ""
     disabled_at_stacks: int = -1
+    trigger_stack_effect_id: str = ""
+    trigger_stacks: int = -1
+
+
+@dataclass(frozen=True)
+class EnmityCurve:
+    soft_cap: float = -1.0
+    overflow_ratio: float = 1.0
+    hard_cap: float = -1.0
+    hp_activation_floor: float = 0.0
+
+    @property
+    def enabled(self) -> bool:
+        return self.soft_cap >= 0 and self.hard_cap >= 0
 
 
 @dataclass(frozen=True)
 class InitialStackEffect:
     stack_effect_id: str
     stacks: int = 0
+
+
+@dataclass(frozen=True)
+class PassiveStackRule:
+    stack_effect_id: str
+    condition: StackEffectCondition
+
+
+@dataclass(frozen=True)
+class PassiveTemplate:
+    id: str
+    name: str
+    unlock_level: int
+    job_ids: tuple[str, ...]
+    description: str = ""
+    initial_stack_effects: tuple[InitialStackEffect, ...] = ()
+    stack_rules: tuple[PassiveStackRule, ...] = ()
+    ability_life_steal_cap: float = 0.0
+    low_hp_cooldown: LowHpCooldownRule = field(default_factory=LowHpCooldownRule)
+    enmity_curve: EnmityCurve = field(default_factory=EnmityCurve)
 
 
 @dataclass(frozen=True)
@@ -1337,6 +1378,8 @@ def _stack_effect_condition(raw: dict[str, Any]) -> StackEffectCondition:
         min_damage=max(0, _safe_int(raw.get("min_damage"), 0)),
         min_hp_ratio=max(0.0, min(1.0, _safe_float(raw.get("min_hp_ratio"), 0.0))),
         max_hp_ratio=max(0.0, min(1.0, _safe_float(raw.get("max_hp_ratio"), 1.0))),
+        min_stacks=max(0, _safe_int(raw.get("min_stacks"), 0)),
+        max_stacks=_safe_int(raw.get("max_stacks"), -1),
     )
 
 
@@ -1394,6 +1437,7 @@ def _stack_effect_template(raw: dict[str, Any]) -> StackEffectTemplate:
         ],
         show_at_zero=_safe_bool(raw.get("show_at_zero"), False),
         zero_note=str(raw.get("zero_note", "") or ""),
+        show_status_note=_safe_bool(raw.get("show_status_note"), True),
     )
 
 
@@ -1496,6 +1540,22 @@ def _low_hp_cooldown_rule(raw: Any) -> LowHpCooldownRule:
         reduction=max(0, _safe_int(raw.get("reduction"), 0)),
         disabled_at_stack_effect_id=str(raw.get("disabled_at_stack_effect_id", "") or ""),
         disabled_at_stacks=_safe_int(raw.get("disabled_at_stacks"), -1),
+        trigger_stack_effect_id=str(raw.get("trigger_stack_effect_id", "") or ""),
+        trigger_stacks=_safe_int(raw.get("trigger_stacks"), -1),
+    )
+
+
+def _enmity_curve(raw: Any) -> EnmityCurve:
+    if not isinstance(raw, dict):
+        return EnmityCurve()
+    return EnmityCurve(
+        soft_cap=max(0.0, _safe_float(raw.get("soft_cap"), 0.0)),
+        overflow_ratio=max(0.0, min(1.0, _safe_float(raw.get("overflow_ratio"), 1.0))),
+        hard_cap=max(0.0, _safe_float(raw.get("hard_cap"), 0.0)),
+        hp_activation_floor=max(
+            0.0,
+            min(1.0, _safe_float(raw.get("hp_activation_floor"), 0.0)),
+        ),
     )
 
 
@@ -1518,6 +1578,20 @@ def _initial_stack_effects(raw: dict[str, Any]) -> tuple[InitialStackEffect, ...
     return tuple(parsed)
 
 
+def _passive_stack_rules(raw: dict[str, Any]) -> tuple[PassiveStackRule, ...]:
+    rows = raw.get("stack_rules", ())
+    if not isinstance(rows, list):
+        return ()
+    return tuple(
+        PassiveStackRule(
+            stack_effect_id=str(row.get("stack_effect_id", "") or ""),
+            condition=_stack_effect_condition(row),
+        )
+        for row in rows
+        if isinstance(row, dict) and str(row.get("stack_effect_id", "") or "")
+    )
+
+
 def _job(raw: dict[str, Any]) -> JobTemplate:
     undispellable = bool(raw.get("undispellable", True))
     return JobTemplate(
@@ -1533,6 +1607,24 @@ def _job(raw: dict[str, Any]) -> JobTemplate:
         description=str(raw.get("description", "")),
         initial_stack_effects=_initial_stack_effects(raw),
         low_hp_cooldown=_low_hp_cooldown_rule(raw.get("low_hp_cooldown")),
+    )
+
+
+def _passive(raw: dict[str, Any]) -> PassiveTemplate:
+    return PassiveTemplate(
+        id=str(raw["id"]),
+        name=str(raw["name"]),
+        unlock_level=max(1, _safe_int(raw.get("unlock_level"), 1)),
+        job_ids=tuple(str(job_id) for job_id in raw.get("job_ids", ()) if str(job_id)),
+        description=str(raw.get("description", "") or ""),
+        initial_stack_effects=_initial_stack_effects(raw),
+        stack_rules=_passive_stack_rules(raw),
+        ability_life_steal_cap=max(
+            0.0,
+            min(1.0, _safe_float(raw.get("ability_life_steal_cap"), 0.0)),
+        ),
+        low_hp_cooldown=_low_hp_cooldown_rule(raw.get("low_hp_cooldown")),
+        enmity_curve=_enmity_curve(raw.get("enmity_curve")),
     )
 
 
@@ -2697,6 +2789,13 @@ ITEMS_BY_RARITY = {
 JOBS = [_job(job) for job in CONTENT.get("jobs", [])]
 JOB_BY_ID = {job.id: job for job in JOBS}
 
+PASSIVES = [
+    _passive(passive)
+    for passive in CONTENT.get("passives", [])
+    if isinstance(passive, dict)
+]
+PASSIVE_BY_ID = {passive.id: passive for passive in PASSIVES}
+
 SKILLS = [_skill(skill) for skill in CONTENT.get("skills", [])]
 SKILL_BY_ID = {skill.id: skill for skill in SKILLS}
 
@@ -2753,6 +2852,22 @@ STACK_EFFECTS = [
     for effect in CONTENT.get("stack_effects", [])
     if isinstance(effect, dict)
 ]
+_PASSIVE_STACK_CONDITIONS: dict[str, list[StackEffectCondition]] = {}
+for _passive_template in PASSIVES:
+    for _stack_rule in _passive_template.stack_rules:
+        _PASSIVE_STACK_CONDITIONS.setdefault(_stack_rule.stack_effect_id, []).append(
+            _stack_rule.condition
+        )
+STACK_EFFECTS = [
+    replace(
+        effect,
+        conditions=[
+            *effect.conditions,
+            *_PASSIVE_STACK_CONDITIONS.get(effect.id, ()),
+        ],
+    )
+    for effect in STACK_EFFECTS
+]
 STACK_EFFECT_BY_ID = {effect.id: effect for effect in STACK_EFFECTS}
 
 DUNGEONS = [_dungeon(dungeon) for dungeon in CONTENT.get("dungeons", [])]
@@ -2790,6 +2905,12 @@ def _validate_content() -> None:
                 errors.append(f"stack effect {effect.id} condition operation is invalid: {condition.operation}")
             if condition.min_hp_ratio > condition.max_hp_ratio:
                 errors.append(f"stack effect {effect.id} condition HP ratio range is invalid")
+            if condition.max_stacks >= 0 and condition.max_stacks < condition.min_stacks:
+                errors.append(f"stack effect {effect.id} condition stack range is invalid")
+            if condition.min_stacks > effect.max_stacks:
+                errors.append(f"stack effect {effect.id} condition minimum exceeds max stacks")
+            if condition.max_stacks > effect.max_stacks:
+                errors.append(f"stack effect {effect.id} condition maximum exceeds max stacks")
         for reaction in effect.reactions:
             if reaction.with_stack_effect_id not in STACK_EFFECT_BY_ID:
                 errors.append(
@@ -2822,6 +2943,102 @@ def _validate_content() -> None:
         blocker = STACK_EFFECT_BY_ID.get(rule.disabled_at_stack_effect_id)
         if blocker is not None and rule.disabled_at_stacks > blocker.max_stacks:
             errors.append(f"job {job.id} low HP cooldown blocker stacks exceed max stacks")
+        if rule.trigger_stack_effect_id and rule.trigger_stack_effect_id not in STACK_EFFECT_BY_ID:
+            errors.append(
+                f"job {job.id} low HP cooldown trigger not found: "
+                f"{rule.trigger_stack_effect_id}"
+            )
+        if rule.trigger_stack_effect_id and rule.trigger_stacks < 1:
+            errors.append(f"job {job.id} low HP cooldown trigger stacks must be at least 1")
+        trigger = STACK_EFFECT_BY_ID.get(rule.trigger_stack_effect_id)
+        if trigger is not None and rule.trigger_stacks > trigger.max_stacks:
+            errors.append(f"job {job.id} low HP cooldown trigger stacks exceed max stacks")
+    passive_ids = [passive.id for passive in PASSIVES if passive.id]
+    if len(passive_ids) != len(set(passive_ids)):
+        errors.append("passives have duplicate ids")
+    for passive in PASSIVES:
+        if not passive.id:
+            errors.append("passive id is required")
+        if not passive.name:
+            errors.append(f"passive {passive.id} name is required")
+        if not passive.job_ids:
+            errors.append(f"passive {passive.id} must belong to at least one job")
+        for job_id in passive.job_ids:
+            if job_id not in JOB_BY_ID:
+                errors.append(f"passive {passive.id} job not found: {job_id}")
+        initial_effect_ids = [initial.stack_effect_id for initial in passive.initial_stack_effects]
+        if len(initial_effect_ids) != len(set(initial_effect_ids)):
+            errors.append(f"passive {passive.id} has duplicate initial stack effects")
+        for initial in passive.initial_stack_effects:
+            template = STACK_EFFECT_BY_ID.get(initial.stack_effect_id)
+            if template is None:
+                errors.append(
+                    f"passive {passive.id} initial stack effect not found: {initial.stack_effect_id}"
+                )
+            elif initial.stacks > template.max_stacks:
+                errors.append(
+                    f"passive {passive.id} initial stack {initial.stack_effect_id} exceeds max stacks"
+                )
+        for index, stack_rule in enumerate(passive.stack_rules, start=1):
+            template = STACK_EFFECT_BY_ID.get(stack_rule.stack_effect_id)
+            if template is None:
+                errors.append(
+                    f"passive {passive.id} stack rule {index} effect not found: "
+                    f"{stack_rule.stack_effect_id}"
+                )
+                continue
+            condition = stack_rule.condition
+            if condition.objective not in STACK_CONDITION_OBJECTIVES:
+                errors.append(
+                    f"passive {passive.id} stack rule {index} objective not found: "
+                    f"{condition.objective}"
+                )
+            if condition.operation not in STACK_CONDITION_OPERATIONS:
+                errors.append(
+                    f"passive {passive.id} stack rule {index} operation is invalid: "
+                    f"{condition.operation}"
+                )
+            if condition.min_hp_ratio > condition.max_hp_ratio:
+                errors.append(f"passive {passive.id} stack rule {index} HP ratio range is invalid")
+            if condition.max_stacks >= 0 and condition.max_stacks < condition.min_stacks:
+                errors.append(f"passive {passive.id} stack rule {index} stack range is invalid")
+            if condition.min_stacks > template.max_stacks:
+                errors.append(f"passive {passive.id} stack rule {index} minimum exceeds max stacks")
+            if condition.max_stacks > template.max_stacks:
+                errors.append(f"passive {passive.id} stack rule {index} maximum exceeds max stacks")
+        if not 0 <= passive.ability_life_steal_cap <= 1:
+            errors.append(f"passive {passive.id} ability life steal cap is invalid")
+        rule = passive.low_hp_cooldown
+        if rule.reduction > 0 and rule.max_hp_ratio <= 0:
+            errors.append(f"passive {passive.id} low HP cooldown ratio must be greater than 0")
+        if rule.disabled_at_stack_effect_id and rule.disabled_at_stack_effect_id not in STACK_EFFECT_BY_ID:
+            errors.append(
+                f"passive {passive.id} low HP cooldown blocker not found: "
+                f"{rule.disabled_at_stack_effect_id}"
+            )
+        if rule.disabled_at_stack_effect_id and rule.disabled_at_stacks < 1:
+            errors.append(f"passive {passive.id} low HP cooldown blocker stacks must be at least 1")
+        blocker = STACK_EFFECT_BY_ID.get(rule.disabled_at_stack_effect_id)
+        if blocker is not None and rule.disabled_at_stacks > blocker.max_stacks:
+            errors.append(f"passive {passive.id} low HP cooldown blocker stacks exceed max stacks")
+        if rule.trigger_stack_effect_id and rule.trigger_stack_effect_id not in STACK_EFFECT_BY_ID:
+            errors.append(
+                f"passive {passive.id} low HP cooldown trigger not found: "
+                f"{rule.trigger_stack_effect_id}"
+            )
+        if rule.trigger_stack_effect_id and rule.trigger_stacks < 1:
+            errors.append(f"passive {passive.id} low HP cooldown trigger stacks must be at least 1")
+        trigger = STACK_EFFECT_BY_ID.get(rule.trigger_stack_effect_id)
+        if trigger is not None and rule.trigger_stacks > trigger.max_stacks:
+            errors.append(f"passive {passive.id} low HP cooldown trigger stacks exceed max stacks")
+        curve = passive.enmity_curve
+        if curve.enabled:
+            if curve.hard_cap < curve.soft_cap:
+                errors.append(f"passive {passive.id} Enmity hard cap is below its soft cap")
+            if not 0 <= curve.overflow_ratio <= 1:
+                errors.append(f"passive {passive.id} Enmity overflow ratio is invalid")
+            if not 0 <= curve.hp_activation_floor <= 1:
+                errors.append(f"passive {passive.id} Enmity HP activation floor is invalid")
     for skill in SKILLS:
         errors.extend(_validate_effect_actions(skill.effect_actions, f"skill {skill.id} effect actions"))
         variant_thresholds = [variant.max_hp_ratio for variant in skill.hp_variants]

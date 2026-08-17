@@ -25,6 +25,7 @@ from bot.services.rpg.data import (
     MATERIALS,
     MAX_EQUIPPED_ITEMS,
     MAX_EQUIPPED_SKILLS,
+    PASSIVES,
     POTENTIAL_GRADE_LABELS,
     RARITIES,
     RARITY_LABELS,
@@ -165,6 +166,7 @@ def _profile_payload(runtime: WebRPGRuntime, profile: PlayerProfile) -> dict[str
         "max_equipped_skills": MAX_EQUIPPED_SKILLS,
         "unlocked_skill_ids": [skill.id for skill in service.unlocked_skills(profile)],
         "unlocked_special_skill_ids": [skill.id for skill in service.unlocked_special_skills(profile)],
+        "unlocked_passive_ids": [passive.id for passive in service.unlocked_passives(profile)],
         "genesis_weapon_skill": (
             {
                 "id": genesis_skill_template.id,
@@ -324,6 +326,15 @@ def _content_payload(runtime: WebRPGRuntime, profile: PlayerProfile) -> dict[str
                 "note": skill.note,
             }
             for skill in SKILL_BY_ID.values()
+        ],
+        "passives": [
+            {
+                "id": passive.id,
+                "name": passive.name,
+                "level": passive.unlock_level,
+                "description": passive.description,
+            }
+            for passive in PASSIVES
         ],
         "jobs": [
             {

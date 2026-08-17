@@ -47,6 +47,7 @@ from .data import (
     MAX_ENHANCEMENT_STARS,
     MAX_EQUIPPED_ITEMS,
     MAX_EQUIPPED_SKILLS,
+    PASSIVES,
     PERCENT_STATS,
     POTENTIAL_GRADES,
     POTENTIAL_GRADE_LABELS,
@@ -83,6 +84,7 @@ from .data import (
     EnhancementMethod,
     JobTemplate,
     MaterialTemplate,
+    PassiveTemplate,
     RewardItemDrop,
     RewardMaterialDrop,
     RewardTemplate,
@@ -721,6 +723,15 @@ class RPGService:
     def unlocked_special_skills(self, profile: PlayerProfile) -> list[SkillTemplate]:
         return self._unlocked_skills(profile, special=True)
 
+    def unlocked_passives(self, profile: PlayerProfile) -> list[PassiveTemplate]:
+        chain_ids = {job.id for job in self.job_chain(profile)}
+        return [
+            passive
+            for passive in PASSIVES
+            if profile.level >= passive.unlock_level
+            and chain_ids.intersection(passive.job_ids)
+        ]
+
     def _unlocked_skills(self, profile: PlayerProfile, *, special: bool) -> list[SkillTemplate]:
         chain_ids = {job.id for job in self.job_chain(profile)}
         skills: list[SkillTemplate] = []
@@ -778,14 +789,33 @@ class RPGService:
 
     def initial_player_stack_effects(self, profile: PlayerProfile) -> list[ActiveStackEffect]:
         initial_by_id: dict[str, int] = {}
+        for passive in self.unlocked_passives(profile):
+            for initial in passive.initial_stack_effects:
+                initial_by_id[initial.stack_effect_id] = initial.stacks
         for job in self.job_chain(profile):
             for initial in job.initial_stack_effects:
-                initial_by_id[initial.stack_effect_id] = initial.stacks
+                initial_by_id.setdefault(initial.stack_effect_id, initial.stacks)
         return [
             ActiveStackEffect(effect_id, min(stacks, STACK_EFFECT_BY_ID[effect_id].max_stacks), persistent=True)
             for effect_id, stacks in initial_by_id.items()
             if effect_id in STACK_EFFECT_BY_ID
         ]
+
+    def cap_ability_life_steal(
+        self,
+        profile: PlayerProfile,
+        heal: int,
+        max_hp: int,
+    ) -> int:
+        caps = [
+            passive.ability_life_steal_cap
+            for passive in self.unlocked_passives(profile)
+            if passive.ability_life_steal_cap > 0
+        ]
+        if not caps:
+            return max(0, int(heal))
+        cap = max(0, int(max_hp * min(caps)))
+        return min(max(0, int(heal)), cap)
 
     def set_equipped_skills(self, user_id: int, display_name: str, skill_ids: list[str]) -> AbilityResult:
         profile = self.get_profile(user_id, display_name)
@@ -2235,14 +2265,14 @@ class RPGService:
             return ""
         tier = self._stack_effect_tier_for_stacks(template, stacks)
         if tier is None:
-            return (template.zero_note or "대기") if template.show_at_zero else ""
+            return (template.zero_note or "대기") if template.show_at_zero and template.show_status_note else ""
         mods = self._stat_effect_mods(tier.stat_effects)
         parts: list[str] = []
         stat_text = self.format_stats(mods, signed=True)
         if stat_text != "스탯 없음":
             parts.append(stat_text)
         parts.extend(self.special_effects_summary(tier.effects))
-        if tier.note and tier.note != template.name:
+        if template.show_status_note and tier.note and tier.note != template.name:
             parts.append(tier.note)
         return " · ".join(parts)
 
@@ -2495,6 +2525,11 @@ class RPGService:
                         player_stats,
                         self._effects_with_stacks(player_effects, player_stack_effects),
                         dealt_segments,
+                        player_stats.final_hp,
+                    )
+                    life_steal_heal = self.cap_ability_life_steal(
+                        profile,
+                        life_steal_heal,
                         player_stats.final_hp,
                     )
                 total_heal = skill_result.heal + life_steal_heal
@@ -3190,6 +3225,26 @@ class RPGService:
             # Potential is an instance bonus and deliberately ignores Starforce scaling.
             for key, value in self.potential_stats(item).items():
                 self._apply_stat(stats, key, value)
+        enmity_curve = next(
+            (
+                passive.enmity_curve
+                for passive in reversed(self.unlocked_passives(profile))
+                if passive.enmity_curve.enabled
+            ),
+            None,
+        )
+        if enmity_curve is not None:
+            stats.enmity_soft_cap = enmity_curve.soft_cap
+            stats.enmity_overflow_ratio = enmity_curve.overflow_ratio
+            stats.enmity_hard_cap = enmity_curve.hard_cap
+            stats.enmity_hp_activation_floor = enmity_curve.hp_activation_floor
+            stats.enmity_curve_base_raw = float(stats.enmity)
+            stats.enmity_curve_base_effective = self._compress_enmity(
+                stats.enmity_curve_base_raw,
+                soft_cap=enmity_curve.soft_cap,
+                overflow_ratio=enmity_curve.overflow_ratio,
+                hard_cap=enmity_curve.hard_cap,
+            )
         stats.base_atk = max(1, int(stats.base_atk))
         stats.max_hp = max(1, int(stats.max_hp))
         stats.defense = self._capped_defense(stats.defense)
@@ -3972,9 +4027,13 @@ class RPGService:
         current_hp: int,
         max_hp: int,
     ) -> int:
-        """Apply post-enemy turn rules and return the extra job cooldown ticks."""
+        """Apply post-enemy turn rules and return extra passive cooldown ticks."""
         if current_hp <= 0:
             return 0
+        event_start_stacks = {
+            current.template_id: max(0, int(current.stacks))
+            for current in player_stacks
+        }
         self.apply_player_stack_event(
             player_stacks,
             opponent_stacks,
@@ -3985,13 +4044,27 @@ class RPGService:
         )
         rule = next(
             (
-                job.low_hp_cooldown
-                for job in reversed(self.job_chain(profile))
-                if job.low_hp_cooldown.reduction > 0
+                passive.low_hp_cooldown
+                for passive in reversed(self.unlocked_passives(profile))
+                if passive.low_hp_cooldown.reduction > 0
             ),
             None,
         )
+        if rule is None:
+            rule = next(
+                (
+                    job.low_hp_cooldown
+                    for job in reversed(self.job_chain(profile))
+                    if job.low_hp_cooldown.reduction > 0
+                ),
+                None,
+            )
         if rule is None or self._hp_ratio(current_hp, max_hp) > rule.max_hp_ratio:
+            return 0
+        if (
+            rule.trigger_stack_effect_id
+            and event_start_stacks.get(rule.trigger_stack_effect_id, 0) < rule.trigger_stacks
+        ):
             return 0
         if (
             rule.disabled_at_stack_effect_id
@@ -4019,8 +4092,13 @@ class RPGService:
             template = STACK_EFFECT_BY_ID.get(current.template_id)
             if template is None:
                 continue
+            event_start_stacks = max(0, int(current.stacks))
             for index, condition in enumerate(template.conditions):
                 if condition.objective != objective:
+                    continue
+                if event_start_stacks < condition.min_stacks:
+                    continue
+                if condition.max_stacks >= 0 and event_start_stacks > condition.max_stacks:
                     continue
                 if objective not in WARNING_STACK_EVENTS:
                     wants_holder = condition.target in {"self", "me", "holder"}
@@ -4073,6 +4151,8 @@ class RPGService:
                 str(max(0, condition.min_damage)),
                 f"{condition.min_hp_ratio:g}",
                 f"{condition.max_hp_ratio:g}",
+                str(max(0, condition.min_stacks)),
+                str(condition.max_stacks),
             )
         )
 
@@ -4453,13 +4533,44 @@ class RPGService:
             parts.append(f"{attack.heal} 흡수")
         return " · ".join(parts)
 
+    def _compress_enmity(
+        self,
+        raw: float,
+        *,
+        soft_cap: float,
+        overflow_ratio: float,
+        hard_cap: float,
+    ) -> float:
+        raw = float(raw)
+        if soft_cap < 0 or hard_cap < 0 or raw <= soft_cap:
+            return raw
+        effective = soft_cap + (raw - soft_cap) * max(
+            0.0,
+            min(1.0, overflow_ratio),
+        )
+        return min(hard_cap, effective)
+
+    def _effective_enmity(self, stats: CombatStats) -> float:
+        raw = float(stats.enmity)
+        if stats.enmity_curve_base_raw < 0 or stats.enmity_curve_base_effective < 0:
+            return raw
+        # The passive curve only compresses the profile's permanent Enmity.
+        # Temporary stacks and ability buffs are added afterward so the class
+        # resource and low-HP skill choices never disappear behind the cap.
+        temporary = raw - stats.enmity_curve_base_raw
+        return stats.enmity_curve_base_effective + temporary
+
     def _outgoing_damage(self, stats: CombatStats, current_hp: int) -> float:
         ratio = self._hp_ratio(current_hp, stats.final_hp)
+        enmity_weight = 1 - ratio
+        if stats.enmity_hp_activation_floor > 0:
+            floor = max(0.0, min(1.0, stats.enmity_hp_activation_floor))
+            enmity_weight = floor + (1 - floor) * enmity_weight
         return (
             stats.base_atk
             * (1 + stats.atk)
             * (1 + stats.strength * ratio)
-            * (1 + stats.enmity * (1 - ratio))
+            * max(0.0, 1 + self._effective_enmity(stats) * enmity_weight)
             * (1 + stats.dmg_amplification)
         )
 

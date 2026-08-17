@@ -67,6 +67,7 @@ const STACK_OBJECTIVES = [
   ...OBJECTIVES,
   ["received_damage", "받은 피해량"],
   ["turn_end", "턴 종료"],
+  ["guard", "가드"],
 ];
 
 const EFFECT_ACTIONS = [
@@ -1925,6 +1926,7 @@ function renderStackEffectDetail(effect) {
       textField("이름", effect, "name"),
       numberField("최대 스택", effect, "max_stacks", { step: 1, rerender: true }),
       checkboxField("0스택도 표시", effect, "show_at_zero"),
+      checkboxField("상태창에 단계 메모 표시", effect, "show_status_note"),
       textField("0스택 메모", effect, "zero_note"),
       textAreaField("설명", effect, "description", { full: true }),
     ]),
@@ -1938,6 +1940,7 @@ function renderStackEffectDetail(effect) {
 function normalizeStackEffect(effect) {
   effect.max_stacks = Math.max(1, Number(effect.max_stacks || effect.max || 1));
   effect.show_at_zero = Boolean(effect.show_at_zero);
+  effect.show_status_note = effect.show_status_note !== false;
   effect.tiers = Array.isArray(effect.tiers) ? effect.tiers : Array.isArray(effect.stacks) ? effect.stacks : [];
   delete effect.stacks;
   effect.tiers = effect.tiers.filter((tier) => tier && typeof tier === "object");
@@ -2097,6 +2100,10 @@ function normalizeStackCondition(condition) {
     normalized.min_hp_ratio = clamp(Number(condition.min_hp_ratio ?? 0), 0, 1);
     normalized.max_hp_ratio = clamp(Number(condition.max_hp_ratio ?? 1), 0, 1);
   }
+  if (Object.hasOwn(condition, "min_stacks") || Object.hasOwn(condition, "max_stacks")) {
+    normalized.min_stacks = Math.max(0, Number(condition.min_stacks ?? 0));
+    normalized.max_stacks = Number(condition.max_stacks ?? -1);
+  }
   return normalized;
 }
 
@@ -2168,6 +2175,10 @@ function stackConditionEditor(effect) {
         numberField("최대 HP 비율", condition, "max_hp_ratio", { step: 0.01 }),
       );
     }
+    fields.push(
+      numberField("최소 현재 스택", condition, "min_stacks", { step: 1 }),
+      numberField("최대 현재 스택 (-1: 제한 없음)", condition, "max_stacks", { step: 1 }),
+    );
     if (!["remove", "max"].includes(condition.operation)) {
       fields.push(numberField("스택 수", condition, "value", { step: 1 }));
     }

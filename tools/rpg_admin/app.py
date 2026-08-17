@@ -32,6 +32,7 @@ SIMPLE_FILES = {
     "gacha": "gacha.json",
     "items": "items.json",
     "jobs": "jobs.json",
+    "passives": "passives.json",
     "skills": "skills.json",
     "stack_effects": "stack_effects.json",
     "materials": "materials.json",
@@ -52,7 +53,7 @@ OBJECTIVE_IDS = {
     "warning_success",
     "warning_failure",
 }
-STACK_CONDITION_OBJECTIVE_IDS = OBJECTIVE_IDS | {"received_damage", "turn_end"}
+STACK_CONDITION_OBJECTIVE_IDS = OBJECTIVE_IDS | {"received_damage", "turn_end", "guard"}
 EFFECT_ACTION_IDS = {"dispel", "clear_all"}
 STACK_EFFECT_ACTION_IDS = {"stack_increase", "stack_decrease", "stack_set", "stack_remove", "stack_max", "stack_cycle"}
 EFFECT_ACTION_IDS = EFFECT_ACTION_IDS | STACK_EFFECT_ACTION_IDS
@@ -105,7 +106,7 @@ def save_content(content: dict[str, Any], backup_retention: int = DEFAULT_BACKUP
 
 
 def list_keys() -> set[str]:
-    return {"items", "jobs", "skills", "materials", "crafting_recipes", "stack_effects"}
+    return {"items", "jobs", "passives", "skills", "materials", "crafting_recipes", "stack_effects"}
 
 
 def normalize_content(content: dict[str, Any]) -> None:
@@ -130,6 +131,21 @@ def normalize_content(content: dict[str, Any]) -> None:
             job.pop("stat_effect_mods", None)
             normalize_combat_effects(job, "effects", bool(job.get("undispellable", True)), -1)
             normalize_job_battle_rules(job)
+    for passive in content.get("passives", []):
+        if isinstance(passive, dict):
+            normalize_job_battle_rules(passive)
+            rules = passive.get("stack_rules", [])
+            if isinstance(rules, list):
+                normalized_rules = []
+                for rule in rules:
+                    if not isinstance(rule, dict):
+                        continue
+                    normalized = normalize_stack_condition(rule)
+                    normalized["stack_effect_id"] = str(
+                        rule.get("stack_effect_id", "") or ""
+                    )
+                    normalized_rules.append(normalized)
+                passive["stack_rules"] = normalized_rules
     for effect in content.get("stack_effects", []):
         if isinstance(effect, dict):
             normalize_stack_effect(effect, stat_order_index)
@@ -244,6 +260,7 @@ def normalize_boss_hard_mode(
 def normalize_stack_effect(effect: dict[str, Any], stat_order_index: dict[str, int]) -> None:
     effect["max_stacks"] = max(1, safe_int(effect.get("max_stacks", effect.get("max")), 1))
     effect["show_at_zero"] = bool(effect.get("show_at_zero", False))
+    effect["show_status_note"] = bool(effect.get("show_status_note", True))
     tiers = effect.get("tiers", effect.get("stacks", []))
     if not isinstance(tiers, list):
         tiers = []
@@ -455,10 +472,18 @@ def normalize_stack_condition(condition: dict[str, Any]) -> dict[str, Any]:
     if objective == "turn_end":
         normalized["min_hp_ratio"] = max(0.0, min(1.0, safe_float(condition.get("min_hp_ratio"), 0.0)))
         normalized["max_hp_ratio"] = max(0.0, min(1.0, safe_float(condition.get("max_hp_ratio"), 1.0)))
+    if "min_stacks" in condition or "max_stacks" in condition:
+        normalized["min_stacks"] = max(0, safe_int(condition.get("min_stacks"), 0))
+        normalized["max_stacks"] = safe_int(condition.get("max_stacks"), -1)
     return normalized
 
 
 def normalize_job_battle_rules(job: dict[str, Any]) -> None:
+    if "ability_life_steal_cap" in job:
+        job["ability_life_steal_cap"] = max(
+            0.0,
+            min(1.0, safe_float(job.get("ability_life_steal_cap"), 0.0)),
+        )
     rows = job.get("initial_stack_effects")
     if isinstance(rows, list):
         job["initial_stack_effects"] = [
@@ -476,6 +501,19 @@ def normalize_job_battle_rules(job: dict[str, Any]) -> None:
             "reduction": max(0, safe_int(rule.get("reduction"), 0)),
             "disabled_at_stack_effect_id": str(rule.get("disabled_at_stack_effect_id", "") or ""),
             "disabled_at_stacks": safe_int(rule.get("disabled_at_stacks"), -1),
+            "trigger_stack_effect_id": str(rule.get("trigger_stack_effect_id", "") or ""),
+            "trigger_stacks": safe_int(rule.get("trigger_stacks"), -1),
+        }
+    curve = job.get("enmity_curve")
+    if isinstance(curve, dict):
+        job["enmity_curve"] = {
+            "soft_cap": max(0.0, safe_float(curve.get("soft_cap"), 0.0)),
+            "overflow_ratio": max(0.0, min(1.0, safe_float(curve.get("overflow_ratio"), 1.0))),
+            "hard_cap": max(0.0, safe_float(curve.get("hard_cap"), 0.0)),
+            "hp_activation_floor": max(
+                0.0,
+                min(1.0, safe_float(curve.get("hp_activation_floor"), 0.0)),
+            ),
         }
 
 
@@ -1579,6 +1617,7 @@ def validate_content(content: dict[str, Any]) -> list[str]:
         if isinstance(row, dict) and str(row.get("id", ""))
     }
     jobs = ensure_unique_ids(content.get("jobs", []), "job", errors)
+    passives = ensure_unique_ids(content.get("passives", []), "passive", errors)
     skills = ensure_unique_ids(content.get("skills", []), "skill", errors)
     stack_effects = ensure_unique_ids(content.get("stack_effects", []), "stack effect", errors)
     stack_effect_max = {
@@ -1608,6 +1647,43 @@ def validate_content(content: dict[str, Any]) -> list[str]:
         validate_stat_effects(job.get("stat_effects"), stat_ids, f"job {job.get('id')} stat effects", errors)
         validate_combat_effects(job.get("effects"), f"job {job.get('id')} effects", errors)
         validate_job_battle_rules(job, stack_effects, stack_effect_max, errors)
+    for passive in content.get("passives", []):
+        passive_id = str(passive.get("id", ""))
+        job_ids = passive.get("job_ids", [])
+        if not isinstance(job_ids, list) or not job_ids:
+            errors.append(f"passive {passive_id} must belong to at least one job")
+        else:
+            for job_id in job_ids:
+                if job_id not in jobs:
+                    errors.append(f"passive {passive_id} job not found: {job_id}")
+        validate_job_battle_rules(passive, stack_effects, stack_effect_max, errors)
+        rules = passive.get("stack_rules", [])
+        if not isinstance(rules, list):
+            errors.append(f"passive {passive_id} stack rules is not an array")
+            rules = []
+        for index, rule in enumerate(rules, start=1):
+            if not isinstance(rule, dict):
+                errors.append(f"passive {passive_id} stack rule {index} is not an object")
+                continue
+            effect_id = str(rule.get("stack_effect_id", "") or "")
+            if effect_id not in stack_effects:
+                errors.append(
+                    f"passive {passive_id} stack rule {index} effect not found: {effect_id}"
+                )
+                continue
+            validate_stack_effect(
+                {
+                    "id": effect_id,
+                    "max_stacks": stack_effect_max.get(effect_id, 1),
+                    "tiers": [],
+                    "conditions": [rule],
+                    "reactions": [],
+                },
+                stat_ids,
+                f"passive {passive_id} stack rule {index}",
+                errors,
+                stack_effects,
+            )
     for effect in content.get("stack_effects", []):
         validate_stack_effect(effect, stat_ids, f"stack effect {effect.get('id')}", errors, stack_effects)
     for skill in content.get("skills", []):
@@ -1735,7 +1811,7 @@ def validate_content(content: dict[str, Any]) -> list[str]:
                 "plain_damage_multiplier",
                 "objective_multiplier",
             ):
-                if safe_float(hard.get(key), -1.0) < 0:
+                if safe_float(hard.get(key), 1.0) < 0:
                     errors.append(f"boss {boss.get('id')} hard mode {key} must be non-negative")
             validate_reward(
                 hard.get("rewards", {}),
@@ -1791,6 +1867,9 @@ def validate_job_battle_rules(
     errors: list[str],
 ) -> None:
     label = f"job {job.get('id')}"
+    ability_life_steal_cap = safe_float(job.get("ability_life_steal_cap"), 0.0)
+    if not 0 <= ability_life_steal_cap <= 1:
+        errors.append(f"{label} ability life steal cap is invalid")
     rows = job.get("initial_stack_effects", [])
     if rows not in (None, []) and not isinstance(rows, list):
         errors.append(f"{label} initial stack effects is not an array")
@@ -1810,24 +1889,48 @@ def validate_job_battle_rules(
         if stacks < 0 or stacks > stack_effect_max.get(effect_id, 0):
             errors.append(f"{label} initial stacks out of range: {effect_id} {stacks}")
     rule = job.get("low_hp_cooldown")
-    if rule in (None, {}):
-        return
-    if not isinstance(rule, dict):
+    if rule not in (None, {}) and not isinstance(rule, dict):
         errors.append(f"{label} low HP cooldown is not an object")
+    elif isinstance(rule, dict):
+        ratio = safe_float(rule.get("max_hp_ratio"), -1.0)
+        reduction = safe_int(rule.get("reduction"), -1)
+        if not 0 < ratio <= 1:
+            errors.append(f"{label} low HP cooldown ratio must be between 0 and 1")
+        if reduction < 1:
+            errors.append(f"{label} low HP cooldown reduction must be at least 1")
+        blocker_id = str(rule.get("disabled_at_stack_effect_id", "") or "")
+        blocker_stacks = safe_int(rule.get("disabled_at_stacks"), -1)
+        if blocker_id:
+            if blocker_id not in stack_effect_ids:
+                errors.append(f"{label} low HP cooldown blocker not found: {blocker_id}")
+            if blocker_stacks < 1 or blocker_stacks > stack_effect_max.get(blocker_id, 0):
+                errors.append(f"{label} low HP cooldown blocker stacks out of range")
+        trigger_id = str(rule.get("trigger_stack_effect_id", "") or "")
+        trigger_stacks = safe_int(rule.get("trigger_stacks"), -1)
+        if trigger_id:
+            if trigger_id not in stack_effect_ids:
+                errors.append(f"{label} low HP cooldown trigger not found: {trigger_id}")
+            if trigger_stacks < 1 or trigger_stacks > stack_effect_max.get(trigger_id, 0):
+                errors.append(f"{label} low HP cooldown trigger stacks out of range")
+
+    curve = job.get("enmity_curve")
+    if curve in (None, {}):
         return
-    ratio = safe_float(rule.get("max_hp_ratio"), -1.0)
-    reduction = safe_int(rule.get("reduction"), -1)
-    if not 0 < ratio <= 1:
-        errors.append(f"{label} low HP cooldown ratio must be between 0 and 1")
-    if reduction < 1:
-        errors.append(f"{label} low HP cooldown reduction must be at least 1")
-    blocker_id = str(rule.get("disabled_at_stack_effect_id", "") or "")
-    blocker_stacks = safe_int(rule.get("disabled_at_stacks"), -1)
-    if blocker_id:
-        if blocker_id not in stack_effect_ids:
-            errors.append(f"{label} low HP cooldown blocker not found: {blocker_id}")
-        if blocker_stacks < 1 or blocker_stacks > stack_effect_max.get(blocker_id, 0):
-            errors.append(f"{label} low HP cooldown blocker stacks out of range")
+    if not isinstance(curve, dict):
+        errors.append(f"{label} Enmity curve is not an object")
+        return
+    soft_cap = safe_float(curve.get("soft_cap"), -1.0)
+    hard_cap = safe_float(curve.get("hard_cap"), -1.0)
+    overflow_ratio = safe_float(curve.get("overflow_ratio"), -1.0)
+    hp_floor = safe_float(curve.get("hp_activation_floor"), -1.0)
+    if soft_cap < 0:
+        errors.append(f"{label} Enmity soft cap must be non-negative")
+    if hard_cap < soft_cap:
+        errors.append(f"{label} Enmity hard cap is below its soft cap")
+    if not 0 <= overflow_ratio <= 1:
+        errors.append(f"{label} Enmity overflow ratio is invalid")
+    if not 0 <= hp_floor <= 1:
+        errors.append(f"{label} Enmity HP activation floor is invalid")
 
 
 def validate_skill_hp_variants(
@@ -1938,6 +2041,14 @@ def validate_stack_effect(
             maximum = safe_float(condition.get("max_hp_ratio"), 1.0)
             if not 0 <= minimum <= maximum <= 1:
                 errors.append(f"{label} condition {index} HP ratio range is invalid")
+        minimum_stacks = max(0, safe_int(condition.get("min_stacks"), 0))
+        maximum_stacks = safe_int(condition.get("max_stacks"), -1)
+        if maximum_stacks >= 0 and maximum_stacks < minimum_stacks:
+            errors.append(f"{label} condition {index} stack range is invalid")
+        if minimum_stacks > max_stacks:
+            errors.append(f"{label} condition {index} minimum exceeds max stacks")
+        if maximum_stacks > max_stacks:
+            errors.append(f"{label} condition {index} maximum exceeds max stacks")
     reactions = effect.get("reactions", [])
     if reactions not in (None, []) and not isinstance(reactions, list):
         errors.append(f"{label} reactions is not an array")

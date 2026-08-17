@@ -2793,14 +2793,14 @@
     "cooldown": 2,
     "role": "attack",
     "special": false,
-    "damage_multiplier": 1.25,
+    "damage_multiplier": 1.1,
     "hits": 3,
     "player_mods": {},
     "enemy_mods": {},
     "hp_variants": [
       {
         "max_hp_ratio": 0.35,
-        "damage_multiplier": 0.95,
+        "damage_multiplier": 0.91,
         "hits": 4,
         "note": "HP 35% 이하에서는 균열이 갈라져 4회 공격으로 변한다."
       }
@@ -2811,7 +2811,7 @@
     "job_ids": [
       "sarasa_1"
     ],
-    "note": "도끼날로 지면의 결을 끊어 3회 공격한다. HP 35% 이하에서는 위력을 나눠 4회 공격하며 총 피해가 소폭 증가한다.",
+    "note": "도끼날로 지면의 결을 끊어 3회 공격한다. HP 35% 이하에서는 균열이 깊어져 4회 공격으로 강화된다.",
     "stats": {}
   },
   {
@@ -2886,14 +2886,14 @@
     "cooldown": 3,
     "role": "attack",
     "special": false,
-    "damage_multiplier": 1.1,
+    "damage_multiplier": 0.95,
     "hits": 5,
     "player_mods": {},
     "enemy_mods": {},
     "hp_variants": [
       {
         "max_hp_ratio": 0.35,
-        "damage_multiplier": 0.79,
+        "damage_multiplier": 0.75,
         "hits": 7,
         "note": "HP 35% 이하에서는 빈틈을 끝까지 파고들어 7회 공격으로 변한다."
       }
@@ -2904,7 +2904,7 @@
     "job_ids": [
       "sarasa_2"
     ],
-    "note": "벌어진 균열을 따라 5회 공격한다. HP 35% 이하에서는 타격을 7회로 나누며 총 피해가 소폭 증가한다.",
+    "note": "벌어진 균열을 따라 5회 공격한다. HP 35% 이하에서는 빈틈을 끝까지 파고들어 7회 공격으로 강화된다.",
     "stats": {}
   },
   {
@@ -2921,16 +2921,9 @@
     "enemy_mods": {},
     "player_stat_effects": [
       {
-        "stat": "life_steal",
+        "stat": "garrison",
         "target": "self",
-        "value": 0.025,
-        "duration": 2,
-        "undispellable": false
-      },
-      {
-        "stat": "life_steal_cap",
-        "target": "self",
-        "value": 0.015,
+        "value": 0.18,
         "duration": 2,
         "undispellable": false
       },
@@ -2956,23 +2949,16 @@
         "max_hp_ratio": 0.35,
         "player_stat_effects": [
           {
-            "stat": "life_steal",
-            "target": "self",
-            "value": 0.015,
-            "duration": 2,
-            "undispellable": false
-          },
-          {
-            "stat": "life_steal_cap",
-            "target": "self",
-            "value": 0.01,
-            "duration": 2,
-            "undispellable": false
-          },
-          {
             "stat": "damage_cut",
             "target": "self",
-            "value": 0.08,
+            "value": 0.1,
+            "duration": 2,
+            "undispellable": false
+          },
+          {
+            "stat": "garrison",
+            "target": "self",
+            "value": 0.12,
             "duration": 2,
             "undispellable": false
           }
@@ -2986,7 +2972,7 @@
             "repeat_on_recast": false
           }
         ],
-        "note": "HP 35% 이하에서는 흡수와 차단이 강화되고 분노를 1단계 더 식힌다."
+        "note": "HP 35% 이하에서는 견수와 차단이 강화되고 분노를 1단계 더 식힌다."
       }
     ],
     "heal_power": 0,
@@ -2995,7 +2981,7 @@
     "job_ids": [
       "sarasa_2"
     ],
-    "note": "분노를 3단계 가라앉히고 2턴 동안 제한된 생명력 흡수와 데미지 컷을 얻는다. 사용 자체로 분노가 1단계 다시 올라 실질 2단계, HP 35% 이하에서는 3단계 낮춘다.",
+    "note": "분노를 3단계 가라앉히고 2턴 동안 견수와 데미지 컷을 얻는다. 사용 자체로 분노가 다시 오를 수 있으며, HP 35% 이하에서는 1단계 더 가라앉힌다.",
     "stats": {}
   },
   {
@@ -3072,7 +3058,7 @@
     "cooldown": 6,
     "role": "attack",
     "special": false,
-    "damage_multiplier": 1.8,
+    "damage_multiplier": 1.55,
     "hits": 4,
     "player_mods": {},
     "enemy_mods": {},
@@ -3088,25 +3074,9 @@
     "hp_variants": [
       {
         "max_hp_ratio": 0.35,
-        "damage_multiplier": 1.45,
+        "damage_multiplier": 1.36,
         "hits": 5,
-        "player_stat_effects": [
-          {
-            "stat": "life_steal",
-            "target": "self",
-            "value": 0.025,
-            "duration": 2,
-            "undispellable": false
-          },
-          {
-            "stat": "life_steal_cap",
-            "target": "self",
-            "value": 0.015,
-            "duration": 2,
-            "undispellable": false
-          }
-        ],
-        "note": "HP 35% 이하에서는 5회 공격으로 변하고 제한된 생명력 흡수를 얻는다."
+        "note": "HP 35% 이하에서는 5회 공격으로 변하고 총 피해가 강화된다."
       }
     ],
     "heal_power": 0,
@@ -3115,7 +3085,7 @@
     "job_ids": [
       "sarasa_3"
     ],
-    "note": "4회 공격하고 1턴 동안 배수를 얻는다. HP 35% 이하에서는 5회 공격으로 변하며 2턴 동안 제한된 생명력 흡수를 얻는다.",
+    "note": "4회 공격하고 1턴 동안 배수를 얻는다. HP 35% 이하에서는 5회 공격으로 강화된다.",
     "stats": {}
   },
   {
@@ -3134,7 +3104,7 @@
       {
         "stat": "triple_attack_rate",
         "target": "self",
-        "value": 0.6,
+        "value": 0.35,
         "duration": 2,
         "undispellable": false
       }
@@ -3143,14 +3113,16 @@
       {
         "max_hp_ratio": 0.35,
         "player_effects": {
-          "double_strike": {
-            "count": 2,
-            "target": "self",
-            "duration": 1,
-            "undispellable": false
-          }
+          "final_damage": [
+            {
+              "ratio": 0.08,
+              "target": "self",
+              "duration": 1,
+              "undispellable": false
+            }
+          ]
         },
-        "note": "HP 35% 이하에서만 이번 턴 추가 행동 1회를 얻는다."
+        "note": "HP 35% 이하에서는 이번 턴 최종 데미지가 증가한다."
       }
     ],
     "heal_power": 0,
@@ -3159,7 +3131,7 @@
     "job_ids": [
       "sarasa_3"
     ],
-    "note": "2턴 동안 트리플 어택 확률을 높인다. HP 35% 이하에서만 이번 턴 추가 행동 1회를 얻는다.",
+    "note": "2턴 동안 트리플 어택 확률을 높인다. HP 35% 이하에서는 이번 턴 최종 데미지가 증가한다.",
     "stats": {}
   },
   {
@@ -3194,7 +3166,7 @@
     "job_ids": [
       "sarasa_4"
     ],
-    "note": "전투당 한 번, HP를 1로 만들고 4회 공격한다. 이후에는 역류와 아스트로 다이버전스로 피를 내주며 저체력의 흐름을 이어가야 한다. 1턴 동안 잔명으로 견수와 데미지 컷, 피해량에 비례한 제한 흡수를 얻지만 피해를 무효화하지는 않는다.",
+    "note": "전투당 한 번, HP를 1로 만들고 4회 공격한다. 1턴 동안 잔명으로 견수와 데미지 컷, 극소량의 생명력 흡수를 얻는다. 이후에는 역류와 아스트로 다이버전스로 저체력의 흐름을 이어간다.",
     "stats": {}
   },
   {
@@ -3213,14 +3185,14 @@
       {
         "stat": "enmity",
         "target": "self",
-        "value": 0.04,
+        "value": 0.03,
         "duration": 1,
         "undispellable": true
       },
       {
         "stat": "triple_attack_rate",
         "target": "self",
-        "value": 0.55,
+        "value": 0.35,
         "duration": 3,
         "undispellable": true
       }
@@ -3228,7 +3200,7 @@
     "player_effects": {
       "final_damage": [
         {
-          "ratio": 0.08,
+          "ratio": 0.06,
           "target": "self",
           "duration": 3,
           "undispellable": true
@@ -3239,16 +3211,16 @@
       {
         "max_hp_ratio": 0.35,
         "player_effects": {
-          "ability_recast": [
+          "final_damage": [
             {
-              "count": 1,
+              "ratio": 0.08,
               "target": "self",
               "duration": 1,
               "undispellable": true
             }
           ]
         },
-        "note": "HP 35% 이하에서만 이번 턴 공격 어빌리티를 한 차례 재발동한다."
+        "note": "HP 35% 이하에서는 이번 턴 최종 데미지가 추가로 증가한다."
       }
     ],
     "heal_power": 0,
@@ -3257,7 +3229,7 @@
     "job_ids": [
       "sarasa_4"
     ],
-    "note": "전투당 한 번, 1턴 동안 배수와 3턴 동안 트리플 어택 확률·최종 데미지를 얻는다. HP 35% 이하에서만 이번 턴 공격 어빌리티를 한 차례 재발동한다.",
+    "note": "전투당 한 번, 1턴 동안 배수와 3턴 동안 트리플 어택 확률·최종 데미지를 얻는다. HP 35% 이하에서는 이번 턴 최종 데미지가 추가로 증가한다.",
     "stats": {}
   },
   {

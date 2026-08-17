@@ -31,6 +31,7 @@ from bot.services.rpg.data import (
     BossWarningActivationCondition,
     BossWarningFailureVariant,
     BossWarningTemplate,
+    PassiveTemplate,
     SkillTemplate,
     STACK_EFFECT_BY_ID,
     gacha_candidate_kind,
@@ -1080,6 +1081,7 @@ class RPGCog(commands.Cog):
                 player_stats,
                 actual_dealt_damage,
                 actual_dealt_segments,
+                ability_profile=profile,
             )
         skill_heal = self._apply_boss_skill_heal(session, participant, skill, skill_result.raw_heals, player_stats)
         debuff_count = self._debuff_effect_count(skill) * skill_result.activations
@@ -1287,6 +1289,11 @@ class RPGCog(commands.Cog):
             return False, "전투 불능 상태입니다."
 
         profile = self.service.get_profile(user_id, display_name)
+
+        # Guard is also a player combat event.  Resolve it before taking the
+        # defensive stat snapshot so passive resource cooling can immediately
+        # remove its own defensive penalty for this guard.
+        self._apply_player_stack_event(participant, "guard", 1)
 
         player_base = self.service.profile_stats(profile)
         boss_base = self.service._enemy_stats(session.boss.stats, level=session.boss.level_req)
@@ -2237,6 +2244,8 @@ class RPGCog(commands.Cog):
         stats,
         dealt_damage: int,
         damage_segments: list[int] | None = None,
+        *,
+        ability_profile=None,
     ) -> int:
         segments = damage_segments if damage_segments is not None else ([dealt_damage] if dealt_damage > 0 else [])
         heal = self.service._life_steal_heal_segments(
@@ -2245,6 +2254,12 @@ class RPGCog(commands.Cog):
             segments,
             stats.final_hp,
         )
+        if ability_profile is not None:
+            heal = self.service.cap_ability_life_steal(
+                ability_profile,
+                heal,
+                stats.final_hp,
+            )
         if heal > 0:
             participant.hp = min(stats.final_hp, participant.hp + heal)
         return heal
@@ -3173,7 +3188,7 @@ class RPGCog(commands.Cog):
             )
         player_stacks = self._stack_effects_text(participant.player_stack_effects)
         if player_stacks:
-            lines.append("내 스택: " + player_stacks)
+            lines.append("직업 자원: " + player_stacks)
         return self._trim("\n".join(lines), 700)
 
     def _participant_boss_state_text(self, session: BossSession, participant: BossParticipant, ct_max: int) -> str:
@@ -3700,6 +3715,7 @@ class RPGCog(commands.Cog):
     ) -> discord.Embed:
         available = self.service.unlocked_skills(profile)
         special_available = self.service.unlocked_special_skills(profile)
+        passives = self.service.unlocked_passives(profile)
         by_id = {skill.id: skill for skill in available}
         equipped = (
             [by_id[skill_id] for skill_id in selected_skill_ids if skill_id in by_id]
@@ -3709,9 +3725,14 @@ class RPGCog(commands.Cog):
         special_skill = self.service.equipped_special_skill(profile)
         embed = discord.Embed(
             title="어빌리티 장착",
-            description=result.message if result is not None else "사용할 어빌리티와 특수 어빌리티를 선택하면 바로 저장됩니다.",
+            description=(
+                result.message
+                if result is not None
+                else "직업 패시브는 슬롯 없이 자동 적용됩니다. 사용할 어빌리티와 특수 어빌리티를 선택하면 바로 저장됩니다."
+            ),
             color=0xB56BFF,
         )
+        self._add_passive_fields(embed, passives)
         embed.add_field(
             name=f"장착 어빌리티 {len(equipped)}/{MAX_EQUIPPED_SKILLS}",
             value=self._trim("\n".join(self._skill_display_text(skill) for skill in equipped), 1000) if equipped else "없음",
@@ -4570,6 +4591,38 @@ class RPGCog(commands.Cog):
     def _skill_note(self, skill: SkillTemplate) -> str:
         note = skill.note.strip()
         return "" if note in {"", ".", "-"} else note
+
+    def _add_passive_fields(
+        self,
+        embed: discord.Embed,
+        passives: list[PassiveTemplate],
+        *,
+        limit: int = 1000,
+    ) -> None:
+        entries = [
+            f"**{passive.name}** · {passive.description or '자동 적용'}"
+            for passive in passives
+        ]
+        if not entries:
+            embed.add_field(name="직업 패시브 · 자동 적용", value="없음", inline=False)
+            return
+
+        chunks: list[str] = []
+        current = ""
+        for entry in entries:
+            entry = self._trim(entry, limit)
+            candidate = f"{current}\n\n{entry}" if current else entry
+            if current and len(candidate) > limit:
+                chunks.append(current)
+                current = entry
+            else:
+                current = candidate
+        if current:
+            chunks.append(current)
+
+        for index, chunk in enumerate(chunks):
+            name = "직업 패시브 · 자동 적용" if index == 0 else f"직업 패시브 · 계속 {index + 1}"
+            embed.add_field(name=name, value=chunk, inline=False)
 
     def _add_skill_fields(
         self,

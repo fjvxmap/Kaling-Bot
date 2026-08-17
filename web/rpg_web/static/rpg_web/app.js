@@ -424,7 +424,7 @@
           <button class="action-tile" data-nav="explore"><strong>탐색</strong><span>남은 횟수 ${p.daily_unlimited ? "무제한" : number(p.daily_remaining)}</span></button>
           <button class="action-tile" data-nav="boss"><strong>보스</strong><span>${state.bossSession ? `${esc(state.bossSession.boss_name)} 진행 중` : "도전 가능한 보스 확인"}</span></button>
           <button class="action-tile" data-nav="equipment"><strong>장비</strong><span>${equipped.length}/${p.max_equipped_items} 장착 · ${p.inventory.length}개 보유</span></button>
-          <button class="action-tile" data-nav="abilities"><strong>어빌리티</strong><span>${p.equipped_skill_ids.length}/${p.max_equipped_skills} + 특수 ${p.equipped_special_skill_id ? 1 : 0}/1</span></button>
+          <button class="action-tile" data-nav="abilities"><strong>어빌리티</strong><span>패시브 ${(p.unlocked_passive_ids || []).length} · ${p.equipped_skill_ids.length}/${p.max_equipped_skills} + 특수 ${p.equipped_special_skill_id ? 1 : 0}/1</span></button>
           <button class="action-tile" data-nav="enhance"><strong>강화</strong><span>스타포스와 잠재능력</span></button>
           <button class="action-tile" data-nav="gacha"><strong>가챠</strong><span>${state.content.festival ? esc(state.content.festival.name) : "통상 가챠"}</span></button>
         </div>
@@ -530,7 +530,8 @@
     const playerHpPercent = playerHpRatio * 100;
     const playerHpTone = playerHpRatio <= 0.25 ? "danger" : playerHpRatio <= 0.55 ? "warning" : "healthy";
     const bossState = player ? effectText(player.boss_effects, player.boss_stacks) : "없음";
-    const playerState = player ? effectText(player.player_effects, player.player_stacks) : "없음";
+    const playerEffects = player ? effectText(player.player_effects) : "없음";
+    const playerResources = player ? effectText(player.player_stacks) : "없음";
     const battleState = session.completed ? "클리어" : session.failed ? "패배" : session.cancelled ? "취소" : session.started ? `${player?.turn || 1}턴` : "준비";
     return `<div class="boss-combat">
       <div class="boss-title-row boss-hud-head"><div><div class="boss-name-line"><h2>${esc(session.boss_name)}</h2><span class="tag">${esc(session.difficulty_label)}</span>${session.practice ? `<span class="status-pill">연습</span>` : ""}</div><span class="section-copy">Lv.${session.boss_level}${player?.ct !== null && player?.ct !== undefined ? ` · CT ${player.ct}/${player.ct_max}` : ""}</span></div><span class="status-pill ${session.completed ? "success" : session.failed || session.cancelled ? "danger" : "warning"}">${battleState}</span></div>
@@ -545,7 +546,7 @@
           <div class="combat-status-grid">
             <div class="boss-state-strip"><span>보스 상태</span><p>${esc(bossState)}</p>${player.hp_lock ? `<small>${esc(player.hp_lock)}</small>` : ""}</div>
             <div class="omen-panel${player.warning ? " is-active" : ""}"><div class="omen-heading"><strong>전조</strong><span>${player.warning ? "해제 조건 확인" : "없음"}</span></div><p>${esc(player.warning || "현재 발동 중인 전조가 없습니다.")}</p></div>
-            <div class="player-state-block"><span>내 상태</span><p>${esc(playerState)}</p></div>
+            <div class="player-state-block"><span>내 버프/디버프</span><p>${esc(playerEffects)}</p>${playerResources !== "없음" ? `<small>직업 자원</small><p>${esc(playerResources)}</p>` : ""}</div>
           </div>
           <section class="combat-action-section"><div class="combat-primary-actions"><button class="button button-primary combat-command" data-action="boss_attack" data-focus-key="boss.attack" ${player.alive ? "" : "disabled"}>공격</button><button class="button combat-command" data-action="boss_guard" data-focus-key="boss.guard" ${player.alive ? "" : "disabled"}>가드</button></div><button class="button button-quiet combat-leave" data-confirm-action="boss_leave" data-confirm-title="보스전 포기" data-confirm-message="현재 보스전에서 나갑니다. 보상은 받을 수 없습니다.">전투 포기</button></section>
           <section class="combat-abilities hud-abilities"><div class="section-head"><h2>어빌리티</h2><span class="status-pill">${number(session.skills.length)}개</span></div><div class="ability-grid">${session.skills.map((skill) => `<button class="ability-button ${skill.ready ? "is-ready" : "is-cooling"}" data-action="boss_ability" data-skill-id="${esc(skill.id)}" data-focus-key="boss.ability:${esc(skill.id)}" ${skill.ready ? "" : "disabled"}><span class="ability-button-head"><strong>${esc(skill.name)}</strong><span class="ability-state">${esc(skill.state)}</span></span><span class="ability-summary">${esc(skill.summary || "효과 정보 없음")}</span>${skill.note ? `<span class="ability-summary">${esc(skill.note)}</span>` : ""}</button>`).join("") || `<p class="combat-copy">장착 어빌리티 없음</p>`}</div></section>
@@ -645,6 +646,7 @@
     const equipped = new Set(state.profile.equipped_skill_ids);
     const equippedSpecial = state.profile.equipped_special_skill_id;
     const genesisSkill = state.profile.genesis_weapon_skill;
+    const unlockedPassives = new Set(state.profile.unlocked_passive_ids || []);
     const roleLabels = { attack: "공격", buff: "강화", debuff: "약화", heal: "회복", defense: "방어" };
     const roleLabel = (value) => roleLabels[value] || value;
     const available = state.content.skills.filter((skill) => (skill.special ? unlockedSpecial.has(skill.id) : unlocked.has(skill.id)));
@@ -656,9 +658,13 @@
     const specials = visible
       .filter((skill) => skill.special)
       .sort((left, right) => Number(right.id === equippedSpecial) - Number(left.id === equippedSpecial) || left.level - right.level || left.name.localeCompare(right.name, "ko"));
+    const passives = (state.content.passives || [])
+      .filter((passive) => unlockedPassives.has(passive.id) && matches([passive.name, passive.description], query))
+      .sort((left, right) => left.level - right.level || left.name.localeCompare(right.name, "ko"));
     const skillDescription = (skill) => `<span class="skill-copy"><h3>${esc(skill.name)}</h3><p class="skill-effect">${esc(skill.summary || "효과 정보 없음")}</p>${skill.note ? `<p class="skill-note">${esc(skill.note)}</p>` : ""}</span>`;
     return `<div class="page">
-      ${pageHeader("어빌리티", `${equipped.size}/${state.profile.max_equipped_skills} 장착 · 특수 ${equippedSpecial ? "1/1" : "0/1"} · 제네시스 ${genesisSkill?.active ? "활성" : "비활성"}`, `<div class="ability-filters"><input class="input search-input" value="${esc(query)}" placeholder="이름·효과 검색" aria-label="어빌리티 검색" data-filter="abilities.query"><select class="select" aria-label="어빌리티 역할 필터" data-filter="abilities.role"><option value="all">모든 역할</option>${roles.map((value) => `<option value="${esc(value)}" ${role === value ? "selected" : ""}>${esc(roleLabel(value))}</option>`).join("")}</select></div>`)}
+      ${pageHeader("어빌리티", `패시브 ${passives.length}개 · ${equipped.size}/${state.profile.max_equipped_skills} 장착 · 특수 ${equippedSpecial ? "1/1" : "0/1"} · 제네시스 ${genesisSkill?.active ? "활성" : "비활성"}`, `<div class="ability-filters"><input class="input search-input" value="${esc(query)}" placeholder="이름·효과 검색" aria-label="어빌리티 검색" data-filter="abilities.query"><select class="select" aria-label="어빌리티 역할 필터" data-filter="abilities.role"><option value="all">모든 역할</option>${roles.map((value) => `<option value="${esc(value)}" ${role === value ? "selected" : ""}>${esc(roleLabel(value))}</option>`).join("")}</select></div>`)}
+      <section class="section"><div class="section-head"><h2>직업 패시브</h2><span class="status-pill success">슬롯 없이 자동 적용</span></div><div class="skill-list">${passives.map((passive) => `<div class="skill-row skill-row-static is-equipped"><span class="skill-copy"><h3>${esc(passive.name)}</h3><p class="skill-effect">${esc(passive.description || "자동 적용")}</p></span><span class="status-pill success">패시브</span></div>`).join("") || `<p class="section-copy">현재 직업에서 해금된 패시브가 없습니다.</p>`}</div></section>
       <section class="section"><div class="section-head"><h2>제네시스 어빌리티 · 전용 슬롯</h2><span class="status-pill ${genesisSkill?.active ? "success" : genesisSkill?.unlocked ? "warning" : ""}">${genesisSkill?.active ? "활성" : genesisSkill?.unlocked ? "무기 장착 필요" : "2차 해방 필요"}</span></div>${genesisSkill ? `<div class="skill-list"><div class="skill-row skill-row-static${genesisSkill.active ? " is-equipped" : ""}">${skillDescription(genesisSkill)}<span class="status-pill warning">자동 장착</span></div></div>` : `<p class="section-copy">제네시스 어빌리티 데이터가 없습니다.</p>`}</section>
       <section class="section"><div class="section-head"><h2>일반 어빌리티</h2><span class="status-pill">${number(skills.length)}개</span></div><div class="skill-list">${skills.map((skill) => `<label class="skill-row${equipped.has(skill.id) ? " is-equipped" : ""}"><input type="checkbox" data-skill-id="${esc(skill.id)}" ${equipped.has(skill.id) ? "checked" : ""}>${skillDescription(skill)}<span class="status-pill">${esc(roleLabel(skill.role))}</span></label>`).join("") || `<p class="section-copy">조건에 맞는 일반 어빌리티가 없습니다.</p>`}</div></section>
       <section class="section"><div class="section-head"><h2>특수 어빌리티</h2><span class="status-pill">${number(specials.length)}개</span></div><div class="skill-list"><label class="skill-row${equippedSpecial ? "" : " is-equipped"}"><input type="radio" name="special-skill" data-special-skill-id="" ${equippedSpecial ? "" : "checked"}><span class="skill-copy"><h3>장착 안 함</h3><p class="skill-effect">특수 어빌리티 슬롯을 비웁니다.</p></span><span class="status-pill">해제</span></label>${specials.map((skill) => `<label class="skill-row${equippedSpecial === skill.id ? " is-equipped" : ""}"><input type="radio" name="special-skill" data-special-skill-id="${esc(skill.id)}" ${equippedSpecial === skill.id ? "checked" : ""}>${skillDescription(skill)}<span class="status-pill warning">${esc(roleLabel(skill.role))} · 특수</span></label>`).join("")}</div></section>

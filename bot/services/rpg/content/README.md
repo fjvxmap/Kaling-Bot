@@ -13,6 +13,7 @@ RPG 운영 데이터는 이 폴더에서 수정합니다.
 - `materials.json`: 제작 재료 목록
 - `crafting_recipes.json`: 제작법 목록
 - `jobs.json`: 직업/전직 데이터
+- `passives.json`: 직업 체인에 따라 슬롯 없이 자동 적용되는 초기 자원, 조건부 쿨타임, 배수 효율 곡선 데이터
 - `skills.json`: 어빌리티 데이터
 - `stack_effects.json`: 스택형 버프/디버프 정의
 - `dungeons/*.json`: 던전, 몬스터, 탐색 보상
@@ -37,4 +38,4 @@ RPG 운영 데이터는 이 폴더에서 수정합니다.
 
 `life_steal`은 입힌 실제 피해의 비율만큼 회복하는 생명력 흡수 스탯입니다. 생명력 흡수 스탯 효과나 직접 회복 스킬에는 `heal_cap`을 붙일 수 있습니다. 예: `{"mode": "flat", "value": 1000}` 또는 `{"mode": "max_hp_ratio", "value": 0.01}`.
 직업도 장비처럼 `stat_effects`와 `effects`를 가질 수 있으며, 전투 시작 시 현재 직업 체인의 모든 영속 효과가 적용됩니다.
-직업의 `initial_stack_effects`에는 전투 시작 스택 ID와 수량을 지정합니다. `low_hp_cooldown`은 저HP 턴 종료의 직업 어빌리티 추가 쿨타임 감소를 정의하며, `disabled_at_stack_effect_id`/`disabled_at_stacks`로 특정 위험 단계에서 가속을 막을 수 있습니다. 사용 횟수 제한은 이 쿨타임 감소로 복구되지 않습니다.
+패시브는 `job_ids` 중 하나가 현재 직업 체인에 포함되고 `unlock_level`을 만족하면 슬롯 없이 자동 적용됩니다. `initial_stack_effects`는 전투 시작 자원을 만들고, `stack_rules`는 해당 자원의 어빌리티·타격·가드·턴 종료 반응을 정의합니다. `low_hp_cooldown`은 조건부 직업 어빌리티 쿨타임 감소를, `ability_life_steal_cap`은 한 번의 어빌리티 입력으로 회복할 수 있는 최대 HP 비율을, `enmity_curve`는 직업별 기본 배수 효율을 정의합니다. 사용 횟수 제한은 쿨타임 감소로 복구되지 않으며 예전 `jobs.json`의 초기 스택·쿨타임 필드도 하위 호환용으로 계속 읽습니다.

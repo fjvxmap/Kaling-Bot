@@ -518,15 +518,18 @@ class BalanceSimulator:
             player_stats = self.service._stats_with_effects(base_stats, player_effects, player_stack_effects)
             skill_total += expected_damage * max(1, result.activations)
             player_hp = max(0, player_hp - result.self_hp_loss)
-            player_hp = min(
+            life_steal_heal = self.service._life_steal_heal_segments(
+                player_stats,
+                self.service._effects_with_stacks(player_effects, player_stack_effects),
+                result.hit_damages,
                 player_stats.final_hp,
-                player_hp + self.service._life_steal_heal_segments(
-                    player_stats,
-                    self.service._effects_with_stacks(player_effects, player_stack_effects),
-                    result.hit_damages,
-                    player_stats.final_hp,
-                ),
             )
+            life_steal_heal = self.service.cap_ability_life_steal(
+                profile,
+                life_steal_heal,
+                player_stats.final_hp,
+            )
+            player_hp = min(player_stats.final_hp, player_hp + life_steal_heal)
             before_event_max_hp = player_stats.final_hp
             self.service.apply_player_stack_event(
                 player_stack_effects,

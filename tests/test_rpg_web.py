@@ -154,7 +154,20 @@ class RPGWebTests(unittest.TestCase):
         self.assertTrue(result.ok)
 
         bootstrap = self.client.get("/api/bootstrap/").json()
-        self.assertIn("괴력난신", bootstrap["profile"]["job_description"])
+        self.assertIn(
+            "sarasa_kaikiryanshin",
+            bootstrap["profile"]["unlocked_passive_ids"],
+        )
+        passive = next(
+            row
+            for row in bootstrap["content"]["passives"]
+            if row["id"] == "sarasa_kaikiryanshin"
+        )
+        self.assertEqual(passive["name"], "괴력난신")
+        self.assertNotIn(
+            "sarasa_kaikiryanshin",
+            bootstrap["profile"]["equipped_skill_ids"],
+        )
         self.assertIn(
             "sarasa_astro_divergence",
             bootstrap["profile"]["unlocked_special_skill_ids"],
@@ -174,8 +187,12 @@ class RPGWebTests(unittest.TestCase):
         ).json()["ok"])
         started = self.post_action("boss_start").json()
         self.assertTrue(started["ok"])
-        self.assertIn("분노 lv.0/5", started["boss_session"]["participant"]["player_stacks"])
-        self.assertIn("실제 트리플 어택", started["boss_session"]["participant"]["player_stacks"])
+        player_stacks = started["boss_session"]["participant"]["player_stacks"]
+        self.assertIn("분노 lv.0/5", player_stacks)
+        self.assertIn("방어 +8.0%", player_stacks)
+        self.assertIn("견수 +20.0%", player_stacks)
+        self.assertNotIn("실제 트리플 어택", player_stacks)
+        self.assertNotIn("턴 종료", player_stacks)
         special = next(
             skill
             for skill in started["boss_session"]["skills"]
@@ -191,7 +208,9 @@ class RPGWebTests(unittest.TestCase):
         self.assertTrue(switched["ok"])
         player_stacks = switched["boss_session"]["participant"]["player_stacks"]
         self.assertIn("분노 lv.1/5", player_stacks)
-        self.assertIn("검 형태 · 메테오 스러스트", player_stacks)
+        self.assertIn("배수 +4.0%", player_stacks)
+        self.assertIn("스킬 데미지 +4.0%", player_stacks)
+        self.assertNotIn("메테오 스러스트", player_stacks)
 
     def test_genesis_weapon_skill_uses_its_own_web_slot_and_blocks_a_turn(self) -> None:
         service = self.runtime.engine.service

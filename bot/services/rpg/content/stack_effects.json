@@ -1370,8 +1370,9 @@
     "name": "분노",
     "max_stacks": 5,
     "show_at_zero": true,
-    "zero_note": "어빌리티·실제 트리플 어택·HP 35% 이하 생존 턴 종료마다 +1",
-    "description": "괴력난신의 분노다. 어빌리티 사용, 실제 트리플 어택, 살아남은 채 HP 35% 이하로 적의 행동을 넘긴 턴 종료마다 1단계 오른다. 1~3단계는 완만한 이득, 4단계부터는 방어 손실을 동반하며 5단계 격앙에서는 데미지 컷과 저HP 쿨타임 가속까지 잃는다. 환류로 식힐 수 있다.",
+    "show_status_note": false,
+    "zero_note": "",
+    "description": "괴력난신이 다루는 분노다. 어빌리티 사용, 실제 트리플 어택, HP 35% 이하에서 적의 행동을 버틴 턴마다 오르고, 고체력의 턴 종료와 가드로 가라앉는다. 격앙에 이른 채 저체력 턴을 버티면 스스로 진정되며 사라사 어빌리티의 쿨타임을 앞당긴다.",
     "tiers": [
       {
         "stack": 1,
@@ -1379,12 +1380,12 @@
           {
             "stat": "enmity",
             "target": "self",
-            "value": 0.015,
+            "value": 0.01,
             "duration": -1,
             "undispellable": true
           }
         ],
-        "note": "분노",
+        "note": "",
         "stats": {}
       },
       {
@@ -1393,19 +1394,19 @@
           {
             "stat": "enmity",
             "target": "self",
-            "value": 0.03,
+            "value": 0.02,
             "duration": -1,
             "undispellable": true
           },
           {
             "stat": "garrison",
             "target": "self",
-            "value": 0.08,
+            "value": 0.05,
             "duration": -1,
             "undispellable": true
           }
         ],
-        "note": "분노",
+        "note": "",
         "stats": {}
       },
       {
@@ -1414,7 +1415,35 @@
           {
             "stat": "enmity",
             "target": "self",
-            "value": 0.045,
+            "value": 0.03,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "skill_damage",
+            "target": "self",
+            "value": 0.02,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "garrison",
+            "target": "self",
+            "value": 0.1,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "note": "",
+        "stats": {}
+      },
+      {
+        "stack": 4,
+        "stat_effects": [
+          {
+            "stat": "enmity",
+            "target": "self",
+            "value": 0.04,
             "duration": -1,
             "undispellable": true
           },
@@ -1426,30 +1455,37 @@
             "undispellable": true
           },
           {
-            "stat": "garrison",
-            "target": "self",
-            "value": 0.15,
-            "duration": -1,
-            "undispellable": true
-          }
-        ],
-        "note": "분노",
-        "stats": {}
-      },
-      {
-        "stack": 4,
-        "stat_effects": [
-          {
-            "stat": "enmity",
+            "stat": "triple_attack_rate",
             "target": "self",
             "value": 0.06,
             "duration": -1,
             "undispellable": true
           },
           {
-            "stat": "skill_damage",
+            "stat": "defense",
+            "target": "self",
+            "value": -0.08,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "note": "",
+        "stats": {}
+      },
+      {
+        "stack": 5,
+        "stat_effects": [
+          {
+            "stat": "enmity",
             "target": "self",
             "value": 0.05,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "skill_damage",
+            "target": "self",
+            "value": 0.04,
             "duration": -1,
             "undispellable": true
           },
@@ -1463,84 +1499,23 @@
           {
             "stat": "defense",
             "target": "self",
-            "value": -0.08,
-            "duration": -1,
-            "undispellable": true
-          }
-        ],
-        "note": "분노 · 방어 손실 시작",
-        "stats": {}
-      },
-      {
-        "stack": 5,
-        "stat_effects": [
-          {
-            "stat": "enmity",
-            "target": "self",
-            "value": 0.08,
-            "duration": -1,
-            "undispellable": true
-          },
-          {
-            "stat": "skill_damage",
-            "target": "self",
-            "value": 0.07,
-            "duration": -1,
-            "undispellable": true
-          },
-          {
-            "stat": "triple_attack_rate",
-            "target": "self",
-            "value": 0.18,
-            "duration": -1,
-            "undispellable": true
-          },
-          {
-            "stat": "defense",
-            "target": "self",
-            "value": -0.3,
+            "value": -0.2,
             "duration": -1,
             "undispellable": true
           },
           {
             "stat": "damage_cut",
             "target": "self",
-            "value": -0.12,
+            "value": -0.08,
             "duration": -1,
             "undispellable": true
           }
         ],
-        "note": "격앙 · 저HP 쿨타임 가속 중지",
+        "note": "격앙",
         "stats": {}
       }
     ],
-    "conditions": [
-      {
-        "objective": "ability",
-        "target": "self",
-        "operation": "increase",
-        "value": 1,
-        "required": 1,
-        "min_damage": 0
-      },
-      {
-        "objective": "triple_attack",
-        "target": "self",
-        "operation": "increase",
-        "value": 1,
-        "required": 1,
-        "min_damage": 0
-      },
-      {
-        "objective": "turn_end",
-        "target": "self",
-        "operation": "increase",
-        "value": 1,
-        "required": 1,
-        "min_damage": 0,
-        "max_hp_ratio": 0.35
-      }
-    ],
+    "conditions": [],
     "reactions": [],
     "stats": {}
   },
@@ -1548,6 +1523,7 @@
     "id": "sarasa_astral_form",
     "name": "삼인부의 형",
     "max_stacks": 2,
+    "show_status_note": false,
     "description": "아스트로 다이버전스로 전환하는 두 가지 형태다. 전투 시작 시 도끼 형태이며, 사용 후 검과 도끼를 번갈아 전환해 전투 종료까지 유지한다.",
     "tiers": [
       {
@@ -1615,7 +1591,8 @@
     "id": "sarasa_tiger_soul",
     "name": "잔명",
     "max_stacks": 1,
-    "description": "그라운드 제로가 남긴 한 호흡의 여유다. 1턴 동안 견수와 데미지 컷, 제한된 생명력 흡수를 얻지만 피해를 무효화하지는 않는다.",
+    "show_status_note": false,
+    "description": "그라운드 제로가 남긴 한 호흡의 여유다. 1턴 동안 견수와 데미지 컷, 극소량의 생명력 흡수를 얻는다.",
     "tiers": [
       {
         "stack": 1,
@@ -1630,14 +1607,7 @@
           {
             "stat": "life_steal",
             "target": "self",
-            "value": 0.02,
-            "duration": -1,
-            "undispellable": true
-          },
-          {
-            "stat": "life_steal_cap",
-            "target": "self",
-            "value": 0.03,
+            "value": 0.005,
             "duration": -1,
             "undispellable": true
           },
@@ -1649,7 +1619,7 @@
             "undispellable": true
           }
         ],
-        "note": "피해 무효화가 아니다. 회복할 공격을 확보하지 못하면 HP 1 상태에서 그대로 쓰러질 수 있다.",
+        "note": "",
         "stats": {}
       }
     ],
