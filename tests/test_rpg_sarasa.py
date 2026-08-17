@@ -493,6 +493,7 @@ class SarasaJobTests(unittest.TestCase):
             [(stack.template_id, stack.stacks, stack.persistent) for stack in stacks],
             [
                 ("sarasa_fury", 0, True),
+                ("sarasa_kotoryubi", 0, True),
                 ("sarasa_astral_form", 1, True),
             ],
         )
@@ -1129,7 +1130,7 @@ class SarasaJobTests(unittest.TestCase):
         self.assertGreater(low, benchmark * 1.03)
         self.assertLess(low, benchmark * 1.15)
         self.assertGreater(low, high * 1.25)
-        self.assertLess(low, high * 1.45)
+        self.assertLess(low, high * 1.50)
 
     def test_interactive_boss_last_breath_reduces_but_does_not_nullify_counter(self) -> None:
         service = self.service()

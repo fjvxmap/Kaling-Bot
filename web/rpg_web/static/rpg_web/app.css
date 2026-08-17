@@ -929,6 +929,10 @@ summary:focus-visible {
   line-height: 1.5;
 }
 
+.passive-description {
+  white-space: pre-line;
+}
+
 .ability-filters {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(128px, 0.45fr);

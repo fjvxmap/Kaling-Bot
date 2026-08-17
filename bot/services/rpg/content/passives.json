@@ -89,6 +89,45 @@
     }
   },
   {
+    "id": "sarasa_kotoryubi",
+    "name": "호두용미",
+    "unlock_level": 50,
+    "job_ids": [
+      "sarasa_4"
+    ],
+    "description": "HP 35% 이하로 적의 행동을 버티면 호두용미가 활성화되어 트리플 어택 확률 +15%와 추격 5%를 얻는다. HP 35% 초과로 턴을 마치면 해제된다.",
+    "initial_stack_effects": [
+      {
+        "stack_effect_id": "sarasa_kotoryubi",
+        "stacks": 0
+      }
+    ],
+    "stack_rules": [
+      {
+        "stack_effect_id": "sarasa_kotoryubi",
+        "objective": "turn_end",
+        "target": "self",
+        "operation": "set",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0,
+        "max_hp_ratio": 0.35,
+        "max_stacks": 0
+      },
+      {
+        "stack_effect_id": "sarasa_kotoryubi",
+        "objective": "turn_end",
+        "target": "self",
+        "operation": "decrease",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0,
+        "min_hp_ratio": 0.350001,
+        "min_stacks": 1
+      }
+    ]
+  },
+  {
     "id": "sarasa_astral_arms",
     "name": "삼인부의 형",
     "unlock_level": 50,

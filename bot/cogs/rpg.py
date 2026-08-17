@@ -2952,6 +2952,9 @@ class RPGCog(commands.Cog):
                 value=", ".join(f"{job.name}(Lv.{job.level_req})" for job in next_jobs),
                 inline=False,
             )
+        passives = self.service.unlocked_passives(profile)
+        if passives:
+            self._add_passive_fields(embed, passives)
         embed.add_field(
             name="탐색",
             value=f"제한 **{self._explore_limit_text(profile)}**",
@@ -4599,10 +4602,10 @@ class RPGCog(commands.Cog):
         *,
         limit: int = 1000,
     ) -> None:
-        entries = [
-            f"**{passive.name}** · {passive.description or '자동 적용'}"
-            for passive in passives
-        ]
+        entries = []
+        for passive in passives:
+            description = (passive.description or "자동 적용").replace(". ", ".\n")
+            entries.append(f"**{passive.name}** · {description}")
         if not entries:
             embed.add_field(name="직업 패시브 · 자동 적용", value="없음", inline=False)
             return

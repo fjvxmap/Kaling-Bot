@@ -400,11 +400,26 @@
     return `<div class="enhance-outcome is-${tone}" role="status"><span>${title}</span><strong>${esc(detail)}</strong><small>${transaction}잔액 ${number(result.remaining_gold)}G</small></div>`;
   }
 
+  function unlockedPassiveRows(query = "") {
+    const unlocked = new Set(state.profile.unlocked_passive_ids || []);
+    return (state.content.passives || []).filter(
+      (passive) => unlocked.has(passive.id) && matches([passive.name, passive.description], query),
+    );
+  }
+
+  function passiveRows(passives) {
+    return passives.map((passive) => {
+      const description = esc(passive.description || "자동 적용").replaceAll(". ", ".\n");
+      return `<div class="skill-row skill-row-static is-equipped"><span class="skill-copy"><h3>${esc(passive.name)}</h3><p class="skill-effect passive-description">${description}</p></span><span class="status-pill success">패시브</span></div>`;
+    }).join("");
+  }
+
   function renderHome() {
     const p = state.profile;
     const expRatio = clamp(p.exp_progress / Math.max(1, p.exp_required), 0, 1);
     const equipped = p.inventory.filter((item) => item.equipped);
     const materialCount = p.materials.reduce((sum, row) => sum + row.amount, 0);
+    const passives = unlockedPassiveRows();
     return `<div class="page">
       <section class="profile-band">
         <div class="profile-identity">
@@ -417,6 +432,8 @@
         <div class="profile-metric"><span>골드</span><strong>${number(p.gold)}G</strong></div>
         <div class="profile-metric"><span>탐색</span><strong>${p.daily_unlimited ? "∞" : number(p.daily_remaining)}</strong></div>
       </section>
+
+      ${passives.length ? `<section class="section profile-passives"><div class="section-head"><h2>직업 패시브</h2><span class="status-pill success">슬롯 없이 자동 적용</span></div><div class="skill-list">${passiveRows(passives)}</div></section>` : ""}
 
       <section class="section">
         <div class="section-head"><h2>바로가기</h2></div>
@@ -646,7 +663,6 @@
     const equipped = new Set(state.profile.equipped_skill_ids);
     const equippedSpecial = state.profile.equipped_special_skill_id;
     const genesisSkill = state.profile.genesis_weapon_skill;
-    const unlockedPassives = new Set(state.profile.unlocked_passive_ids || []);
     const roleLabels = { attack: "공격", buff: "강화", debuff: "약화", heal: "회복", defense: "방어" };
     const roleLabel = (value) => roleLabels[value] || value;
     const available = state.content.skills.filter((skill) => (skill.special ? unlockedSpecial.has(skill.id) : unlocked.has(skill.id)));
@@ -658,13 +674,12 @@
     const specials = visible
       .filter((skill) => skill.special)
       .sort((left, right) => Number(right.id === equippedSpecial) - Number(left.id === equippedSpecial) || left.level - right.level || left.name.localeCompare(right.name, "ko"));
-    const passives = (state.content.passives || [])
-      .filter((passive) => unlockedPassives.has(passive.id) && matches([passive.name, passive.description], query))
+    const passives = unlockedPassiveRows(query)
       .sort((left, right) => left.level - right.level || left.name.localeCompare(right.name, "ko"));
     const skillDescription = (skill) => `<span class="skill-copy"><h3>${esc(skill.name)}</h3><p class="skill-effect">${esc(skill.summary || "효과 정보 없음")}</p>${skill.note ? `<p class="skill-note">${esc(skill.note)}</p>` : ""}</span>`;
     return `<div class="page">
       ${pageHeader("어빌리티", `패시브 ${passives.length}개 · ${equipped.size}/${state.profile.max_equipped_skills} 장착 · 특수 ${equippedSpecial ? "1/1" : "0/1"} · 제네시스 ${genesisSkill?.active ? "활성" : "비활성"}`, `<div class="ability-filters"><input class="input search-input" value="${esc(query)}" placeholder="이름·효과 검색" aria-label="어빌리티 검색" data-filter="abilities.query"><select class="select" aria-label="어빌리티 역할 필터" data-filter="abilities.role"><option value="all">모든 역할</option>${roles.map((value) => `<option value="${esc(value)}" ${role === value ? "selected" : ""}>${esc(roleLabel(value))}</option>`).join("")}</select></div>`)}
-      <section class="section"><div class="section-head"><h2>직업 패시브</h2><span class="status-pill success">슬롯 없이 자동 적용</span></div><div class="skill-list">${passives.map((passive) => `<div class="skill-row skill-row-static is-equipped"><span class="skill-copy"><h3>${esc(passive.name)}</h3><p class="skill-effect">${esc(passive.description || "자동 적용")}</p></span><span class="status-pill success">패시브</span></div>`).join("") || `<p class="section-copy">현재 직업에서 해금된 패시브가 없습니다.</p>`}</div></section>
+      <section class="section"><div class="section-head"><h2>직업 패시브</h2><span class="status-pill success">슬롯 없이 자동 적용</span></div><div class="skill-list">${passiveRows(passives) || `<p class="section-copy">현재 직업에서 해금된 패시브가 없습니다.</p>`}</div></section>
       <section class="section"><div class="section-head"><h2>제네시스 어빌리티 · 전용 슬롯</h2><span class="status-pill ${genesisSkill?.active ? "success" : genesisSkill?.unlocked ? "warning" : ""}">${genesisSkill?.active ? "활성" : genesisSkill?.unlocked ? "무기 장착 필요" : "2차 해방 필요"}</span></div>${genesisSkill ? `<div class="skill-list"><div class="skill-row skill-row-static${genesisSkill.active ? " is-equipped" : ""}">${skillDescription(genesisSkill)}<span class="status-pill warning">자동 장착</span></div></div>` : `<p class="section-copy">제네시스 어빌리티 데이터가 없습니다.</p>`}</section>
       <section class="section"><div class="section-head"><h2>일반 어빌리티</h2><span class="status-pill">${number(skills.length)}개</span></div><div class="skill-list">${skills.map((skill) => `<label class="skill-row${equipped.has(skill.id) ? " is-equipped" : ""}"><input type="checkbox" data-skill-id="${esc(skill.id)}" ${equipped.has(skill.id) ? "checked" : ""}>${skillDescription(skill)}<span class="status-pill">${esc(roleLabel(skill.role))}</span></label>`).join("") || `<p class="section-copy">조건에 맞는 일반 어빌리티가 없습니다.</p>`}</div></section>
       <section class="section"><div class="section-head"><h2>특수 어빌리티</h2><span class="status-pill">${number(specials.length)}개</span></div><div class="skill-list"><label class="skill-row${equippedSpecial ? "" : " is-equipped"}"><input type="radio" name="special-skill" data-special-skill-id="" ${equippedSpecial ? "" : "checked"}><span class="skill-copy"><h3>장착 안 함</h3><p class="skill-effect">특수 어빌리티 슬롯을 비웁니다.</p></span><span class="status-pill">해제</span></label>${specials.map((skill) => `<label class="skill-row${equippedSpecial === skill.id ? " is-equipped" : ""}"><input type="radio" name="special-skill" data-special-skill-id="${esc(skill.id)}" ${equippedSpecial === skill.id ? "checked" : ""}>${skillDescription(skill)}<span class="status-pill warning">${esc(roleLabel(skill.role))} · 특수</span></label>`).join("")}</div></section>

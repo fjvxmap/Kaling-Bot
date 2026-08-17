@@ -76,7 +76,7 @@ class JobPassiveTests(unittest.TestCase):
             ],
         )
         self.assertEqual(len(profile.equipped_skill_ids), 5)
-        self.assertEqual(len(service.unlocked_passives(profile)), 2)
+        self.assertEqual(len(service.unlocked_passives(profile)), 3)
 
     def test_passive_seeds_fury_alongside_legacy_job_stack(self) -> None:
         service = self.service()
@@ -90,7 +90,65 @@ class JobPassiveTests(unittest.TestCase):
         }
 
         self.assertEqual(stacks["sarasa_fury"], 0)
+        self.assertEqual(stacks["sarasa_kotoryubi"], 0)
         self.assertEqual(stacks["sarasa_astral_form"], 1)
+
+    def test_low_hp_survival_activates_visible_offensive_passive(self) -> None:
+        service = self.service()
+        profile = service.get_profile(23, "LowHpPassive")
+        profile.level = 50
+        profile.job_id = "sarasa_4"
+        stacks = service.initial_player_stack_effects(profile)
+
+        service.apply_player_turn_end(
+            profile,
+            stacks,
+            [],
+            current_hp=350,
+            max_hp=1_000,
+        )
+
+        self.assertEqual(service._active_stack_count(stacks, "sarasa_kotoryubi"), 1)
+        stats = service._stats_with_effects(service.profile_stats(profile), [], stacks)
+        self.assertAlmostEqual(stats.triple_attack_rate - service.profile_stats(profile).triple_attack_rate, 0.15)
+        effects = service._effects_with_stacks([], stacks)
+        self.assertAlmostEqual(
+            sum(
+                bonus.ratio
+                for effect in effects
+                for bonus in effect.special.bonus_damage
+            ),
+            0.05,
+        )
+
+        cog = RPGCog.__new__(RPGCog)
+        cog.service = service
+        status = cog._stack_effects_text(stacks)
+        self.assertIn("호두용미 lv.1/1", status)
+        self.assertIn("트리플 어택 확률 +15.0%", status)
+        self.assertIn("추격 5%", status)
+
+        service.apply_player_turn_end(
+            profile,
+            stacks,
+            [],
+            current_hp=351,
+            max_hp=1_000,
+        )
+        self.assertEqual(service._active_stack_count(stacks, "sarasa_kotoryubi"), 0)
+
+        service.apply_player_turn_end(
+            profile,
+            stacks,
+            [],
+            current_hp=0,
+            max_hp=1_000,
+        )
+        self.assertEqual(
+            service._active_stack_count(stacks, "sarasa_kotoryubi"),
+            0,
+            "사망한 턴에는 저체력 생존 패시브가 발동하면 안 된다",
+        )
 
     def test_passive_owns_fury_rules_and_per_ability_life_steal_cap(self) -> None:
         service = self.service()
@@ -233,6 +291,14 @@ class JobPassiveTests(unittest.TestCase):
         self.assertNotIn("괴력난신", equipped_field.value)
         self.assertTrue(all(len(field.value) <= 1024 for field in embed.fields))
 
+        profile_embed = cog._profile_embed(profile)
+        profile_passives = "\n".join(
+            field.value for field in profile_embed.fields if field.name.startswith("직업 패시브")
+        )
+        self.assertIn("괴력난신", profile_passives)
+        self.assertIn("호두용미", profile_passives)
+        self.assertIn("가드하면 즉시 2단계", profile_passives)
+
 
 class JobPassiveWebTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -300,3 +366,6 @@ class JobPassiveWebTests(unittest.TestCase):
         self.assertIn("<h2>직업 패시브</h2>", app_source)
         self.assertIn("슬롯 없이 자동 적용", app_source)
         self.assertIn("state.profile.unlocked_passive_ids", app_source)
+        self.assertIn("function unlockedPassiveRows", app_source)
+        self.assertIn("profile-passives", app_source)
+        self.assertIn("passiveRows(passives)", app_source)
