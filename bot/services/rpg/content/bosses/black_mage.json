@@ -73,7 +73,8 @@
             "stack_effect_id": "black_mage_creation_curse",
             "value": 1,
             "duration": 4,
-            "count": 1
+            "count": 1,
+            "repeat_on_recast": true
           }
         ],
         "stats": {},
@@ -106,7 +107,8 @@
             "stack_effect_id": "black_mage_destruction_curse",
             "value": 1,
             "duration": 4,
-            "count": 1
+            "count": 1,
+            "repeat_on_recast": true
           }
         ],
         "stats": {},
@@ -143,7 +145,8 @@
             "stack_effect_id": "black_mage_creation_curse",
             "value": 1,
             "duration": 4,
-            "count": 1
+            "count": 1,
+            "repeat_on_recast": true
           }
         ],
         "stats": {},
@@ -176,7 +179,8 @@
             "stack_effect_id": "black_mage_destruction_curse",
             "value": 1,
             "duration": 4,
-            "count": 1
+            "count": 1,
+            "repeat_on_recast": true
           }
         ],
         "stats": {},
@@ -214,7 +218,8 @@
             "stack_effect_id": "black_mage_destruction_curse",
             "value": 1,
             "duration": 4,
-            "count": 1
+            "count": 1,
+            "repeat_on_recast": true
           }
         ],
         "stats": {},
@@ -247,7 +252,8 @@
             "stack_effect_id": "black_mage_creation_curse",
             "value": 1,
             "duration": 4,
-            "count": 1
+            "count": 1,
+            "repeat_on_recast": true
           }
         ],
         "stats": {},
@@ -323,7 +329,8 @@
             "stack_effect_id": "black_mage_creation_curse",
             "value": 1,
             "duration": 4,
-            "count": 1
+            "count": 1,
+            "repeat_on_recast": true
           }
         ],
         "stats": {},
@@ -356,7 +363,8 @@
             "stack_effect_id": "black_mage_destruction_curse",
             "value": 1,
             "duration": 4,
-            "count": 1
+            "count": 1,
+            "repeat_on_recast": true
           }
         ],
         "stats": {},
@@ -393,7 +401,8 @@
             "stack_effect_id": "black_mage_destruction_curse",
             "value": 1,
             "duration": 4,
-            "count": 1
+            "count": 1,
+            "repeat_on_recast": true
           }
         ],
         "stats": {},
@@ -431,7 +440,8 @@
             "stack_effect_id": "black_mage_destruction_curse",
             "value": 1,
             "duration": 4,
-            "count": 1
+            "count": 1,
+            "repeat_on_recast": true
           }
         ],
         "stats": {},
@@ -464,7 +474,8 @@
             "stack_effect_id": "black_mage_creation_curse",
             "value": 1,
             "duration": 4,
-            "count": 1
+            "count": 1,
+            "repeat_on_recast": true
           }
         ],
         "stats": {},
@@ -668,7 +679,7 @@
           {
             "kind": "boss_hp_ratio",
             "min_ratio": 0.501,
-            "max_ratio": 1.0
+            "max_ratio": 1
           }
         ]
       },
@@ -870,7 +881,7 @@
           },
           {
             "kind": "boss_hp_ratio",
-            "min_ratio": 0.0,
+            "min_ratio": 0,
             "max_ratio": 0.25
           }
         ]
@@ -911,7 +922,11 @@
         }
       ]
     },
-    "name": "검은 마법사"
+    "name": "검은 마법사",
+    "pattern_damage_multiplier": 1.0,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.0,
+    "description": ""
   },
   "description": "\"오너라, 너희의 모든 것을 걸고.\"",
   "sort_order": 16,

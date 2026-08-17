@@ -577,7 +577,11 @@
         }
       ]
     },
-    "name": "스우"
+    "name": "스우",
+    "pattern_damage_multiplier": 1.0,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.0,
+    "description": ""
   },
   "description": "\"침입자를 확인했습니다. 목표, 제거하겠습니다.\"",
   "sort_order": 10,
@@ -606,7 +610,8 @@
             "count": 1,
             "stack_effect_id": "annihilation",
             "value": 1,
-            "duration": -1
+            "duration": -1,
+            "repeat_on_recast": true
           }
         ],
         "duration": 0,

@@ -29,7 +29,8 @@
             "count": 1,
             "stack_effect_id": "opened_eyes",
             "value": 1,
-            "duration": -1
+            "duration": -1,
+            "repeat_on_recast": true
           }
         ],
         "duration": 0,
@@ -57,7 +58,8 @@
             "count": 1,
             "stack_effect_id": "opened_eyes",
             "value": 1,
-            "duration": -1
+            "duration": -1,
+            "repeat_on_recast": true
           }
         ],
         "duration": 0,
@@ -97,7 +99,8 @@
             "count": 1,
             "stack_effect_id": "opened_eyes",
             "value": 1,
-            "duration": -1
+            "duration": -1,
+            "repeat_on_recast": true
           }
         ]
       },
@@ -136,7 +139,8 @@
             "count": 1,
             "stack_effect_id": "opened_eyes",
             "value": 1,
-            "duration": -1
+            "duration": -1,
+            "repeat_on_recast": true
           }
         ],
         "duration": 0,
@@ -238,7 +242,7 @@
         ],
         "turns": 2,
         "pattern": {
-          "damage_multiplier": 1.0,
+          "damage_multiplier": 1,
           "effect_actions": [
             {
               "action": "stack_max",
@@ -298,7 +302,11 @@
         }
       ]
     },
-    "name": "더스크"
+    "name": "더스크",
+    "pattern_damage_multiplier": 1.0,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.0,
+    "description": ""
   },
   "description": "\"심연...\"",
   "sort_order": 13,

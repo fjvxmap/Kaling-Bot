@@ -31,7 +31,8 @@
             "stack_effect_id": "verus_hilla_red_thread",
             "value": 1,
             "count": 1,
-            "duration": -1
+            "duration": -1,
+            "repeat_on_recast": true
           }
         ]
       },
@@ -134,7 +135,8 @@
             "stack_effect_id": "verus_hilla_red_thread",
             "value": 1,
             "count": 1,
-            "duration": -1
+            "duration": -1,
+            "repeat_on_recast": true
           }
         ],
         "player_effects": {
@@ -195,7 +197,8 @@
             "value_from_stack_effect_id": "verus_hilla_red_thread",
             "value_from_target": "self",
             "count": 1,
-            "duration": -1
+            "duration": -1,
+            "repeat_on_recast": true
           },
           {
             "action": "stack_remove",
@@ -203,7 +206,8 @@
             "stack_effect_id": "verus_hilla_red_thread",
             "value": 1,
             "count": 1,
-            "duration": -1
+            "duration": -1,
+            "repeat_on_recast": true
           }
         ]
       },
@@ -472,7 +476,7 @@
             "compare_stack_effect_id": "verus_hilla_skulls_hard",
             "compare_target": "boss",
             "operator": "majority",
-            "multiplier": 1.0,
+            "multiplier": 1,
             "offset": 0
           },
           {
@@ -590,7 +594,11 @@
         }
       ]
     },
-    "name": "진 힐라"
+    "name": "진 힐라",
+    "pattern_damage_multiplier": 1.0,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.0,
+    "description": ""
   },
   "description": "\"더욱 깊은 늪에 빠진 채 영원을 헤매는 것, 그게 바로 네 운명의 끝이야.\"",
   "sort_order": 14,

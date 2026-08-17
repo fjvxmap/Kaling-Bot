@@ -278,7 +278,11 @@
         }
       ]
     },
-    "name": "가디언 엔젤 슬라임"
+    "name": "가디언 엔젤 슬라임",
+    "pattern_damage_multiplier": 1.0,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.0,
+    "description": ""
   },
   "description": "감히 슬라임의 귀여움을 평가하려 한 그대에게 자격을 묻겠노라!",
   "sort_order": 9,

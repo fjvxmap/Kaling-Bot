@@ -15,69 +15,76 @@
     ],
     "stack_rules": [
       {
-        "stack_effect_id": "sarasa_fury",
         "objective": "ability",
         "target": "self",
         "operation": "increase",
         "value": 1,
         "required": 1,
-        "min_damage": 0
+        "min_damage": 0,
+        "stack_effect_id": "sarasa_fury"
       },
       {
-        "stack_effect_id": "sarasa_fury",
         "objective": "triple_attack",
         "target": "self",
         "operation": "increase",
         "value": 1,
         "required": 1,
-        "min_damage": 0
+        "min_damage": 0,
+        "stack_effect_id": "sarasa_fury"
       },
       {
-        "stack_effect_id": "sarasa_fury",
         "objective": "guard",
         "target": "self",
         "operation": "decrease",
         "value": 2,
         "required": 1,
-        "min_damage": 0
+        "min_damage": 0,
+        "stack_effect_id": "sarasa_fury"
       },
       {
-        "stack_effect_id": "sarasa_fury",
         "objective": "turn_end",
         "target": "self",
         "operation": "increase",
         "value": 1,
         "required": 1,
         "min_damage": 0,
+        "min_hp_ratio": 0.0,
         "max_hp_ratio": 0.35,
-        "max_stacks": 4
+        "min_stacks": 0,
+        "max_stacks": 4,
+        "stack_effect_id": "sarasa_fury"
       },
       {
-        "stack_effect_id": "sarasa_fury",
         "objective": "turn_end",
         "target": "self",
         "operation": "set",
         "value": 2,
         "required": 1,
         "min_damage": 0,
+        "min_hp_ratio": 0.0,
         "max_hp_ratio": 0.35,
-        "min_stacks": 5
+        "min_stacks": 5,
+        "max_stacks": -1,
+        "stack_effect_id": "sarasa_fury"
       },
       {
-        "stack_effect_id": "sarasa_fury",
         "objective": "turn_end",
         "target": "self",
         "operation": "decrease",
         "value": 1,
         "required": 1,
         "min_damage": 0,
-        "min_hp_ratio": 0.350001
+        "min_hp_ratio": 0.350001,
+        "max_hp_ratio": 1.0,
+        "stack_effect_id": "sarasa_fury"
       }
     ],
     "ability_life_steal_cap": 0.05,
     "low_hp_cooldown": {
       "max_hp_ratio": 0.35,
       "reduction": 1,
+      "disabled_at_stack_effect_id": "",
+      "disabled_at_stacks": -1,
       "trigger_stack_effect_id": "sarasa_fury",
       "trigger_stacks": 5
     },
@@ -104,18 +111,19 @@
     ],
     "stack_rules": [
       {
-        "stack_effect_id": "sarasa_kotoryubi",
         "objective": "turn_end",
         "target": "self",
         "operation": "set",
         "value": 1,
         "required": 1,
         "min_damage": 0,
+        "min_hp_ratio": 0.0,
         "max_hp_ratio": 0.35,
-        "max_stacks": 0
+        "min_stacks": 0,
+        "max_stacks": 0,
+        "stack_effect_id": "sarasa_kotoryubi"
       },
       {
-        "stack_effect_id": "sarasa_kotoryubi",
         "objective": "turn_end",
         "target": "self",
         "operation": "decrease",
@@ -123,7 +131,10 @@
         "required": 1,
         "min_damage": 0,
         "min_hp_ratio": 0.350001,
-        "min_stacks": 1
+        "max_hp_ratio": 1.0,
+        "min_stacks": 1,
+        "max_stacks": -1,
+        "stack_effect_id": "sarasa_kotoryubi"
       }
     ]
   },
@@ -140,6 +151,7 @@
         "stack_effect_id": "sarasa_astral_form",
         "stacks": 1
       }
-    ]
+    ],
+    "stack_rules": []
   }
 ]

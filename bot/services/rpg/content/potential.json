@@ -164,6 +164,44 @@
       }
     },
     {
+      "id": "potential_damage_cut",
+      "name": "피격 데미지 감소",
+      "stat": "damage_cut",
+      "values": {
+        "normal": 0.0025,
+        "rare": 0.005,
+        "epic": 0.0075,
+        "unique": 0.0125,
+        "legendary": 0.02
+      },
+      "weights": {
+        "normal": 12.0,
+        "rare": 12.0,
+        "epic": 11.0,
+        "unique": 10.0,
+        "legendary": 9.0
+      }
+    },
+    {
+      "id": "potential_dmg_mitigation",
+      "name": "고정 피격 데미지 감소",
+      "stat": "dmg_mitigation",
+      "values": {
+        "normal": 0.5,
+        "rare": 0.75,
+        "epic": 1.0,
+        "unique": 2.0,
+        "legendary": 3.0
+      },
+      "weights": {
+        "normal": 12.0,
+        "rare": 12.0,
+        "epic": 11.0,
+        "unique": 10.0,
+        "legendary": 9.0
+      }
+    },
+    {
       "id": "potential_damage_amplification",
       "name": "데미지 증가",
       "stat": "dmg_amplification",
@@ -335,63 +373,6 @@
       }
     },
     {
-      "id": "potential_healing_bonus",
-      "name": "회복량 증가",
-      "stat": "healing_bonus",
-      "values": {
-        "normal": 0.02,
-        "rare": 0.025,
-        "epic": 0.04,
-        "unique": 0.06,
-        "legendary": 0.09
-      },
-      "weights": {
-        "normal": 7.0,
-        "rare": 7.0,
-        "epic": 7.0,
-        "unique": 6.0,
-        "legendary": 5.0
-      }
-    },
-    {
-      "id": "potential_damage_cut",
-      "name": "피격 데미지 감소",
-      "stat": "damage_cut",
-      "values": {
-        "normal": 0.0025,
-        "rare": 0.005,
-        "epic": 0.0075,
-        "unique": 0.0125,
-        "legendary": 0.02
-      },
-      "weights": {
-        "normal": 12.0,
-        "rare": 12.0,
-        "epic": 11.0,
-        "unique": 10.0,
-        "legendary": 9.0
-      }
-    },
-    {
-      "id": "potential_dmg_mitigation",
-      "name": "고정 피격 데미지 감소",
-      "stat": "dmg_mitigation",
-      "values": {
-        "normal": 0.5,
-        "rare": 0.75,
-        "epic": 1.0,
-        "unique": 2.0,
-        "legendary": 3.0
-      },
-      "weights": {
-        "normal": 12.0,
-        "rare": 12.0,
-        "epic": 11.0,
-        "unique": 10.0,
-        "legendary": 9.0
-      }
-    },
-    {
       "id": "potential_life_steal_cap",
       "name": "생명력 흡수 회복 상한",
       "stat": "life_steal_cap",
@@ -408,6 +389,25 @@
         "epic": 8.0,
         "unique": 7.0,
         "legendary": 6.0
+      }
+    },
+    {
+      "id": "potential_healing_bonus",
+      "name": "회복량 증가",
+      "stat": "healing_bonus",
+      "values": {
+        "normal": 0.02,
+        "rare": 0.025,
+        "epic": 0.04,
+        "unique": 0.06,
+        "legendary": 0.09
+      },
+      "weights": {
+        "normal": 7.0,
+        "rare": 7.0,
+        "epic": 7.0,
+        "unique": 6.0,
+        "legendary": 5.0
       }
     },
     {

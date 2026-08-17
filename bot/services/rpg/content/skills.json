@@ -908,7 +908,8 @@
       {
         "action": "dispel",
         "target": "enemy",
-        "count": 2
+        "count": 2,
+        "repeat_on_recast": true
       }
     ],
     "job_ids": [
@@ -1920,12 +1921,14 @@
       {
         "action": "dispel",
         "target": "enemy",
-        "count": 3
+        "count": 3,
+        "repeat_on_recast": true
       },
       {
         "action": "clear_all",
         "target": "allies",
-        "count": 1
+        "count": 1,
+        "repeat_on_recast": true
       }
     ],
     "job_ids": [
@@ -2434,7 +2437,8 @@
       {
         "action": "dispel",
         "target": "enemy",
-        "count": 1
+        "count": 1,
+        "repeat_on_recast": true
       }
     ],
     "job_ids": [],
@@ -2479,7 +2483,8 @@
       {
         "action": "clear_all",
         "target": "allies",
-        "count": 1
+        "count": 1,
+        "repeat_on_recast": true
       }
     ],
     "job_ids": [],
@@ -2749,7 +2754,8 @@
       {
         "action": "dispel",
         "target": "enemy",
-        "count": 1
+        "count": 1,
+        "repeat_on_recast": true
       }
     ],
     "job_ids": [
@@ -2802,7 +2808,9 @@
         "max_hp_ratio": 0.35,
         "damage_multiplier": 0.91,
         "hits": 4,
-        "note": "HP 35% 이하에서는 균열이 갈라져 4회 공격으로 변한다."
+        "note": "HP 35% 이하에서는 균열이 갈라져 4회 공격으로 변한다.",
+        "player_mods": {},
+        "enemy_mods": {}
       }
     ],
     "heal_power": 0,
@@ -2833,17 +2841,17 @@
     },
     "player_stat_effects": [
       {
-        "stat": "enmity",
-        "target": "self",
-        "value": 0.04,
-        "duration": 2,
-        "undispellable": false
-      },
-      {
         "stat": "garrison",
         "target": "self",
         "value": 0.22,
         "duration": 3,
+        "undispellable": false
+      },
+      {
+        "stat": "enmity",
+        "target": "self",
+        "value": 0.04,
+        "duration": 2,
         "undispellable": false
       }
     ],
@@ -2852,21 +2860,23 @@
         "max_hp_ratio": 0.35,
         "player_stat_effects": [
           {
-            "stat": "enmity",
-            "target": "self",
-            "value": 0.02,
-            "duration": 2,
-            "undispellable": false
-          },
-          {
             "stat": "garrison",
             "target": "self",
             "value": 0.12,
             "duration": 3,
             "undispellable": false
+          },
+          {
+            "stat": "enmity",
+            "target": "self",
+            "value": 0.02,
+            "duration": 2,
+            "undispellable": false
           }
         ],
-        "note": "비용 지불 후 HP 35% 이하라면 배수와 견수가 한층 강해진다."
+        "note": "비용 지불 후 HP 35% 이하라면 배수와 견수가 한층 강해진다.",
+        "player_mods": {},
+        "enemy_mods": {}
       }
     ],
     "heal_power": 0,
@@ -2895,7 +2905,9 @@
         "max_hp_ratio": 0.35,
         "damage_multiplier": 0.75,
         "hits": 7,
-        "note": "HP 35% 이하에서는 빈틈을 끝까지 파고들어 7회 공격으로 변한다."
+        "note": "HP 35% 이하에서는 빈틈을 끝까지 파고들어 7회 공격으로 변한다.",
+        "player_mods": {},
+        "enemy_mods": {}
       }
     ],
     "heal_power": 0,
@@ -2923,7 +2935,7 @@
       {
         "stat": "garrison",
         "target": "self",
-        "value": 0.18,
+        "value": 0.6,
         "duration": 2,
         "undispellable": false
       },
@@ -2941,7 +2953,9 @@
         "target": "self",
         "stack_effect_id": "sarasa_fury",
         "value": 3,
-        "repeat_on_recast": false
+        "repeat_on_recast": false,
+        "duration": -1,
+        "count": 1
       }
     ],
     "hp_variants": [
@@ -2949,16 +2963,16 @@
         "max_hp_ratio": 0.35,
         "player_stat_effects": [
           {
-            "stat": "damage_cut",
+            "stat": "garrison",
             "target": "self",
-            "value": 0.1,
+            "value": 0.12,
             "duration": 2,
             "undispellable": false
           },
           {
-            "stat": "garrison",
+            "stat": "damage_cut",
             "target": "self",
-            "value": 0.12,
+            "value": 0.1,
             "duration": 2,
             "undispellable": false
           }
@@ -2969,10 +2983,14 @@
             "target": "self",
             "stack_effect_id": "sarasa_fury",
             "value": 1,
-            "repeat_on_recast": false
+            "repeat_on_recast": false,
+            "count": 1,
+            "duration": -1
           }
         ],
-        "note": "HP 35% 이하에서는 견수와 차단이 강화되고 분노를 1단계 더 식힌다."
+        "note": "HP 35% 이하에서는 견수와 차단이 강화되고 분노를 1단계 더 식힌다.",
+        "player_mods": {},
+        "enemy_mods": {}
       }
     ],
     "heal_power": 0,
@@ -3000,14 +3018,14 @@
       {
         "stat": "enmity",
         "target": "self",
-        "value": 0.05,
+        "value": 0.75,
         "duration": 1,
         "undispellable": false
       },
       {
         "stat": "damage_cut",
         "target": "self",
-        "value": 0.18,
+        "value": 0.2,
         "duration": 2,
         "undispellable": false
       }
@@ -3016,6 +3034,13 @@
       {
         "max_hp_ratio": 0.35,
         "player_stat_effects": [
+          {
+            "stat": "garrison",
+            "target": "self",
+            "value": 0.12,
+            "duration": 2,
+            "undispellable": false
+          },
           {
             "stat": "enmity",
             "target": "self",
@@ -3029,16 +3054,11 @@
             "value": 0.1,
             "duration": 2,
             "undispellable": false
-          },
-          {
-            "stat": "garrison",
-            "target": "self",
-            "value": 0.12,
-            "duration": 2,
-            "undispellable": false
           }
         ],
-        "note": "HP 35% 이하에서는 배수, 데미지 컷, 견수가 함께 강화된다."
+        "note": "HP 35% 이하에서는 배수, 데미지 컷, 견수가 함께 강화된다.",
+        "player_mods": {},
+        "enemy_mods": {}
       }
     ],
     "heal_power": 0,
@@ -3066,7 +3086,7 @@
       {
         "stat": "enmity",
         "target": "self",
-        "value": 0.04,
+        "value": 0.9,
         "duration": 1,
         "undispellable": false
       }
@@ -3076,7 +3096,9 @@
         "max_hp_ratio": 0.35,
         "damage_multiplier": 1.36,
         "hits": 5,
-        "note": "HP 35% 이하에서는 5회 공격으로 변하고 총 피해가 강화된다."
+        "note": "HP 35% 이하에서는 5회 공격으로 변하고 총 피해가 강화된다.",
+        "player_mods": {},
+        "enemy_mods": {}
       }
     ],
     "heal_power": 0,
@@ -3122,7 +3144,9 @@
             }
           ]
         },
-        "note": "HP 35% 이하에서는 이번 턴 최종 데미지가 증가한다."
+        "note": "HP 35% 이하에서는 이번 턴 최종 데미지가 증가한다.",
+        "player_mods": {},
+        "enemy_mods": {}
       }
     ],
     "heal_power": 0,
@@ -3157,7 +3181,10 @@
         "action": "stack_max",
         "target": "self",
         "stack_effect_id": "sarasa_tiger_soul",
-        "duration": 1
+        "duration": 3,
+        "repeat_on_recast": true,
+        "value": 1,
+        "count": 1
       }
     ],
     "heal_power": 0,
@@ -3185,7 +3212,7 @@
       {
         "stat": "enmity",
         "target": "self",
-        "value": 0.03,
+        "value": 1.2,
         "duration": 1,
         "undispellable": true
       },
@@ -3220,7 +3247,9 @@
             }
           ]
         },
-        "note": "HP 35% 이하에서는 이번 턴 최종 데미지가 추가로 증가한다."
+        "note": "HP 35% 이하에서는 이번 턴 최종 데미지가 추가로 증가한다.",
+        "player_mods": {},
+        "enemy_mods": {}
       }
     ],
     "heal_power": 0,
@@ -3256,7 +3285,9 @@
         "target": "self",
         "stack_effect_id": "sarasa_astral_form",
         "duration": -1,
-        "repeat_on_recast": false
+        "repeat_on_recast": false,
+        "value": 1,
+        "count": 1
       }
     ],
     "heal_power": 0,

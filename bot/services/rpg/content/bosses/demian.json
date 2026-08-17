@@ -106,7 +106,8 @@
             "count": 1,
             "stack_effect_id": "demian_stigma",
             "value": 1,
-            "duration": -1
+            "duration": -1,
+            "repeat_on_recast": true
           }
         ],
         "duration": 0,
@@ -144,7 +145,8 @@
                 "count": 1,
                 "stack_effect_id": "demian_stigma",
                 "value": 1,
-                "duration": -1
+                "duration": -1,
+                "repeat_on_recast": true
               }
             ],
             "duration": 0,
@@ -259,7 +261,8 @@
             "count": 1,
             "stack_effect_id": "demian_stigma",
             "value": 7,
-            "duration": -1
+            "duration": -1,
+            "repeat_on_recast": true
           }
         ],
         "duration": 0,
@@ -618,7 +621,11 @@
         }
       ]
     },
-    "name": "데미안"
+    "name": "데미안",
+    "pattern_damage_multiplier": 1.0,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.0,
+    "description": ""
   },
   "description": "\"지옥을 보여주마.\"",
   "sort_order": 11,
@@ -652,7 +659,8 @@
             "count": 1,
             "stack_effect_id": "demian_stigma",
             "value": 7,
-            "duration": -1
+            "duration": -1,
+            "repeat_on_recast": true
           }
         ],
         "duration": 0,

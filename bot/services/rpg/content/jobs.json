@@ -449,8 +449,8 @@
     "stats": {
       "base_atk": 15,
       "hp_bonus": 0.12,
-      "enmity": 0.03,
       "defense": 0.05,
+      "enmity": 0.03,
       "skill_dmg_supplement": 10,
       "life_steal": 0.002
     },
@@ -459,15 +459,15 @@
   },
   {
     "id": "sarasa_2",
-    "name": "삼인부",
+    "name": "사라사",
     "tier": 3,
     "level_req": 10,
     "parent_id": "sarasa_1",
     "stats": {
       "base_atk": 28,
       "hp_bonus": 0.18,
-      "enmity": 0.04,
       "defense": 0.1,
+      "enmity": 0.04,
       "skill_dmg_supplement": 25,
       "life_steal": 0.003
     },
@@ -476,15 +476,15 @@
   },
   {
     "id": "sarasa_3",
-    "name": "괴력난신",
+    "name": "사라사",
     "tier": 4,
     "level_req": 25,
     "parent_id": "sarasa_2",
     "stats": {
       "base_atk": 30,
       "hp_bonus": 0.22,
-      "enmity": 0.05,
       "defense": 0.12,
+      "enmity": 0.05,
       "skill_damage": 0.03,
       "skill_dmg_supplement": 30,
       "life_steal": 0.004
@@ -494,15 +494,15 @@
   },
   {
     "id": "sarasa_4",
-    "name": "십천중 사라사",
+    "name": "사라사",
     "tier": 5,
     "level_req": 50,
     "parent_id": "sarasa_3",
     "stats": {
       "base_atk": 30,
       "hp_bonus": 0.28,
-      "enmity": 0.05,
       "defense": 0.15,
+      "enmity": 0.05,
       "skill_damage": 0.05,
       "skill_dmg_supplement": 30,
       "life_steal": 0.005

@@ -49,7 +49,8 @@
           {
             "action": "dispel",
             "target": "enemy",
-            "count": 3
+            "count": 3,
+            "repeat_on_recast": true
           }
         ],
         "duration": 0,
@@ -391,7 +392,7 @@
       "max_hp": 140000,
       "defense": 0.65,
       "triple_attack_rate": 0.55,
-      "double_attack_rate": 0.0
+      "double_attack_rate": 0
     },
     "stack_effect_id_overrides": {
       "evangelists_blade": "evangelists_blade_hard"
@@ -405,7 +406,7 @@
     "hp_effects": [
       {
         "thresholds": [
-          1.0
+          1
         ],
         "pattern": {
           "id": "lucilius_hard_opener",
@@ -641,7 +642,11 @@
         }
       ]
     },
-    "name": "루시퍼"
+    "name": "루시퍼",
+    "pattern_damage_multiplier": 1.0,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.0,
+    "description": ""
   },
   "description": ".",
   "sort_order": 30,
@@ -677,7 +682,8 @@
             "count": 1,
             "stack_effect_id": "evangelists_blade",
             "value": 1,
-            "duration": -1
+            "duration": -1,
+            "repeat_on_recast": true
           }
         ]
       }

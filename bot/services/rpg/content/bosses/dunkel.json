@@ -202,7 +202,7 @@
     "stats": {
       "base_atk": 40,
       "max_hp": 80000,
-      "defense": 1.0
+      "defense": 1
     },
     "stack_effects": [
       {
@@ -371,7 +371,11 @@
         }
       ]
     },
-    "name": "듄켈"
+    "name": "듄켈",
+    "pattern_damage_multiplier": 1.0,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.0,
+    "description": ""
   },
   "description": "\"위대하신 그 분을 위하여.\"",
   "sort_order": 15,

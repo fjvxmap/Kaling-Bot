@@ -136,7 +136,8 @@
                 "count": 1,
                 "stack_effect_id": "adversary_determination",
                 "value": 3,
-                "duration": -1
+                "duration": -1,
+                "repeat_on_recast": true
               }
             ],
             "duration": 0,
@@ -171,7 +172,8 @@
                 "count": 1,
                 "stack_effect_id": "adversary_determination",
                 "value": 3,
-                "duration": -1
+                "duration": -1,
+                "repeat_on_recast": true
               }
             ],
             "duration": 0,
@@ -309,7 +311,8 @@
                 "count": 1,
                 "stack_effect_id": "adversary_determination",
                 "value": 3,
-                "duration": -1
+                "duration": -1,
+                "repeat_on_recast": true
               }
             ],
             "duration": 0,
@@ -344,7 +347,8 @@
                 "count": 1,
                 "stack_effect_id": "adversary_determination",
                 "value": 3,
-                "duration": -1
+                "duration": -1,
+                "repeat_on_recast": true
               }
             ],
             "duration": 0,
@@ -568,7 +572,7 @@
       "max_hp": 400000,
       "defense": 0.3,
       "triple_attack_rate": 0.85,
-      "double_attack_rate": 0.0
+      "double_attack_rate": 0
     },
     "stack_effect_id_overrides": {
       "adversary_determination": "adversary_determination_hard"
@@ -746,7 +750,7 @@
           {
             "kind": "boss_hp_ratio",
             "min_ratio": 0.667,
-            "max_ratio": 1.0
+            "max_ratio": 1
           }
         ]
       },
@@ -866,7 +870,7 @@
           },
           {
             "kind": "boss_hp_ratio",
-            "min_ratio": 0.0,
+            "min_ratio": 0,
             "max_ratio": 0.666
           }
         ]
@@ -955,7 +959,7 @@
         "activation_conditions": [
           {
             "kind": "boss_hp_ratio",
-            "min_ratio": 0.0,
+            "min_ratio": 0,
             "max_ratio": 0.333
           },
           {
@@ -993,7 +997,11 @@
         }
       ]
     },
-    "name": "최초의 대적자"
+    "name": "최초의 대적자",
+    "pattern_damage_multiplier": 1.0,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.0,
+    "description": ""
   },
   "description": ".",
   "sort_order": 50,

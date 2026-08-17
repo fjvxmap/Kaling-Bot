@@ -64,7 +64,8 @@
           {
             "action": "dispel",
             "target": "enemy",
-            "count": 3
+            "count": 3,
+            "repeat_on_recast": true
           }
         ],
         "duration": 0,
@@ -126,7 +127,8 @@
           {
             "action": "dispel",
             "target": "enemy",
-            "count": 6
+            "count": 6,
+            "repeat_on_recast": true
           }
         ],
         "duration": 0,
@@ -464,21 +466,21 @@
             {
               "stat": "atk",
               "target": "self",
-              "value": 1.0,
+              "value": 1,
               "duration": -1,
               "undispellable": false
             },
             {
               "stat": "defense",
               "target": "self",
-              "value": 1.0,
+              "value": 1,
               "duration": -1,
               "undispellable": false
             },
             {
               "stat": "damage_cut",
               "target": "self",
-              "value": 1.0,
+              "value": 1,
               "duration": -1,
               "undispellable": false
             }
@@ -584,7 +586,7 @@
           }
         ],
         "pattern": {
-          "damage_multiplier": 1.0
+          "damage_multiplier": 1
         }
       },
       "langelaan_field": {
@@ -637,7 +639,7 @@
                 {
                   "stat": "defense",
                   "target": "self",
-                  "value": -1.0,
+                  "value": -1,
                   "duration": 3,
                   "undispellable": true
                 }
@@ -721,7 +723,11 @@
         }
       ]
     },
-    "name": "벨제바브"
+    "name": "벨제바브",
+    "pattern_damage_multiplier": 1.0,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.0,
+    "description": ""
   },
   "description": ".",
   "sort_order": 25,

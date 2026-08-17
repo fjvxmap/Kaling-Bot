@@ -121,7 +121,9 @@
       }
     ],
     "stats": {},
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "trance",
@@ -195,7 +197,9 @@
       }
     ],
     "stats": {},
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "phantasmal_waltz",
@@ -341,7 +345,9 @@
       }
     ],
     "stats": {},
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "demian_stigma",
@@ -509,7 +515,9 @@
       }
     ],
     "stats": {},
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "demian_stigma_hard",
@@ -685,7 +693,9 @@
       }
     ],
     "stats": {},
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "annihilation",
@@ -778,7 +788,9 @@
       }
     ],
     "stats": {},
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "opened_eyes",
@@ -816,7 +828,9 @@
     ],
     "conditions": [],
     "stats": {},
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "verus_hilla_skulls",
@@ -826,7 +840,9 @@
     "tiers": [],
     "conditions": [],
     "stats": {},
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "verus_hilla_red_thread",
@@ -836,7 +852,9 @@
     "tiers": [],
     "conditions": [],
     "stats": {},
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "adversary_determination",
@@ -920,7 +938,9 @@
       }
     ],
     "stats": {},
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "black_mage_creation_curse",
@@ -964,7 +984,9 @@
         "remove_other": true
       }
     ],
-    "stats": {}
+    "stats": {},
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "black_mage_destruction_curse",
@@ -998,7 +1020,9 @@
     ],
     "conditions": [],
     "reactions": [],
-    "stats": {}
+    "stats": {},
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "guardian_resilience_hard",
@@ -1009,29 +1033,75 @@
       {
         "stack": 1,
         "stat_effects": [
-          {"stat": "defense", "target": "self", "value": 0.1, "duration": -1, "undispellable": true}
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": 0.1,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       },
       {
         "stack": 2,
         "stat_effects": [
-          {"stat": "defense", "target": "self", "value": 0.2, "duration": -1, "undispellable": true},
-          {"stat": "dmg_mitigation", "target": "self", "value": 5.0, "duration": -1, "undispellable": true}
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": 0.2,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "dmg_mitigation",
+            "target": "self",
+            "value": 5.0,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       },
       {
         "stack": 3,
         "stat_effects": [
-          {"stat": "defense", "target": "self", "value": 0.35, "duration": -1, "undispellable": true},
-          {"stat": "dmg_mitigation", "target": "self", "value": 10.0, "duration": -1, "undispellable": true}
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": 0.35,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "dmg_mitigation",
+            "target": "self",
+            "value": 10.0,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       }
     ],
     "conditions": [
-      {"objective": "warning_failure", "target": "none", "operation": "increase", "value": 1, "required": 1},
-      {"objective": "warning_success", "target": "none", "operation": "decrease", "value": 1, "required": 1}
+      {
+        "objective": "warning_failure",
+        "target": "none",
+        "operation": "increase",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "objective": "warning_success",
+        "target": "none",
+        "operation": "decrease",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      }
     ],
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "annihilation_hard",
@@ -1042,30 +1112,82 @@
       {
         "stack": 1,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 0.2, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.2,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       },
       {
         "stack": 2,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 0.4, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 0.15, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.4,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.15,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       },
       {
         "stack": 3,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 0.8, "duration": -1, "undispellable": true},
-          {"stat": "defense", "target": "self", "value": 0.2, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 0.35, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.8,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": 0.2,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.35,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       }
     ],
     "conditions": [
-      {"objective": "hits", "target": "self", "operation": "increase", "value": 1, "required": 4},
-      {"objective": "received_damage", "target": "self", "operation": "decrease", "value": 1, "required": 1200}
+      {
+        "objective": "hits",
+        "target": "self",
+        "operation": "increase",
+        "value": 1,
+        "required": 3,
+        "min_damage": 0
+      },
+      {
+        "objective": "received_damage",
+        "target": "self",
+        "operation": "decrease",
+        "value": 1,
+        "required": 2500,
+        "min_damage": 0
+      }
     ],
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "phantasmal_waltz_hard",
@@ -1073,38 +1195,148 @@
     "max_stacks": 7,
     "description": "체력 구간과 전조 실패로 빠르게 깊어지며 유효 타격으로 조금씩 깨어나는 하드 루시드의 꿈 단계다.",
     "tiers": [
-      {"stack": 1, "stat_effects": [{"stat": "dmg_supplement", "target": "self", "value": 4.0, "duration": -1, "undispellable": true}]},
-      {"stack": 2, "stat_effects": [{"stat": "dmg_supplement", "target": "self", "value": 6.0, "duration": -1, "undispellable": true}]},
-      {"stack": 3, "stat_effects": [{"stat": "dmg_supplement", "target": "self", "value": 8.0, "duration": -1, "undispellable": true}]},
-      {"stack": 4, "stat_effects": [{"stat": "dmg_supplement", "target": "self", "value": 10.0, "duration": -1, "undispellable": true}]},
+      {
+        "stack": 1,
+        "stat_effects": [
+          {
+            "stat": "dmg_supplement",
+            "target": "self",
+            "value": 4.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 2,
+        "stat_effects": [
+          {
+            "stat": "dmg_supplement",
+            "target": "self",
+            "value": 6.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 3,
+        "stat_effects": [
+          {
+            "stat": "dmg_supplement",
+            "target": "self",
+            "value": 8.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
+      {
+        "stack": 4,
+        "stat_effects": [
+          {
+            "stat": "dmg_supplement",
+            "target": "self",
+            "value": 10.0,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
+      },
       {
         "stack": 5,
         "stat_effects": [
-          {"stat": "dmg_supplement", "target": "self", "value": 13.0, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 0.15, "duration": -1, "undispellable": true}
-        ]
+          {
+            "stat": "dmg_supplement",
+            "target": "self",
+            "value": 13.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.15,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
       },
       {
         "stack": 6,
         "stat_effects": [
-          {"stat": "dmg_supplement", "target": "self", "value": 16.0, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 0.3, "duration": -1, "undispellable": true}
-        ]
+          {
+            "stat": "dmg_supplement",
+            "target": "self",
+            "value": 16.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.3,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
       },
       {
         "stack": 7,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 0.3, "duration": -1, "undispellable": true},
-          {"stat": "dmg_supplement", "target": "self", "value": 20.0, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 0.5, "duration": -1, "undispellable": true}
-        ]
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.3,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "dmg_supplement",
+            "target": "self",
+            "value": 20.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.5,
+            "duration": -1,
+            "undispellable": true
+          }
+        ],
+        "stats": {}
       }
     ],
     "conditions": [
-      {"objective": "warning_failure", "target": "none", "operation": "increase", "value": 4, "required": 1},
-      {"objective": "hits", "target": "opponent", "operation": "decrease", "value": 1, "required": 6}
+      {
+        "objective": "warning_failure",
+        "target": "none",
+        "operation": "increase",
+        "value": 4,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "objective": "hits",
+        "target": "opponent",
+        "operation": "decrease",
+        "value": 1,
+        "required": 15,
+        "min_damage": 0
+      }
     ],
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true,
+    "stats": {}
   },
   {
     "id": "opened_eyes_hard",
@@ -1115,23 +1347,67 @@
       {
         "stack": 1,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 59.0, "duration": -1, "undispellable": true},
-          {"stat": "defense", "target": "self", "value": -50.0, "duration": -1, "undispellable": true},
-          {"stat": "dmg_mitigation", "target": "self", "value": -30.0, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 59.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -50.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "dmg_mitigation",
+            "target": "self",
+            "value": -30.0,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       },
       {
         "stack": 2,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 79.0, "duration": -1, "undispellable": true},
-          {"stat": "defense", "target": "self", "value": -50.0, "duration": -1, "undispellable": true},
-          {"stat": "dmg_mitigation", "target": "self", "value": -30.0, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 0.5, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 79.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -50.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "dmg_mitigation",
+            "target": "self",
+            "value": -30.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.5,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       }
     ],
     "conditions": [],
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "verus_hilla_skulls_hard",
@@ -1140,7 +1416,9 @@
     "description": "영혼 수확으로 모두 사라지면 디 엔드가 발동하는 하드 진 힐라의 생존 한계다.",
     "tiers": [],
     "conditions": [],
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "verus_hilla_red_thread_hard",
@@ -1148,32 +1426,92 @@
     "max_stacks": 5,
     "description": "붉은 실 실패 시 두 단계씩 쌓여 영혼 수확량과 진 힐라의 공격 성능을 함께 높인다.",
     "tiers": [
-      {"stack": 1, "stat_effects": [{"stat": "atk", "target": "self", "value": 0.05, "duration": -1, "undispellable": true}]},
-      {"stack": 2, "stat_effects": [{"stat": "atk", "target": "self", "value": 0.1, "duration": -1, "undispellable": true}]},
+      {
+        "stack": 1,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.05,
+            "duration": -1,
+            "undispellable": true
+          }
+        ]
+      },
+      {
+        "stack": 2,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.1,
+            "duration": -1,
+            "undispellable": true
+          }
+        ]
+      },
       {
         "stack": 3,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 0.15, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 0.05, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.15,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.05,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       },
       {
         "stack": 4,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 0.2, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 0.1, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.2,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.1,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       },
       {
         "stack": 5,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 0.3, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 0.2, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.3,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.2,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       }
     ],
     "conditions": [],
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "dunkel_elite_pressure_hard",
@@ -1181,31 +1519,92 @@
     "max_stacks": 3,
     "description": "체력 구간과 전조 실패로 증원되고 전조 성공으로 물러나는 하드 듄켈의 정예 친위대 단계다.",
     "tiers": [
-      {"stack": 1, "stat_effects": [
-        {"stat": "atk", "target": "self", "value": 0.15, "duration": -1, "undispellable": true},
-        {"stat": "triple_attack_rate", "target": "self", "value": 0.05, "duration": -1, "undispellable": true}
-      ]},
+      {
+        "stack": 1,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.15,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.05,
+            "duration": -1,
+            "undispellable": true
+          }
+        ]
+      },
       {
         "stack": 2,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 0.35, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 0.12, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.35,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.12,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       },
       {
         "stack": 3,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 0.65, "duration": -1, "undispellable": true},
-          {"stat": "defense", "target": "self", "value": 0.1, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 0.25, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.65,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": 0.1,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.25,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       }
     ],
     "conditions": [
-      {"objective": "warning_failure", "target": "none", "operation": "increase", "value": 1, "required": 1},
-      {"objective": "warning_success", "target": "none", "operation": "decrease", "value": 1, "required": 1}
+      {
+        "objective": "warning_failure",
+        "target": "none",
+        "operation": "increase",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "objective": "warning_success",
+        "target": "none",
+        "operation": "decrease",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      }
     ],
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "black_mage_creation_curse_hard",
@@ -1216,11 +1615,22 @@
       {
         "stack": 1,
         "stat_effects": [
-          {"stat": "damage_cut", "target": "self", "value": 0.05, "duration": -1, "undispellable": true}
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": 0.05,
+            "duration": -1,
+            "undispellable": true
+          }
         ],
         "effects": {
           "final_damage": [
-            {"ratio": -0.15, "duration": -1, "target": "self", "undispellable": true}
+            {
+              "ratio": -0.15,
+              "duration": -1,
+              "target": "self",
+              "undispellable": true
+            }
           ]
         }
       }
@@ -1229,11 +1639,16 @@
     "reactions": [
       {
         "with_stack_effect_id": "black_mage_destruction_curse_hard",
-        "plain_damage": {"mode": "target_max_hp_ratio", "value": 0.45},
+        "plain_damage": {
+          "mode": "target_max_hp_ratio",
+          "value": 0.45
+        },
         "remove_self": true,
         "remove_other": true
       }
-    ]
+    ],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "black_mage_destruction_curse_hard",
@@ -1244,17 +1659,30 @@
       {
         "stack": 1,
         "stat_effects": [
-          {"stat": "damage_cut", "target": "self", "value": -0.25, "duration": -1, "undispellable": true}
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": -0.25,
+            "duration": -1,
+            "undispellable": true
+          }
         ],
         "effects": {
           "final_damage": [
-            {"ratio": 0.1, "duration": -1, "target": "self", "undispellable": true}
+            {
+              "ratio": 0.1,
+              "duration": -1,
+              "target": "self",
+              "undispellable": true
+            }
           ]
         }
       }
     ],
     "conditions": [],
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "trance_hard",
@@ -1265,34 +1693,111 @@
       {
         "stack": 1,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 0.1, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 0.3, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.1,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.3,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       },
       {
         "stack": 2,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 0.4, "duration": -1, "undispellable": true},
-          {"stat": "defense", "target": "self", "value": 0.1, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 0.6, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.4,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": 0.1,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.6,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       },
       {
         "stack": 3,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 1.25, "duration": -1, "undispellable": true},
-          {"stat": "defense", "target": "self", "value": 0.2, "duration": -1, "undispellable": true},
-          {"stat": "dmg_mitigation", "target": "self", "value": 5.0, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 1.0, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 1.25,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": 0.2,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "dmg_mitigation",
+            "target": "self",
+            "value": 5.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 1.0,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       }
     ],
     "conditions": [
-      {"objective": "warning_success", "target": "none", "operation": "decrease", "value": 1, "required": 1},
-      {"objective": "warning_failure", "target": "none", "operation": "increase", "value": 1, "required": 1},
-      {"objective": "hits", "target": "self", "operation": "increase", "value": 1, "required": 18}
+      {
+        "objective": "warning_success",
+        "target": "none",
+        "operation": "decrease",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "objective": "warning_failure",
+        "target": "none",
+        "operation": "increase",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "objective": "hits",
+        "target": "self",
+        "operation": "increase",
+        "value": 1,
+        "required": 18,
+        "min_damage": 0
+      }
     ],
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "evangelists_blade_hard",
@@ -1300,44 +1805,137 @@
     "max_stacks": 5,
     "description": "전조 실패와 체력 구간으로 각성하고 상대의 해제로만 한 단계씩 벗겨지는 하드 루시퍼의 혁인이다.",
     "tiers": [
-      {"stack": 1, "stat_effects": [{"stat": "atk", "target": "self", "value": 0.25, "duration": -1, "undispellable": true}]},
+      {
+        "stack": 1,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.25,
+            "duration": -1,
+            "undispellable": true
+          }
+        ]
+      },
       {
         "stack": 2,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 0.5, "duration": -1, "undispellable": true},
-          {"stat": "defense", "target": "self", "value": 0.1, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.5,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": 0.1,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       },
       {
         "stack": 3,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 0.75, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 0.5, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.75,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.5,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       },
       {
         "stack": 4,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 1.0, "duration": -1, "undispellable": true},
-          {"stat": "defense", "target": "self", "value": 0.2, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 1.0, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 1.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": 0.2,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 1.0,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       },
       {
         "stack": 5,
         "stat_effects": [
-          {"stat": "atk", "target": "self", "value": 1.25, "duration": -1, "undispellable": true},
-          {"stat": "defense", "target": "self", "value": 0.35, "duration": -1, "undispellable": true},
-          {"stat": "dmg_mitigation", "target": "self", "value": 10.0, "duration": -1, "undispellable": true},
-          {"stat": "triple_attack_rate", "target": "self", "value": 1.0, "duration": -1, "undispellable": true}
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 1.25,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": 0.35,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "dmg_mitigation",
+            "target": "self",
+            "value": 10.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 1.0,
+            "duration": -1,
+            "undispellable": true
+          }
         ]
       }
     ],
     "conditions": [
-      {"objective": "warning_failure", "target": "none", "operation": "increase", "value": 1, "required": 1},
-      {"objective": "dispel", "target": "opponent", "operation": "decrease", "value": 1, "required": 1}
+      {
+        "objective": "warning_failure",
+        "target": "none",
+        "operation": "increase",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "objective": "dispel",
+        "target": "opponent",
+        "operation": "decrease",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      }
     ],
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "adversary_determination_hard",
@@ -1345,25 +1943,116 @@
     "max_stacks": 5,
     "description": "전조 성공으로 밀어 올리면 대적자가 취약해지고 실패하면 두 단계 후퇴해 강한 차단을 회복한다.",
     "tiers": [
-      {"stack": 1, "stat_effects": [{"stat": "damage_cut", "target": "self", "value": 0.5, "duration": -1, "undispellable": true}]},
-      {"stack": 2, "stat_effects": [{"stat": "damage_cut", "target": "self", "value": 0.25, "duration": -1, "undispellable": true}]},
-      {"stack": 3, "stat_effects": [{"stat": "damage_cut", "target": "self", "value": 0.05, "duration": -1, "undispellable": true}]},
-      {"stack": 4, "stat_effects": [
-        {"stat": "damage_cut", "target": "self", "value": -0.15, "duration": -1, "undispellable": true},
-        {"stat": "atk", "target": "self", "value": 0.35, "duration": -1, "undispellable": true},
-        {"stat": "triple_attack_rate", "target": "self", "value": 0.1, "duration": -1, "undispellable": true}
-      ]},
-      {"stack": 5, "stat_effects": [
-        {"stat": "damage_cut", "target": "self", "value": -0.3, "duration": -1, "undispellable": true},
-        {"stat": "atk", "target": "self", "value": 0.75, "duration": -1, "undispellable": true},
-        {"stat": "triple_attack_rate", "target": "self", "value": 0.2, "duration": -1, "undispellable": true}
-      ]}
+      {
+        "stack": 1,
+        "stat_effects": [
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": 0.5,
+            "duration": -1,
+            "undispellable": true
+          }
+        ]
+      },
+      {
+        "stack": 2,
+        "stat_effects": [
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": 0.25,
+            "duration": -1,
+            "undispellable": true
+          }
+        ]
+      },
+      {
+        "stack": 3,
+        "stat_effects": [
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": 0.05,
+            "duration": -1,
+            "undispellable": true
+          }
+        ]
+      },
+      {
+        "stack": 4,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.35,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": -0.15,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.1,
+            "duration": -1,
+            "undispellable": true
+          }
+        ]
+      },
+      {
+        "stack": 5,
+        "stat_effects": [
+          {
+            "stat": "atk",
+            "target": "self",
+            "value": 0.75,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": -0.3,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "triple_attack_rate",
+            "target": "self",
+            "value": 0.2,
+            "duration": -1,
+            "undispellable": true
+          }
+        ]
+      }
     ],
     "conditions": [
-      {"objective": "warning_success", "target": "none", "operation": "increase", "value": 1, "required": 1},
-      {"objective": "warning_failure", "target": "none", "operation": "decrease", "value": 2, "required": 1}
+      {
+        "objective": "warning_success",
+        "target": "none",
+        "operation": "increase",
+        "value": 1,
+        "required": 1,
+        "min_damage": 0
+      },
+      {
+        "objective": "warning_failure",
+        "target": "none",
+        "operation": "decrease",
+        "value": 2,
+        "required": 1,
+        "min_damage": 0
+      }
     ],
-    "reactions": []
+    "reactions": [],
+    "show_at_zero": false,
+    "show_status_note": true
   },
   {
     "id": "sarasa_fury",
@@ -1392,16 +2081,16 @@
         "stack": 2,
         "stat_effects": [
           {
-            "stat": "enmity",
+            "stat": "garrison",
             "target": "self",
-            "value": 0.02,
+            "value": 0.05,
             "duration": -1,
             "undispellable": true
           },
           {
-            "stat": "garrison",
+            "stat": "enmity",
             "target": "self",
-            "value": 0.05,
+            "value": 0.02,
             "duration": -1,
             "undispellable": true
           }
@@ -1412,6 +2101,13 @@
       {
         "stack": 3,
         "stat_effects": [
+          {
+            "stat": "garrison",
+            "target": "self",
+            "value": 0.1,
+            "duration": -1,
+            "undispellable": true
+          },
           {
             "stat": "enmity",
             "target": "self",
@@ -1425,13 +2121,6 @@
             "value": 0.02,
             "duration": -1,
             "undispellable": true
-          },
-          {
-            "stat": "garrison",
-            "target": "self",
-            "value": 0.1,
-            "duration": -1,
-            "undispellable": true
           }
         ],
         "note": "",
@@ -1440,6 +2129,13 @@
       {
         "stack": 4,
         "stat_effects": [
+          {
+            "stat": "defense",
+            "target": "self",
+            "value": -0.08,
+            "duration": -1,
+            "undispellable": true
+          },
           {
             "stat": "enmity",
             "target": "self",
@@ -1460,13 +2156,6 @@
             "value": 0.06,
             "duration": -1,
             "undispellable": true
-          },
-          {
-            "stat": "defense",
-            "target": "self",
-            "value": -0.08,
-            "duration": -1,
-            "undispellable": true
           }
         ],
         "note": "",
@@ -1476,9 +2165,23 @@
         "stack": 5,
         "stat_effects": [
           {
+            "stat": "defense",
+            "target": "self",
+            "value": -0.2,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
             "stat": "enmity",
             "target": "self",
             "value": 0.05,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": -0.08,
             "duration": -1,
             "undispellable": true
           },
@@ -1493,20 +2196,6 @@
             "stat": "triple_attack_rate",
             "target": "self",
             "value": 0.1,
-            "duration": -1,
-            "undispellable": true
-          },
-          {
-            "stat": "defense",
-            "target": "self",
-            "value": -0.2,
-            "duration": -1,
-            "undispellable": true
-          },
-          {
-            "stat": "damage_cut",
-            "target": "self",
-            "value": -0.08,
             "duration": -1,
             "undispellable": true
           }
@@ -1551,6 +2240,13 @@
         "stack": 2,
         "stat_effects": [
           {
+            "stat": "defense",
+            "target": "self",
+            "value": -0.08,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
             "stat": "enmity",
             "target": "self",
             "value": 0.04,
@@ -1570,13 +2266,6 @@
             "value": 0.15,
             "duration": -1,
             "undispellable": true
-          },
-          {
-            "stat": "defense",
-            "target": "self",
-            "value": -0.08,
-            "duration": -1,
-            "undispellable": true
           }
         ],
         "note": "검 형태 · 메테오 스러스트",
@@ -1585,7 +2274,8 @@
     ],
     "conditions": [],
     "reactions": [],
-    "stats": {}
+    "stats": {},
+    "show_at_zero": false
   },
   {
     "id": "sarasa_kotoryubi",
@@ -1629,7 +2319,7 @@
     "name": "잔명",
     "max_stacks": 1,
     "show_status_note": false,
-    "description": "그라운드 제로가 남긴 한 호흡의 여유다. 1턴 동안 견수와 데미지 컷, 극소량의 생명력 흡수를 얻는다.",
+    "description": "그라운드 제로가 남긴 한 호흡의 여유다. 3턴 동안 견수와 데미지 컷, 생명력 흡수, 데미지 증가, 배수, 가산 피해를 얻는다.",
     "tiers": [
       {
         "stack": 1,
@@ -1642,9 +2332,9 @@
             "undispellable": true
           },
           {
-            "stat": "life_steal",
+            "stat": "enmity",
             "target": "self",
-            "value": 0.005,
+            "value": 0.5,
             "duration": -1,
             "undispellable": true
           },
@@ -1652,6 +2342,27 @@
             "stat": "damage_cut",
             "target": "self",
             "value": 0.35,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "dmg_amplification",
+            "target": "self",
+            "value": 0.25,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "dmg_supplement",
+            "target": "self",
+            "value": 50.0,
+            "duration": -1,
+            "undispellable": true
+          },
+          {
+            "stat": "life_steal",
+            "target": "self",
+            "value": 0.05,
             "duration": -1,
             "undispellable": true
           }
@@ -1662,6 +2373,7 @@
     ],
     "conditions": [],
     "reactions": [],
-    "stats": {}
+    "stats": {},
+    "show_at_zero": false
   }
 ]

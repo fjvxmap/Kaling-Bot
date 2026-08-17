@@ -395,7 +395,8 @@
             "count": 1,
             "stack_effect_id": "phantasmal_waltz",
             "value": 7,
-            "duration": -1
+            "duration": -1,
+            "repeat_on_recast": true
           }
         ],
         "duration": 0,
@@ -618,7 +619,7 @@
             "pattern": {
               "id": "illusion_bloom_failure_variant",
               "name": "일루전 블룸 판타즈멀",
-              "damage_multiplier": 1.0,
+              "damage_multiplier": 1,
               "hits": 40,
               "player_mods": {},
               "boss_mods": {},
@@ -626,7 +627,7 @@
                 {
                   "stat": "atk",
                   "target": "self",
-                  "value": 1.0,
+                  "value": 1,
                   "duration": 5,
                   "undispellable": true
                 }
@@ -685,7 +686,7 @@
                 {
                   "stat": "triple_attack_rate",
                   "target": "self",
-                  "value": 1.0,
+                  "value": 1,
                   "duration": 5,
                   "undispellable": true
                 }
@@ -800,7 +801,11 @@
         }
       ]
     },
-    "name": "루시드"
+    "name": "루시드",
+    "pattern_damage_multiplier": 1.0,
+    "plain_damage_multiplier": 1.0,
+    "objective_multiplier": 1.0,
+    "description": ""
   },
   "description": "\"후훗, 악몽은 이미 시작됐어요.\"",
   "sort_order": 12,
