@@ -33,6 +33,9 @@ from bot.services.rpg.data import (
     BossWarningTemplate,
     SkillTemplate,
     STACK_EFFECT_BY_ID,
+    gacha_candidate_kind,
+    gacha_candidate_rarity,
+    gacha_chance_percent,
 )
 from bot.services.rpg.manager import (
     ActiveEffect,
@@ -914,6 +917,8 @@ class RPGCog(commands.Cog):
         participants = list(session.participants.values())
         for participant in participants:
             participant.player_effects = []
+            profile = self.service.get_profile(participant.user_id, participant.display_name)
+            participant.player_stack_effects = self.service.initial_player_stack_effects(profile)
             participant.boss_stack_effects = self._initial_boss_stack_effects(session.boss)
         effect_lists = [participant.player_effects for participant in participants]
         for participant in participants:
@@ -1905,13 +1910,30 @@ class RPGCog(commands.Cog):
 
     def _finish_boss_turn(self, session: BossSession, participant: BossParticipant, profile: PlayerProfile) -> None:
         self._release_pending_hp_locks(session, participant)
+        if participant.hp <= 0 or not participant.alive:
+            participant.alive = False
+            self._check_boss_party_failed(session)
+            return
+        turn_end_before_max_hp = self._participant_max_hp(participant)
+        extra_cooldown_reduction = self.service.apply_player_turn_end(
+            profile,
+            participant.player_stack_effects,
+            participant.boss_stack_effects,
+            current_hp=participant.hp,
+            max_hp=turn_end_before_max_hp,
+        )
+        self._sync_participant_hp_from_snapshot(participant, turn_end_before_max_hp)
         before_max_hp = self._participant_max_hp(participant)
         participant.player_effects = self.service._tick_effects(participant.player_effects)
         participant.boss_effects = self.service._tick_effects(participant.boss_effects)
         participant.player_stack_effects = self.service.tick_stack_effects(participant.player_stack_effects)
         participant.boss_stack_effects = self.service.tick_stack_effects(participant.boss_stack_effects)
         self._sync_participant_hp_from_snapshot(participant, before_max_hp)
-        self._tick_ability_cooldowns(participant)
+        self._tick_ability_cooldowns(
+            participant,
+            profile,
+            extra_job_reduction=extra_cooldown_reduction,
+        )
         participant.turn += 1
         participant.suppress_warning_activation = False
         self._check_boss_party_failed(session)
@@ -2592,6 +2614,7 @@ class RPGCog(commands.Cog):
             "stack_set": "스택 지정",
             "stack_remove": "스택 제거",
             "stack_max": "스택 최대",
+            "stack_cycle": "스택 순환",
         }
         targets = {
             "self": "보스",
@@ -2634,13 +2657,26 @@ class RPGCog(commands.Cog):
             return f"{name} 제거"
         if action.action == "stack_max":
             return f"{name} 최대"
+        if action.action == "stack_cycle":
+            return f"{name} 다음 단계"
         return name
 
-    def _tick_ability_cooldowns(self, participant: BossParticipant) -> None:
+    def _tick_ability_cooldowns(
+        self,
+        participant: BossParticipant,
+        profile: PlayerProfile,
+        *,
+        extra_job_reduction: int = 0,
+    ) -> None:
+        self.service._tick_player_cooldowns(
+            profile,
+            participant.ability_cooldowns,
+            extra_job_reduction=extra_job_reduction,
+        )
         participant.ability_cooldowns = {
-            skill_id: turns - 1
+            skill_id: turns
             for skill_id, turns in participant.ability_cooldowns.items()
-            if turns - 1 > 0
+            if turns > 0
         }
 
     def _ability_state_text(self, participant: BossParticipant, skill: SkillTemplate, *, cooldown_prefix: bool = False) -> str:
@@ -2734,19 +2770,14 @@ class RPGCog(commands.Cog):
         hit_damages: list[int] | None = None,
     ) -> None:
         before_max_hp = self._participant_max_hp(participant)
-        self.service._apply_stack_conditions(
+        self.service.apply_player_stack_event(
             participant.player_stack_effects,
-            objective=objective,
-            amount=amount,
-            actor_is_holder=True,
-            hit_damages=hit_damages,
-        )
-        self.service._apply_stack_conditions(
             participant.boss_stack_effects,
             objective=objective,
             amount=amount,
-            actor_is_holder=False,
             hit_damages=hit_damages,
+            current_hp=participant.hp,
+            max_hp=before_max_hp,
         )
         self._sync_participant_hp_from_snapshot(participant, before_max_hp)
 
@@ -3162,10 +3193,14 @@ class RPGCog(commands.Cog):
             if template is None:
                 continue
             stacks_count = max(0, int(stack.stacks))
-            if stacks_count <= 0:
+            if stacks_count <= 0 and not template.show_at_zero:
                 continue
             turns = f" · {stack.turns}턴" if stack.turns > 0 else ""
-            parts.append(f"{template.name} lv.{stacks_count}{turns}")
+            tier_summary = self.service.stack_effect_tier_summary(template.id, stacks_count)
+            detail = f" · {tier_summary}" if tier_summary else ""
+            parts.append(
+                f"{template.name} lv.{stacks_count}/{template.max_stacks}{detail}{turns}"
+            )
         return ", ".join(parts)
 
     def _boss_shared_effects_text(self, session: BossSession, *, limit: int) -> str:
@@ -3241,7 +3276,11 @@ class RPGCog(commands.Cog):
         lines = []
         for skill in skills:
             state = self._ability_state_text(participant, skill, cooldown_prefix=True)
-            lines.append(f"{skill.name} · {state}\n{self.service.skill_summary(skill)}")
+            note = self._skill_note(skill)
+            note_line = f"\n↳ {note}" if note else ""
+            lines.append(
+                f"{skill.name} · {state}\n{self.service.skill_summary(skill)}{note_line}"
+            )
         sections.append("\n\n".join(lines) if lines else "어빌리티 없음")
         embed.description = self._trim("\n\n".join(section for section in sections if section), 4000)
         return embed
@@ -3920,8 +3959,7 @@ class RPGCog(commands.Cog):
         label = self._gacha_festival_target_label(override.type, override.target_id)
         if not label:
             return ""
-        total = sum(max(0.0, entry.chance) for entry in pool.entries)
-        chance = (override.chance / total * 100) if total > 0 else override.chance
+        chance = gacha_chance_percent(override.chance)
         return f"{label} {chance:.2f}%"
 
     def _gacha_festival_target_label(self, override_type: str, target_id: str) -> str:
@@ -3940,7 +3978,12 @@ class RPGCog(commands.Cog):
         for entry in pool.entries:
             candidates = self.service._gacha_candidates(entry)
             if override.type in {"item_rarity", "material_rarity"}:
-                if entry.type == override.type and entry.rarity == override.target_id and candidates:
+                target_kind = override.type.removesuffix("_rarity")
+                if any(
+                    gacha_candidate_kind(entry) == target_kind
+                    and gacha_candidate_rarity(entry, candidate_id) == override.target_id
+                    for candidate_id in candidates
+                ):
                     return True
                 continue
             candidate_kind = "item" if entry.type in {"item", "item_rarity"} else "material"

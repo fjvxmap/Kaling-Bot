@@ -5,7 +5,7 @@ import os
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from math import ceil
+from math import ceil, isfinite
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +25,7 @@ WARNING_OBJECTIVES = {
     "warning_success",
     "warning_failure",
 }
-STACK_CONDITION_OBJECTIVES = WARNING_OBJECTIVES | {"received_damage"}
+STACK_CONDITION_OBJECTIVES = WARNING_OBJECTIVES | {"received_damage", "turn_end"}
 WARNING_ACTIVATION_CONDITIONS = {
     "stack",
     "stack_compare",
@@ -41,6 +41,7 @@ STACK_EFFECT_ACTIONS = {
     "stack_set",
     "stack_remove",
     "stack_max",
+    "stack_cycle",
 }
 
 
@@ -296,6 +297,7 @@ class EffectAction:
     value_from_target: str = ""
     duration: int = INFINITE_EFFECT_TURNS
     conditions: list[EffectActionStackCondition] = field(default_factory=list)
+    repeat_on_recast: bool = True
 
 
 @dataclass(frozen=True)
@@ -306,6 +308,8 @@ class StackEffectCondition:
     value: int = 1
     required: int = 1
     min_damage: int = 0
+    min_hp_ratio: float = 0.0
+    max_hp_ratio: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -313,6 +317,7 @@ class StackEffectTier:
     stack: int
     stat_effects: list[StatEffect] = field(default_factory=list)
     effects: CombatSpecialEffects = field(default_factory=CombatSpecialEffects)
+    note: str = ""
 
 
 @dataclass(frozen=True)
@@ -332,6 +337,8 @@ class StackEffectTemplate:
     tiers: list[StackEffectTier] = field(default_factory=list)
     conditions: list[StackEffectCondition] = field(default_factory=list)
     reactions: list[StackEffectReaction] = field(default_factory=list)
+    show_at_zero: bool = False
+    zero_note: str = ""
 
 
 @dataclass(frozen=True)
@@ -411,6 +418,35 @@ class SkillTemplate:
     damage_cut: float = 0.0
     job_ids: tuple[str, ...] = ()
     note: str = ""
+    hp_variants: tuple[SkillHpVariant, ...] = ()
+
+
+@dataclass(frozen=True)
+class SkillHpVariant:
+    max_hp_ratio: float
+    damage_multiplier: float | None = None
+    hits: int | None = None
+    hp_scaled_damage: bool | None = None
+    player_stat_effects: list[StatEffect] = field(default_factory=list)
+    enemy_stat_effects: list[StatEffect] = field(default_factory=list)
+    player_effects: CombatSpecialEffects = field(default_factory=CombatSpecialEffects)
+    enemy_effects: CombatSpecialEffects = field(default_factory=CombatSpecialEffects)
+    effect_actions: list[EffectAction] = field(default_factory=list)
+    note: str = ""
+
+
+@dataclass(frozen=True)
+class LowHpCooldownRule:
+    max_hp_ratio: float = 0.0
+    reduction: int = 0
+    disabled_at_stack_effect_id: str = ""
+    disabled_at_stacks: int = -1
+
+
+@dataclass(frozen=True)
+class InitialStackEffect:
+    stack_effect_id: str
+    stacks: int = 0
 
 
 @dataclass(frozen=True)
@@ -425,6 +461,8 @@ class JobTemplate:
     stat_effects: list[StatEffect] = field(default_factory=list)
     effects: CombatSpecialEffects = field(default_factory=CombatSpecialEffects)
     undispellable: bool = True
+    initial_stack_effects: tuple[InitialStackEffect, ...] = ()
+    low_hp_cooldown: LowHpCooldownRule = field(default_factory=LowHpCooldownRule)
 
 
 @dataclass(frozen=True)
@@ -725,6 +763,54 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def gacha_chance_percent(chance: float) -> float:
+    """Return a festival target chance as bounded percent points."""
+    value = _safe_float(chance)
+    if not isfinite(value) or value <= 0:
+        return 0.0
+    return min(100.0, value)
+
+
+def gacha_percent_weight(chance: float, total_weight: float) -> float:
+    """Convert festival percent points to the weight units used by a pool."""
+    total = _safe_float(total_weight)
+    if not isfinite(total) or total <= 0:
+        return 0.0
+    return total * gacha_chance_percent(chance) / 100.0
+
+
+def gacha_candidate_kind(entry: GachaEntry) -> str:
+    return "item" if entry.type in {"item", "item_rarity"} else "material"
+
+
+def gacha_entry_candidates(entry: GachaEntry) -> list[str]:
+    if entry.type == "item":
+        return [
+            item_id
+            for item_id in entry.item_ids
+            if item_id in ITEM_BY_ID and not ITEM_BY_ID[item_id].excluded_from_gacha
+        ]
+    if entry.type == "item_rarity":
+        return [
+            item.id
+            for item in ITEMS_BY_RARITY.get(entry.rarity, [])
+            if not item.excluded_from_gacha
+        ]
+    if entry.type == "material":
+        return [material_id for material_id in entry.material_ids if material_id in MATERIAL_BY_ID]
+    if entry.type == "material_rarity":
+        return [material.id for material in MATERIALS_BY_RARITY.get(entry.rarity, [])]
+    return []
+
+
+def gacha_candidate_rarity(entry: GachaEntry, candidate_id: str) -> str:
+    if gacha_candidate_kind(entry) == "item":
+        template = ITEM_BY_ID.get(candidate_id)
+    else:
+        template = MATERIAL_BY_ID.get(candidate_id)
+    return template.rarity if template is not None else ""
 
 
 def _safe_bool(value: Any, default: bool = False) -> bool:
@@ -1181,6 +1267,7 @@ def _effect_actions(raw: Any) -> list[EffectAction]:
                     )
                     if condition.stack_effect_id
                 ],
+                repeat_on_recast=_safe_bool(row.get("repeat_on_recast"), True),
             )
         )
     return actions
@@ -1248,6 +1335,8 @@ def _stack_effect_condition(raw: dict[str, Any]) -> StackEffectCondition:
         value=max(1, _safe_int(raw.get("value", raw.get("stacks", 1)), 1)),
         required=max(1, _safe_int(raw.get("required"), 1)),
         min_damage=max(0, _safe_int(raw.get("min_damage"), 0)),
+        min_hp_ratio=max(0.0, min(1.0, _safe_float(raw.get("min_hp_ratio"), 0.0))),
+        max_hp_ratio=max(0.0, min(1.0, _safe_float(raw.get("max_hp_ratio"), 1.0))),
     )
 
 
@@ -1261,6 +1350,7 @@ def _stack_effect_tier(raw: dict[str, Any]) -> StackEffectTier:
             True,
         ),
         effects=_combat_effects(raw.get("effects"), INFINITE_EFFECT_TURNS, True),
+        note=str(raw.get("note", "") or ""),
     )
 
 
@@ -1302,6 +1392,8 @@ def _stack_effect_template(raw: dict[str, Any]) -> StackEffectTemplate:
             for reaction in raw.get("reactions", [])
             if isinstance(reaction, dict)
         ],
+        show_at_zero=_safe_bool(raw.get("show_at_zero"), False),
+        zero_note=str(raw.get("zero_note", "") or ""),
     )
 
 
@@ -1396,6 +1488,36 @@ def _liberation_template(raw: Any) -> LiberationTemplate:
     )
 
 
+def _low_hp_cooldown_rule(raw: Any) -> LowHpCooldownRule:
+    if not isinstance(raw, dict):
+        return LowHpCooldownRule()
+    return LowHpCooldownRule(
+        max_hp_ratio=max(0.0, min(1.0, _safe_float(raw.get("max_hp_ratio"), 0.0))),
+        reduction=max(0, _safe_int(raw.get("reduction"), 0)),
+        disabled_at_stack_effect_id=str(raw.get("disabled_at_stack_effect_id", "") or ""),
+        disabled_at_stacks=_safe_int(raw.get("disabled_at_stacks"), -1),
+    )
+
+
+def _initial_stack_effects(raw: dict[str, Any]) -> tuple[InitialStackEffect, ...]:
+    rows = raw.get("initial_stack_effects", ())
+    parsed: list[InitialStackEffect] = []
+    if isinstance(rows, list):
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            effect_id = str(row.get("stack_effect_id", row.get("id", "")) or "")
+            if effect_id:
+                parsed.append(InitialStackEffect(effect_id, max(0, _safe_int(row.get("stacks"), 0))))
+    if not parsed:
+        parsed.extend(
+            InitialStackEffect(str(effect_id), 0)
+            for effect_id in raw.get("initial_stack_effect_ids", ())
+            if str(effect_id)
+        )
+    return tuple(parsed)
+
+
 def _job(raw: dict[str, Any]) -> JobTemplate:
     undispellable = bool(raw.get("undispellable", True))
     return JobTemplate(
@@ -1409,6 +1531,40 @@ def _job(raw: dict[str, Any]) -> JobTemplate:
         effects=_combat_effects(raw.get("effects"), INFINITE_EFFECT_TURNS, undispellable),
         undispellable=undispellable,
         description=str(raw.get("description", "")),
+        initial_stack_effects=_initial_stack_effects(raw),
+        low_hp_cooldown=_low_hp_cooldown_rule(raw.get("low_hp_cooldown")),
+    )
+
+
+def _skill_hp_variant(raw: dict[str, Any], default_duration: int) -> SkillHpVariant:
+    duration = int(raw.get("duration", default_duration))
+    player_undispellable = bool(raw.get("player_undispellable", raw.get("undispellable", False)))
+    enemy_undispellable = bool(raw.get("enemy_undispellable", False))
+    return SkillHpVariant(
+        max_hp_ratio=max(0.0, min(1.0, _safe_float(raw.get("max_hp_ratio"), 0.0))),
+        damage_multiplier=(
+            max(0.0, _safe_float(raw.get("damage_multiplier"), 0.0))
+            if "damage_multiplier" in raw
+            else None
+        ),
+        hits=max(0, _safe_int(raw.get("hits"), 0)) if "hits" in raw else None,
+        hp_scaled_damage=_safe_bool(raw.get("hp_scaled_damage")) if "hp_scaled_damage" in raw else None,
+        player_stat_effects=_stat_effects(
+            raw.get("player_stat_effects"),
+            raw.get("player_mods"),
+            duration,
+            player_undispellable,
+        ),
+        enemy_stat_effects=_stat_effects(
+            raw.get("enemy_stat_effects"),
+            raw.get("enemy_mods"),
+            duration,
+            enemy_undispellable,
+        ),
+        player_effects=_combat_effects(raw.get("player_effects", raw.get("effects")), duration, player_undispellable),
+        enemy_effects=_combat_effects(raw.get("enemy_effects"), duration, enemy_undispellable),
+        effect_actions=_effect_actions(raw.get("effect_actions")),
+        note=str(raw.get("note", "") or ""),
     )
 
 
@@ -1467,6 +1623,14 @@ def _skill(raw: dict[str, Any]) -> SkillTemplate:
         damage_cut=damage_cut,
         job_ids=tuple(str(job_id) for job_id in raw.get("job_ids", ())),
         note=str(raw.get("note", "")),
+        hp_variants=tuple(sorted(
+            (
+                _skill_hp_variant(variant, duration)
+                for variant in raw.get("hp_variants", ())
+                if isinstance(variant, dict)
+            ),
+            key=lambda variant: variant.max_hp_ratio,
+        )),
     )
 
 
@@ -1543,7 +1707,7 @@ def _gacha_entry(raw: dict[str, Any]) -> GachaEntry:
     material_amounts = _gacha_target_amounts(raw_material_ids, minimum)
     return GachaEntry(
         type=str(raw.get("type", "item_rarity")),
-        chance=max(0.0, float(raw.get("chance", raw.get("weight", 0.0)))),
+        chance=_safe_float(raw.get("chance", raw.get("weight")), float("nan")),
         item_ids=tuple(item_amounts.keys()),
         material_ids=tuple(material_amounts.keys()),
         item_amounts=item_amounts,
@@ -1599,7 +1763,7 @@ def _gacha_festival_override(raw: dict[str, Any]) -> GachaFestivalOverride:
     return GachaFestivalOverride(
         type=override_type,
         target_id=target_id,
-        chance=max(0.0, _safe_float(raw.get("chance"), 0.0)),
+        chance=_safe_float(raw.get("chance"), float("nan")),
     )
 
 
@@ -2624,6 +2788,8 @@ def _validate_content() -> None:
                 errors.append(f"stack effect {effect.id} condition objective not found: {condition.objective}")
             if condition.operation not in {"increase", "decrease", "set", "remove", "max"}:
                 errors.append(f"stack effect {effect.id} condition operation is invalid: {condition.operation}")
+            if condition.min_hp_ratio > condition.max_hp_ratio:
+                errors.append(f"stack effect {effect.id} condition HP ratio range is invalid")
         for reaction in effect.reactions:
             if reaction.with_stack_effect_id not in STACK_EFFECT_BY_ID:
                 errors.append(
@@ -2631,8 +2797,45 @@ def _validate_content() -> None:
                 )
             if reaction.with_stack_effect_id == effect.id:
                 errors.append(f"stack effect {effect.id} cannot react with itself")
+    for job in JOBS:
+        initial_effect_ids = [initial.stack_effect_id for initial in job.initial_stack_effects]
+        if len(initial_effect_ids) != len(set(initial_effect_ids)):
+            errors.append(f"job {job.id} has duplicate initial stack effects")
+        for initial in job.initial_stack_effects:
+            template = STACK_EFFECT_BY_ID.get(initial.stack_effect_id)
+            if template is None:
+                errors.append(f"job {job.id} initial stack effect not found: {initial.stack_effect_id}")
+            elif initial.stacks > template.max_stacks:
+                errors.append(
+                    f"job {job.id} initial stack {initial.stack_effect_id} exceeds max stacks"
+                )
+        rule = job.low_hp_cooldown
+        if rule.reduction > 0 and rule.max_hp_ratio <= 0:
+            errors.append(f"job {job.id} low HP cooldown ratio must be greater than 0")
+        if rule.disabled_at_stack_effect_id and rule.disabled_at_stack_effect_id not in STACK_EFFECT_BY_ID:
+            errors.append(
+                f"job {job.id} low HP cooldown blocker not found: "
+                f"{rule.disabled_at_stack_effect_id}"
+            )
+        if rule.disabled_at_stack_effect_id and rule.disabled_at_stacks < 1:
+            errors.append(f"job {job.id} low HP cooldown blocker stacks must be at least 1")
+        blocker = STACK_EFFECT_BY_ID.get(rule.disabled_at_stack_effect_id)
+        if blocker is not None and rule.disabled_at_stacks > blocker.max_stacks:
+            errors.append(f"job {job.id} low HP cooldown blocker stacks exceed max stacks")
     for skill in SKILLS:
         errors.extend(_validate_effect_actions(skill.effect_actions, f"skill {skill.id} effect actions"))
+        variant_thresholds = [variant.max_hp_ratio for variant in skill.hp_variants]
+        if len(variant_thresholds) != len(set(variant_thresholds)):
+            errors.append(f"skill {skill.id} has duplicate HP variant thresholds")
+        for variant in skill.hp_variants:
+            if variant.max_hp_ratio <= 0:
+                errors.append(f"skill {skill.id} HP variant ratio must be greater than 0")
+            errors.extend(
+                _validate_effect_actions(
+                    variant.effect_actions,
+                    f"skill {skill.id} HP {variant.max_hp_ratio:g} variant effect actions",
+                )
+            )
     for recipe in CRAFTING_RECIPES:
         if recipe.result_item_id not in ITEM_BY_ID:
             errors.append(f"crafting recipe {recipe.id} result item not found: {recipe.result_item_id}")
@@ -2832,6 +3035,7 @@ def _validate_content() -> None:
             errors.append(f"gacha festival {festival.id} ends_at must be after starts_at")
         for index, override in enumerate(festival.overrides, start=1):
             errors.extend(_validate_gacha_festival_override(override, f"gacha festival {festival.id} override {index}"))
+        errors.extend(_validate_gacha_festival_contracts(festival))
     if len(POTENTIAL_GRADES) != len(set(POTENTIAL_GRADES)):
         errors.append("potential grades have duplicate ids")
     if len(POTENTIAL_LINE_GRADES) != len(set(POTENTIAL_LINE_GRADES)):
@@ -2930,8 +3134,8 @@ def _validate_gacha_entry(entry: GachaEntry, label: str) -> list[str]:
     errors: list[str] = []
     if entry.type not in {"item", "item_rarity", "material", "material_rarity"}:
         errors.append(f"{label} type not found: {entry.type}")
-    if entry.chance <= 0:
-        errors.append(f"{label} chance must be greater than 0")
+    if not isfinite(entry.chance) or entry.chance <= 0:
+        errors.append(f"{label} chance must be finite and greater than 0")
     if entry.type == "item":
         for item_id in entry.item_ids:
             if item_id not in ITEM_BY_ID:
@@ -2944,6 +3148,9 @@ def _validate_gacha_entry(entry: GachaEntry, label: str) -> list[str]:
                 errors.append(f"{label} material not found: {material_id}")
     if entry.type == "material_rarity" and entry.rarity not in RARITIES:
         errors.append(f"{label} rarity not found: {entry.rarity}")
+    if entry.type in {"item", "item_rarity", "material", "material_rarity"}:
+        if not gacha_entry_candidates(entry):
+            errors.append(f"{label} has no eligible candidates")
     return errors
 
 
@@ -2952,14 +3159,135 @@ def _validate_gacha_festival_override(override: GachaFestivalOverride, label: st
     if override.type not in {"item", "item_rarity", "material", "material_rarity"}:
         errors.append(f"{label} type not found: {override.type}")
         return errors
-    if override.chance < 0:
-        errors.append(f"{label} chance must be non-negative")
+    if not isfinite(override.chance) or override.chance < 0 or override.chance > 100:
+        errors.append(f"{label} chance must be finite and between 0 and 100")
     if override.type == "item" and override.target_id not in ITEM_BY_ID:
         errors.append(f"{label} item not found: {override.target_id}")
     if override.type == "material" and override.target_id not in MATERIAL_BY_ID:
         errors.append(f"{label} material not found: {override.target_id}")
     if override.type in {"item_rarity", "material_rarity"} and override.target_id not in RARITIES:
         errors.append(f"{label} rarity not found: {override.target_id}")
+    return errors
+
+
+def _validate_gacha_festival_contracts(
+    festival: GachaFestival,
+    pools: list[GachaPool] | None = None,
+) -> list[str]:
+    errors: list[str] = []
+    seen_overrides: set[tuple[str, str]] = set()
+    for override in festival.overrides:
+        key = (override.type, override.target_id)
+        if key in seen_overrides:
+            errors.append(
+                f"gacha festival {festival.id} duplicate override: "
+                f"{override.type} {override.target_id}"
+            )
+        seen_overrides.add(key)
+    matched_overrides: set[tuple[str, str]] = set()
+    exact_rows = {
+        (override.type, override.target_id): override
+        for override in festival.overrides
+        if override.type in {"item", "material"}
+    }
+    rarity_rows = {
+        (override.type.removesuffix("_rarity"), override.target_id): override
+        for override in festival.overrides
+        if override.type in {"item_rarity", "material_rarity"}
+    }
+
+    for pool in GACHA_POOLS if pools is None else pools:
+        atoms = [
+            (
+                gacha_candidate_kind(entry),
+                candidate_id,
+                gacha_candidate_rarity(entry, candidate_id),
+            )
+            for entry in pool.entries
+            if isfinite(entry.chance) and entry.chance > 0
+            for candidate_id in gacha_entry_candidates(entry)
+        ]
+        if not atoms:
+            continue
+        applicable_exact = {
+            key: override
+            for key, override in exact_rows.items()
+            if any((kind, candidate_id) == key for kind, candidate_id, _ in atoms)
+        }
+        applicable_rarity = {
+            key: override
+            for key, override in rarity_rows.items()
+            if any((kind, rarity) == key for kind, _, rarity in atoms)
+        }
+        matched_overrides.update(applicable_exact)
+        matched_overrides.update(
+            (f"{kind}_rarity", rarity)
+            for kind, rarity in applicable_rarity
+        )
+        if not applicable_exact and not applicable_rarity:
+            continue
+
+        exact_rarity: dict[tuple[str, str], tuple[str, str]] = {}
+        for exact_key in applicable_exact:
+            exact_rarity[exact_key] = next(
+                (kind, rarity)
+                for kind, candidate_id, rarity in atoms
+                if (kind, candidate_id) == exact_key
+            )
+
+        for rarity_key, rarity_override in applicable_rarity.items():
+            covered_exact = [
+                override
+                for exact_key, override in applicable_exact.items()
+                if exact_rarity[exact_key] == rarity_key
+            ]
+            exact_total = sum(override.chance for override in covered_exact)
+            if exact_total > rarity_override.chance + 1e-9:
+                errors.append(
+                    f"gacha festival {festival.id} pool {pool.id} exact chances "
+                    f"exceed {rarity_key[0]} rarity {rarity_key[1]} chance"
+                )
+            has_remainder_recipient = any(
+                (kind, rarity) == rarity_key
+                and (kind, candidate_id) not in applicable_exact
+                for kind, candidate_id, rarity in atoms
+            )
+            if rarity_override.chance > exact_total + 1e-9 and not has_remainder_recipient:
+                errors.append(
+                    f"gacha festival {festival.id} pool {pool.id} rarity "
+                    f"{rarity_key[0]} {rarity_key[1]} has no remaining candidate"
+                )
+
+        fixed_percent = sum(override.chance for override in applicable_rarity.values())
+        fixed_percent += sum(
+            override.chance
+            for exact_key, override in applicable_exact.items()
+            if exact_rarity[exact_key] not in applicable_rarity
+        )
+        if fixed_percent > 100 + 1e-9:
+            errors.append(
+                f"gacha festival {festival.id} pool {pool.id} non-overlapping "
+                f"fixed chances exceed 100"
+            )
+
+        all_atoms_fixed = all(
+            (kind, candidate_id) in applicable_exact
+            or (kind, rarity) in applicable_rarity
+            for kind, candidate_id, rarity in atoms
+        )
+        if all_atoms_fixed and fixed_percent < 100 - 1e-9:
+            errors.append(
+                f"gacha festival {festival.id} pool {pool.id} fixes every candidate "
+                f"but totals less than 100"
+            )
+
+    for override in festival.overrides:
+        key = (override.type, override.target_id)
+        if key not in matched_overrides:
+            errors.append(
+                f"gacha festival {festival.id} override {override.type} "
+                f"{override.target_id} applies to no pool candidate"
+            )
     return errors
 
 

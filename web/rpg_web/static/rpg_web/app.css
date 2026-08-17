@@ -735,6 +735,12 @@ summary:focus-visible {
   font-size: 12px;
 }
 
+.profile-identity .profile-job-description {
+  max-width: 68ch;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+
 .profile-metric strong {
   display: block;
   margin-top: 7px;

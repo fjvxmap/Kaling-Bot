@@ -66,6 +66,7 @@ const OBJECTIVES = [
 const STACK_OBJECTIVES = [
   ...OBJECTIVES,
   ["received_damage", "받은 피해량"],
+  ["turn_end", "턴 종료"],
 ];
 
 const EFFECT_ACTIONS = [
@@ -76,6 +77,7 @@ const EFFECT_ACTIONS = [
   ["stack_set", "스택 지정"],
   ["stack_remove", "스택 제거"],
   ["stack_max", "스택 최대"],
+  ["stack_cycle", "스택 순환"],
 ];
 
 const EFFECT_TARGETS = [
@@ -1922,6 +1924,8 @@ function renderStackEffectDetail(effect) {
       idField("stack_effects", effect),
       textField("이름", effect, "name"),
       numberField("최대 스택", effect, "max_stacks", { step: 1, rerender: true }),
+      checkboxField("0스택도 표시", effect, "show_at_zero"),
+      textField("0스택 메모", effect, "zero_note"),
       textAreaField("설명", effect, "description", { full: true }),
     ]),
     stackTierEditor(effect),
@@ -1933,6 +1937,7 @@ function renderStackEffectDetail(effect) {
 
 function normalizeStackEffect(effect) {
   effect.max_stacks = Math.max(1, Number(effect.max_stacks || effect.max || 1));
+  effect.show_at_zero = Boolean(effect.show_at_zero);
   effect.tiers = Array.isArray(effect.tiers) ? effect.tiers : Array.isArray(effect.stacks) ? effect.stacks : [];
   delete effect.stacks;
   effect.tiers = effect.tiers.filter((tier) => tier && typeof tier === "object");
@@ -2080,7 +2085,7 @@ function normalizeStackCondition(condition) {
   const objective = condition.objective || condition.kind || "damage";
   const isWarningEvent = stackConditionIsWarningEvent(objective);
   const target = isWarningEvent ? "none" : ["enemy", "opponent"].includes(condition.target) ? "opponent" : "self";
-  return {
+  const normalized = {
     objective,
     target,
     operation,
@@ -2088,6 +2093,11 @@ function normalizeStackCondition(condition) {
     required: isWarningEvent ? 1 : Math.max(1, Number(condition.required || 1)),
     min_damage: Math.max(0, Number(condition.min_damage || 0)),
   };
+  if (objective === "turn_end") {
+    normalized.min_hp_ratio = clamp(Number(condition.min_hp_ratio ?? 0), 0, 1);
+    normalized.max_hp_ratio = clamp(Number(condition.max_hp_ratio ?? 1), 0, 1);
+  }
+  return normalized;
 }
 
 function stackConditionIsWarningEvent(objective) {
@@ -2122,6 +2132,7 @@ function stackTierEditor(effect) {
     ]),
     el("div", { className: "form-grid three" }, [
       numberField("적용 스택", tier, "stack", { step: 1 }),
+      textField("상태 메모", tier, "note"),
     ]),
     statEffectsEditor(tier, "stat_effects", "스택 스탯 효과", -1, true, { hideTarget: true, forceDuration: -1, forceUndispellable: true }),
     specialEffectsEditor(tier, "effects", "스택 특수 효과", -1, true, { hideTarget: true, forceDuration: -1, forceUndispellable: true }),
@@ -2150,6 +2161,12 @@ function stackConditionEditor(effect) {
     }
     if (!isWarningEvent && condition.objective === "hits") {
       fields.push(numberField("타수 최소 피해", condition, "min_damage", { step: 1 }));
+    }
+    if (!isWarningEvent && condition.objective === "turn_end") {
+      fields.push(
+        numberField("최소 HP 비율", condition, "min_hp_ratio", { step: 0.01 }),
+        numberField("최대 HP 비율", condition, "max_hp_ratio", { step: 0.01 }),
+      );
     }
     if (!["remove", "max"].includes(condition.operation)) {
       fields.push(numberField("스택 수", condition, "value", { step: 1 }));
@@ -5420,13 +5437,14 @@ function effectActionEditor(owner, key, title, config = {}) {
         },
       }),
       selectField("대상", action, "target", EFFECT_TARGETS),
+      checkboxField("재발동 시 반복", action, "repeat_on_recast"),
     ];
     if (isStackAction) {
       fields.push(selectField("스택 효과", action, "stack_effect_id", stackEffectOptions()));
-      if (["stack_increase", "stack_set", "stack_max"].includes(action.action)) {
+      if (["stack_increase", "stack_set", "stack_max", "stack_cycle"].includes(action.action)) {
         fields.push(numberField("지속 턴 (-1=무한)", action, "duration", { step: 1 }));
       }
-      if (!["stack_remove", "stack_max"].includes(action.action)) {
+      if (!["stack_remove", "stack_max", "stack_cycle"].includes(action.action)) {
         fields.push(
           numberField("스택 수", action, "value", { step: 1 }),
           selectField("수량 참조 스택", action, "value_from_stack_effect_id", [["", "고정값"], ...stackEffectOptions()], {
@@ -5477,6 +5495,7 @@ function defaultEffectActionTarget(action) {
 }
 
 function normalizeEffectActionForUi(action, targetOptions = ACTION_STACK_CONDITION_TARGETS) {
+  action.repeat_on_recast ??= true;
   action.conditions = Array.isArray(action.conditions)
     ? action.conditions
       .filter((condition) => condition && typeof condition === "object")

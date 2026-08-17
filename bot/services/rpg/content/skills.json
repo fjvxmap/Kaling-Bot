@@ -2793,17 +2793,25 @@
     "cooldown": 2,
     "role": "attack",
     "special": false,
-    "damage_multiplier": 2.6,
+    "damage_multiplier": 1.25,
     "hits": 3,
     "player_mods": {},
     "enemy_mods": {},
+    "hp_variants": [
+      {
+        "max_hp_ratio": 0.35,
+        "damage_multiplier": 0.95,
+        "hits": 4,
+        "note": "HP 35% 이하에서는 균열이 갈라져 4회 공격으로 변한다."
+      }
+    ],
     "heal_power": 0,
     "heal_target": "self",
     "damage_cut": 0,
     "job_ids": [
       "sarasa_1"
     ],
-    "note": "도끼날로 지면의 결을 끊어 세 차례 충격을 밀어 보낸다.",
+    "note": "도끼날로 지면의 결을 끊어 3회 공격한다. HP 35% 이하에서는 위력을 나눠 4회 공격하며 총 피해가 소폭 증가한다.",
     "stats": {}
   },
   {
@@ -2827,16 +2835,38 @@
       {
         "stat": "enmity",
         "target": "self",
-        "value": 0.05,
-        "duration": 1,
+        "value": 0.04,
+        "duration": 2,
         "undispellable": false
       },
       {
         "stat": "garrison",
         "target": "self",
-        "value": 0.35,
+        "value": 0.22,
         "duration": 3,
         "undispellable": false
+      }
+    ],
+    "hp_variants": [
+      {
+        "max_hp_ratio": 0.35,
+        "player_stat_effects": [
+          {
+            "stat": "enmity",
+            "target": "self",
+            "value": 0.02,
+            "duration": 2,
+            "undispellable": false
+          },
+          {
+            "stat": "garrison",
+            "target": "self",
+            "value": 0.12,
+            "duration": 3,
+            "undispellable": false
+          }
+        ],
+        "note": "비용 지불 후 HP 35% 이하라면 배수와 견수가 한층 강해진다."
       }
     ],
     "heal_power": 0,
@@ -2845,7 +2875,7 @@
     "job_ids": [
       "sarasa_1"
     ],
-    "note": "최대 HP의 18%를 소모해 흐름을 뒤집는다. 1턴 동안 배수, 3턴 동안 견수가 증가한다.",
+    "note": "최대 HP의 18%를 소모해 2턴 동안 배수, 3턴 동안 견수를 얻는다. 비용 지불 후 HP 35% 이하라면 두 효과가 강화된다.",
     "stats": {}
   },
   {
@@ -2856,17 +2886,25 @@
     "cooldown": 3,
     "role": "attack",
     "special": false,
-    "damage_multiplier": 0.55,
+    "damage_multiplier": 1.1,
     "hits": 5,
     "player_mods": {},
     "enemy_mods": {},
+    "hp_variants": [
+      {
+        "max_hp_ratio": 0.35,
+        "damage_multiplier": 0.79,
+        "hits": 7,
+        "note": "HP 35% 이하에서는 빈틈을 끝까지 파고들어 7회 공격으로 변한다."
+      }
+    ],
     "heal_power": 0,
     "heal_target": "self",
     "damage_cut": 0,
     "job_ids": [
       "sarasa_2"
     ],
-    "note": "이미 벌어진 균열을 따라 도끼와 검을 연달아 꽂아 넣는다.",
+    "note": "벌어진 균열을 따라 5회 공격한다. HP 35% 이하에서는 타격을 7회로 나누며 총 피해가 소폭 증가한다.",
     "stats": {}
   },
   {
@@ -2881,32 +2919,74 @@
     "hits": 0,
     "player_mods": {},
     "enemy_mods": {},
-    "self_hp_cost": {
-      "mode": "current_hp_ratio",
-      "value": 0.3,
-      "minimum_hp": 1
-    },
     "player_stat_effects": [
       {
         "stat": "life_steal",
         "target": "self",
-        "value": 0.07,
+        "value": 0.025,
         "duration": 2,
         "undispellable": false
       },
       {
         "stat": "life_steal_cap",
         "target": "self",
-        "value": 0.12,
+        "value": 0.015,
         "duration": 2,
         "undispellable": false
       },
       {
-        "stat": "critical_rate",
+        "stat": "damage_cut",
         "target": "self",
-        "value": 0.2,
+        "value": 0.12,
         "duration": 2,
         "undispellable": false
+      }
+    ],
+    "effect_actions": [
+      {
+        "action": "stack_decrease",
+        "target": "self",
+        "stack_effect_id": "sarasa_fury",
+        "value": 3,
+        "repeat_on_recast": false
+      }
+    ],
+    "hp_variants": [
+      {
+        "max_hp_ratio": 0.35,
+        "player_stat_effects": [
+          {
+            "stat": "life_steal",
+            "target": "self",
+            "value": 0.015,
+            "duration": 2,
+            "undispellable": false
+          },
+          {
+            "stat": "life_steal_cap",
+            "target": "self",
+            "value": 0.01,
+            "duration": 2,
+            "undispellable": false
+          },
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": 0.08,
+            "duration": 2,
+            "undispellable": false
+          }
+        ],
+        "effect_actions": [
+          {
+            "action": "stack_decrease",
+            "target": "self",
+            "stack_effect_id": "sarasa_fury",
+            "value": 1,
+            "repeat_on_recast": false
+          }
+        ],
+        "note": "HP 35% 이하에서는 흡수와 차단이 강화되고 분노를 1단계 더 식힌다."
       }
     ],
     "heal_power": 0,
@@ -2915,7 +2995,7 @@
     "job_ids": [
       "sarasa_2"
     ],
-    "note": "현재 HP의 30%를 내주고 2턴 동안 생명력 흡수와 크리티컬 확률을 높인다. 되찾을 피해를 먼저 확보해야 한다.",
+    "note": "분노를 3단계 가라앉히고 2턴 동안 제한된 생명력 흡수와 데미지 컷을 얻는다. 사용 자체로 분노가 1단계 다시 올라 실질 2단계, HP 35% 이하에서는 3단계 낮춘다.",
     "stats": {}
   },
   {
@@ -2934,16 +3014,45 @@
       {
         "stat": "enmity",
         "target": "self",
-        "value": 0.08,
+        "value": 0.05,
         "duration": 1,
         "undispellable": false
       },
       {
         "stat": "damage_cut",
         "target": "self",
-        "value": 0.25,
+        "value": 0.18,
         "duration": 2,
         "undispellable": false
+      }
+    ],
+    "hp_variants": [
+      {
+        "max_hp_ratio": 0.35,
+        "player_stat_effects": [
+          {
+            "stat": "enmity",
+            "target": "self",
+            "value": 0.03,
+            "duration": 1,
+            "undispellable": false
+          },
+          {
+            "stat": "damage_cut",
+            "target": "self",
+            "value": 0.1,
+            "duration": 2,
+            "undispellable": false
+          },
+          {
+            "stat": "garrison",
+            "target": "self",
+            "value": 0.12,
+            "duration": 2,
+            "undispellable": false
+          }
+        ],
+        "note": "HP 35% 이하에서는 배수, 데미지 컷, 견수가 함께 강화된다."
       }
     ],
     "heal_power": 0,
@@ -2952,7 +3061,7 @@
     "job_ids": [
       "sarasa_2"
     ],
-    "note": "남은 체력을 읽는 자세로 전환한다. 1턴 동안 배수, 2턴 동안 데미지 컷이 증가한다.",
+    "note": "1턴 동안 배수, 2턴 동안 데미지 컷을 얻는다. HP 35% 이하에서는 배수와 방어가 함께 강화된다.",
     "stats": {}
   },
   {
@@ -2963,7 +3072,7 @@
     "cooldown": 6,
     "role": "attack",
     "special": false,
-    "damage_multiplier": 3.4,
+    "damage_multiplier": 1.8,
     "hits": 4,
     "player_mods": {},
     "enemy_mods": {},
@@ -2971,30 +3080,33 @@
       {
         "stat": "enmity",
         "target": "self",
-        "value": 0.08,
+        "value": 0.04,
         "duration": 1,
         "undispellable": false
-      },
+      }
+    ],
+    "hp_variants": [
       {
-        "stat": "dmg_amplification",
-        "target": "self",
-        "value": 0.1,
-        "duration": 3,
-        "undispellable": false
-      },
-      {
-        "stat": "life_steal",
-        "target": "self",
-        "value": 0.035,
-        "duration": 3,
-        "undispellable": false
-      },
-      {
-        "stat": "life_steal_cap",
-        "target": "self",
-        "value": 0.06,
-        "duration": 3,
-        "undispellable": false
+        "max_hp_ratio": 0.35,
+        "damage_multiplier": 1.45,
+        "hits": 5,
+        "player_stat_effects": [
+          {
+            "stat": "life_steal",
+            "target": "self",
+            "value": 0.025,
+            "duration": 2,
+            "undispellable": false
+          },
+          {
+            "stat": "life_steal_cap",
+            "target": "self",
+            "value": 0.015,
+            "duration": 2,
+            "undispellable": false
+          }
+        ],
+        "note": "HP 35% 이하에서는 5회 공격으로 변하고 제한된 생명력 흡수를 얻는다."
       }
     ],
     "heal_power": 0,
@@ -3003,7 +3115,7 @@
     "job_ids": [
       "sarasa_3"
     ],
-    "note": "네 번의 참격과 함께 1턴 동안 배수, 3턴 동안 데미지 증가와 생명력 흡수를 얻는다. 낮은 체력을 화력과 회복으로 동시에 바꾼다.",
+    "note": "4회 공격하고 1턴 동안 배수를 얻는다. HP 35% 이하에서는 5회 공격으로 변하며 2턴 동안 제한된 생명력 흡수를 얻는다.",
     "stats": {}
   },
   {
@@ -3022,54 +3134,44 @@
       {
         "stat": "triple_attack_rate",
         "target": "self",
-        "value": 1.0,
-        "duration": 1,
+        "value": 0.6,
+        "duration": 2,
         "undispellable": false
       }
     ],
-    "player_effects": {
-      "double_strike": {
-        "count": 2,
-        "target": "self",
-        "duration": 1,
-        "undispellable": false
-      },
-      "bonus_damage": [
-        {
-          "ratio": 0.2,
-          "target": "self",
-          "duration": 2,
-          "undispellable": false
-        }
-      ],
-      "final_damage": [
-        {
-          "ratio": 0.15,
-          "target": "self",
-          "duration": 1,
-          "undispellable": false
-        }
-      ]
-    },
+    "hp_variants": [
+      {
+        "max_hp_ratio": 0.35,
+        "player_effects": {
+          "double_strike": {
+            "count": 2,
+            "target": "self",
+            "duration": 1,
+            "undispellable": false
+          }
+        },
+        "note": "HP 35% 이하에서만 이번 턴 추가 행동 1회를 얻는다."
+      }
+    ],
     "heal_power": 0,
     "heal_target": "self",
     "damage_cut": 0,
     "job_ids": [
       "sarasa_3"
     ],
-    "note": "도끼의 관성을 검의 속도로 바꾼다. 이번 턴 트리플 어택과 재행동을 얻고, 2턴 동안 추격이 발생한다.",
+    "note": "2턴 동안 트리플 어택 확률을 높인다. HP 35% 이하에서만 이번 턴 추가 행동 1회를 얻는다.",
     "stats": {}
   },
   {
     "id": "sarasa_ground_zero",
     "name": "그라운드 제로",
     "unlock_level": 50,
-    "uses": 0,
+    "uses": 1,
     "cooldown": 8,
     "role": "attack",
     "special": false,
-    "damage_multiplier": 0.8,
-    "hp_scaled_damage": true,
+    "damage_multiplier": 1.25,
+    "hp_scaled_damage": false,
     "hits": 4,
     "player_mods": {},
     "enemy_mods": {},
@@ -3092,7 +3194,7 @@
     "job_ids": [
       "sarasa_4"
     ],
-    "note": "HP를 1로 만들고, 소모 후 HP를 기준으로 네 차례 피해를 준다. 그 턴 동안 잔명이 발동해 피해를 무효화하고 흡수와 견수를 높인다.",
+    "note": "전투당 한 번, HP를 1로 만들고 4회 공격한다. 이후에는 역류와 아스트로 다이버전스로 피를 내주며 저체력의 흐름을 이어가야 한다. 1턴 동안 잔명으로 견수와 데미지 컷, 피해량에 비례한 제한 흡수를 얻지만 피해를 무효화하지는 않는다.",
     "stats": {}
   },
   {
@@ -3111,43 +3213,87 @@
       {
         "stat": "enmity",
         "target": "self",
-        "value": 0.05,
+        "value": 0.04,
         "duration": 1,
         "undispellable": true
       },
       {
         "stat": "triple_attack_rate",
         "target": "self",
-        "value": 1.0,
+        "value": 0.55,
         "duration": 3,
         "undispellable": true
       }
     ],
     "player_effects": {
-      "ability_recast": [
-        {
-          "count": 1,
-          "target": "self",
-          "duration": 1,
-          "undispellable": true
-        }
-      ],
       "final_damage": [
         {
-          "ratio": 0.2,
+          "ratio": 0.08,
           "target": "self",
           "duration": 3,
           "undispellable": true
         }
       ]
     },
+    "hp_variants": [
+      {
+        "max_hp_ratio": 0.35,
+        "player_effects": {
+          "ability_recast": [
+            {
+              "count": 1,
+              "target": "self",
+              "duration": 1,
+              "undispellable": true
+            }
+          ]
+        },
+        "note": "HP 35% 이하에서만 이번 턴 공격 어빌리티를 한 차례 재발동한다."
+      }
+    ],
     "heal_power": 0,
     "heal_target": "self",
     "damage_cut": 0,
     "job_ids": [
       "sarasa_4"
     ],
-    "note": "전투당 한 번, 이번 턴의 공격 어빌리티를 한 차례 재발동한다. 1턴 동안 배수, 3턴 동안 확정 트리플 어택과 최종 데미지를 얻는다.",
+    "note": "전투당 한 번, 1턴 동안 배수와 3턴 동안 트리플 어택 확률·최종 데미지를 얻는다. HP 35% 이하에서만 이번 턴 공격 어빌리티를 한 차례 재발동한다.",
+    "stats": {}
+  },
+  {
+    "id": "sarasa_astro_divergence",
+    "name": "아스트로 다이버전스",
+    "unlock_level": 50,
+    "uses": 0,
+    "cooldown": 6,
+    "role": "attack",
+    "special": true,
+    "damage_multiplier": 0.25,
+    "hp_scaled_damage": true,
+    "hits": 3,
+    "player_mods": {},
+    "enemy_mods": {},
+    "self_hp_cost": {
+      "mode": "current_hp_ratio",
+      "value": 0.15,
+      "minimum_hp": 1
+    },
+    "effect_actions": [
+      {
+        "action": "stack_cycle",
+        "target": "self",
+        "stack_effect_id": "sarasa_astral_form",
+        "duration": -1,
+        "repeat_on_recast": false
+      }
+    ],
+    "heal_power": 0,
+    "heal_target": "self",
+    "damage_cut": 0,
+    "job_ids": [
+      "sarasa_4"
+    ],
+    "note": "현재 HP의 15%를 소모해 3회 공격하고 형태를 전환한다. 전투 시작 시 도끼 형태이며, 첫 사용은 도끼 보정을 받은 뒤 검 형태로 전환한다. 이후에도 전환격에는 이전 형상의 공격 보정이 적용되고, 새 형상은 이후 행동과 피격부터 적용된다.",
     "stats": {}
   }
 ]

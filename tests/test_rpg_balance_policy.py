@@ -287,7 +287,8 @@ class BalancePolicyTests(unittest.TestCase):
         self.assertGreater(demian.player_hp, 0)
         self.assertGreater(dict(demian.boss_stacks)["demian_stigma_hard"], 0)
         self.assertGreater(first.player_hp, 0)
-        self.assertEqual(first.turns, 20)
+        self.assertLessEqual(first.turns, 20)
+        self.assertTrue(first.won or first.turns == 20)
 
 
 if __name__ == "__main__":

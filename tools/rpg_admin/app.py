@@ -7,6 +7,7 @@ import shutil
 from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from math import isfinite
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -51,9 +52,9 @@ OBJECTIVE_IDS = {
     "warning_success",
     "warning_failure",
 }
-STACK_CONDITION_OBJECTIVE_IDS = OBJECTIVE_IDS | {"received_damage"}
+STACK_CONDITION_OBJECTIVE_IDS = OBJECTIVE_IDS | {"received_damage", "turn_end"}
 EFFECT_ACTION_IDS = {"dispel", "clear_all"}
-STACK_EFFECT_ACTION_IDS = {"stack_increase", "stack_decrease", "stack_set", "stack_remove", "stack_max"}
+STACK_EFFECT_ACTION_IDS = {"stack_increase", "stack_decrease", "stack_set", "stack_remove", "stack_max", "stack_cycle"}
 EFFECT_ACTION_IDS = EFFECT_ACTION_IDS | STACK_EFFECT_ACTION_IDS
 WARNING_ACTIVATION_CONDITION_IDS = {"stack", "stack_compare", "turn_multiple", "turn_range", "boss_hp_ratio", "ct_ready"}
 WARNING_ACTIVATION_STACK_TARGET_IDS = {"boss", "player"}
@@ -128,6 +129,7 @@ def normalize_content(content: dict[str, Any]) -> None:
             normalize_stat_effects(job, "stat_effect_mods", "stat_effects", -1, bool(job.get("undispellable", True)), stat_order_index)
             job.pop("stat_effect_mods", None)
             normalize_combat_effects(job, "effects", bool(job.get("undispellable", True)), -1)
+            normalize_job_battle_rules(job)
     for effect in content.get("stack_effects", []):
         if isinstance(effect, dict):
             normalize_stack_effect(effect, stat_order_index)
@@ -157,6 +159,7 @@ def normalize_content(content: dict[str, Any]) -> None:
             normalize_combat_effects(skill, "player_effects", player_undispellable, duration)
             normalize_combat_effects(skill, "enemy_effects", enemy_undispellable, duration)
             normalize_effect_actions(skill, "effect_actions")
+            normalize_skill_hp_variants(skill, stat_order_index)
             normalize_heal_cap(skill)
             skill["heal_target"] = normalize_stat_effect_target(skill.get("heal_target"))
             skill.pop("duration", None)
@@ -240,6 +243,7 @@ def normalize_boss_hard_mode(
 
 def normalize_stack_effect(effect: dict[str, Any], stat_order_index: dict[str, int]) -> None:
     effect["max_stacks"] = max(1, safe_int(effect.get("max_stacks", effect.get("max")), 1))
+    effect["show_at_zero"] = bool(effect.get("show_at_zero", False))
     tiers = effect.get("tiers", effect.get("stacks", []))
     if not isinstance(tiers, list):
         tiers = []
@@ -440,7 +444,7 @@ def normalize_stack_condition(condition: dict[str, Any]) -> dict[str, Any]:
         else:
             target = "self"
         required = max(1, safe_int(condition.get("required"), 1))
-    return {
+    normalized = {
         "objective": objective,
         "target": target,
         "operation": operation,
@@ -448,6 +452,73 @@ def normalize_stack_condition(condition: dict[str, Any]) -> dict[str, Any]:
         "required": required,
         "min_damage": max(0, safe_int(condition.get("min_damage"), 0)),
     }
+    if objective == "turn_end":
+        normalized["min_hp_ratio"] = max(0.0, min(1.0, safe_float(condition.get("min_hp_ratio"), 0.0)))
+        normalized["max_hp_ratio"] = max(0.0, min(1.0, safe_float(condition.get("max_hp_ratio"), 1.0)))
+    return normalized
+
+
+def normalize_job_battle_rules(job: dict[str, Any]) -> None:
+    rows = job.get("initial_stack_effects")
+    if isinstance(rows, list):
+        job["initial_stack_effects"] = [
+            {
+                "stack_effect_id": str(row.get("stack_effect_id", row.get("id", "")) or ""),
+                "stacks": max(0, safe_int(row.get("stacks"), 0)),
+            }
+            for row in rows
+            if isinstance(row, dict) and str(row.get("stack_effect_id", row.get("id", "")) or "")
+        ]
+    rule = job.get("low_hp_cooldown")
+    if isinstance(rule, dict):
+        job["low_hp_cooldown"] = {
+            "max_hp_ratio": max(0.0, min(1.0, safe_float(rule.get("max_hp_ratio"), 0.0))),
+            "reduction": max(0, safe_int(rule.get("reduction"), 0)),
+            "disabled_at_stack_effect_id": str(rule.get("disabled_at_stack_effect_id", "") or ""),
+            "disabled_at_stacks": safe_int(rule.get("disabled_at_stacks"), -1),
+        }
+
+
+def normalize_skill_hp_variants(skill: dict[str, Any], stat_order_index: dict[str, int]) -> None:
+    rows = skill.get("hp_variants")
+    if not isinstance(rows, list):
+        return
+    normalized = []
+    for variant in rows:
+        if not isinstance(variant, dict):
+            continue
+        duration = safe_int(variant.get("duration"), 1)
+        player_undispellable = bool(variant.get("player_undispellable", variant.get("undispellable", False)))
+        enemy_undispellable = bool(variant.get("enemy_undispellable", False))
+        variant["max_hp_ratio"] = max(0.0, min(1.0, safe_float(variant.get("max_hp_ratio"), 0.0)))
+        normalize_stat_effects(
+            variant,
+            "player_mods",
+            "player_stat_effects",
+            duration,
+            player_undispellable,
+            stat_order_index,
+        )
+        normalize_stat_effects(
+            variant,
+            "enemy_mods",
+            "enemy_stat_effects",
+            duration,
+            enemy_undispellable,
+            stat_order_index,
+        )
+        normalize_combat_effects(variant, "player_effects", player_undispellable, duration)
+        normalize_combat_effects(variant, "enemy_effects", enemy_undispellable, duration)
+        normalize_effect_actions(variant, "effect_actions")
+        variant.pop("duration", None)
+        variant.pop("player_undispellable", None)
+        variant.pop("enemy_undispellable", None)
+        variant.pop("undispellable", None)
+        normalized.append(variant)
+    skill["hp_variants"] = sorted(
+        normalized,
+        key=lambda variant: safe_float(variant.get("max_hp_ratio"), 0.0),
+    )
 
 
 def normalize_pattern_effects(pattern: dict[str, Any], stat_order_index: dict[str, int] | None = None) -> None:
@@ -864,7 +935,9 @@ def normalize_gacha(gacha: Any) -> None:
         pool["entries"] = [entry for entry in entries if isinstance(entry, dict)]
         for entry in pool["entries"]:
             entry.setdefault("type", "item_rarity")
-            entry["chance"] = max(0.0, safe_float(entry.get("chance"), 0.0) or 0.0)
+            parsed_chance = safe_float(entry.get("chance"), None)
+            if parsed_chance is not None:
+                entry["chance"] = parsed_chance
             if entry["type"] == "item":
                 normalize_gacha_targets(entry, "item_ids", "items", "item_id", 1)
                 entry["stars"] = max(0, safe_int(entry.get("stars"), 0))
@@ -900,7 +973,9 @@ def normalize_gacha(gacha: Any) -> None:
                     override.get("id", override.get("rarity", override.get("item_id", override.get("material_id", "")))),
                 )
             )
-            override["chance"] = max(0.0, safe_float(override.get("chance"), 0.0) or 0.0)
+            parsed_chance = safe_float(override.get("chance"), None)
+            if parsed_chance is not None:
+                override["chance"] = parsed_chance
 
 
 def normalize_gacha_targets(
@@ -1240,6 +1315,7 @@ def normalize_effect_actions(row: dict[str, Any], key: str) -> None:
         action["action"] = action_id
         action["target"] = target
         action["count"] = max(1, safe_int(action.get("count"), 1))
+        action["repeat_on_recast"] = bool(action.get("repeat_on_recast", True))
         if action_id in STACK_EFFECT_ACTION_IDS:
             action["stack_effect_id"] = str(action.get("stack_effect_id", action.get("effect_id", "")) or "")
             action["value"] = max(1, safe_int(action.get("value", action.get("stacks", action.get("count"))), 1))
@@ -1492,9 +1568,24 @@ def validate_content(content: dict[str, Any]) -> list[str]:
     stat_ids = set(content.get("stats", {}).get("order", []))
     items = ensure_unique_ids(content.get("items", []), "item", errors)
     materials = ensure_unique_ids(content.get("materials", []), "material", errors)
+    item_rows = {
+        str(row.get("id", "")): row
+        for row in content.get("items", [])
+        if isinstance(row, dict) and str(row.get("id", ""))
+    }
+    material_rows = {
+        str(row.get("id", "")): row
+        for row in content.get("materials", [])
+        if isinstance(row, dict) and str(row.get("id", ""))
+    }
     jobs = ensure_unique_ids(content.get("jobs", []), "job", errors)
     skills = ensure_unique_ids(content.get("skills", []), "skill", errors)
     stack_effects = ensure_unique_ids(content.get("stack_effects", []), "stack effect", errors)
+    stack_effect_max = {
+        str(effect.get("id", "")): max(1, safe_int(effect.get("max_stacks"), 1))
+        for effect in content.get("stack_effects", [])
+        if isinstance(effect, dict) and str(effect.get("id", ""))
+    }
     recipes = ensure_unique_ids(content.get("crafting_recipes", []), "crafting recipe", errors)
     dungeons = ensure_unique_ids(content.get("dungeons", []), "dungeon", errors)
     bosses = ensure_unique_ids(content.get("bosses", []), "boss", errors)
@@ -1516,6 +1607,7 @@ def validate_content(content: dict[str, Any]) -> list[str]:
             errors.append(f"job {job.get('id')} parent not found: {parent_id}")
         validate_stat_effects(job.get("stat_effects"), stat_ids, f"job {job.get('id')} stat effects", errors)
         validate_combat_effects(job.get("effects"), f"job {job.get('id')} effects", errors)
+        validate_job_battle_rules(job, stack_effects, stack_effect_max, errors)
     for effect in content.get("stack_effects", []):
         validate_stack_effect(effect, stat_ids, f"stack effect {effect.get('id')}", errors, stack_effects)
     for skill in content.get("skills", []):
@@ -1527,6 +1619,7 @@ def validate_content(content: dict[str, Any]) -> list[str]:
         validate_combat_effects(skill.get("player_effects", skill.get("effects")), f"skill {skill.get('id')} player effects", errors)
         validate_combat_effects(skill.get("enemy_effects"), f"skill {skill.get('id')} enemy effects", errors)
         validate_effect_actions(skill.get("effect_actions"), f"skill {skill.get('id')} effect actions", errors, stack_effects)
+        validate_skill_hp_variants(skill, stat_ids, stack_effects, errors)
         validate_heal_cap(skill.get("heal_cap"), f"skill {skill.get('id')} heal cap", errors)
         if str(skill.get("heal_target", "self") or "self") not in STAT_EFFECT_TARGET_IDS:
             errors.append(f"skill {skill.get('id')} heal target is invalid")
@@ -1652,7 +1745,15 @@ def validate_content(content: dict[str, Any]) -> list[str]:
                 f"boss {boss.get('id')} hard mode rewards",
                 errors,
             )
-    validate_gacha(content.get("gacha", {}), items, materials, rarities, errors)
+    validate_gacha(
+        content.get("gacha", {}),
+        items,
+        materials,
+        item_rows,
+        material_rows,
+        rarities,
+        errors,
+    )
 
     for label, ids in (("skills", skills), ("recipes", recipes), ("dungeons", dungeons), ("bosses", bosses)):
         if not ids:
@@ -1681,6 +1782,102 @@ def ensure_unique_ids(rows: Any, label: str, errors: list[str]) -> set[str]:
 def check_rarity(rarity: Any, rarities: set[str], label: str, errors: list[str]) -> None:
     if str(rarity) not in rarities:
         errors.append(f"{label} rarity not found: {rarity}")
+
+
+def validate_job_battle_rules(
+    job: dict[str, Any],
+    stack_effect_ids: set[str],
+    stack_effect_max: dict[str, int],
+    errors: list[str],
+) -> None:
+    label = f"job {job.get('id')}"
+    rows = job.get("initial_stack_effects", [])
+    if rows not in (None, []) and not isinstance(rows, list):
+        errors.append(f"{label} initial stack effects is not an array")
+        rows = []
+    seen: set[str] = set()
+    for index, row in enumerate(rows or [], start=1):
+        if not isinstance(row, dict):
+            errors.append(f"{label} initial stack effect {index} is not an object")
+            continue
+        effect_id = str(row.get("stack_effect_id", row.get("id", "")) or "")
+        if effect_id not in stack_effect_ids:
+            errors.append(f"{label} initial stack effect not found: {effect_id}")
+        if effect_id in seen:
+            errors.append(f"{label} duplicate initial stack effect: {effect_id}")
+        seen.add(effect_id)
+        stacks = safe_int(row.get("stacks"), 0)
+        if stacks < 0 or stacks > stack_effect_max.get(effect_id, 0):
+            errors.append(f"{label} initial stacks out of range: {effect_id} {stacks}")
+    rule = job.get("low_hp_cooldown")
+    if rule in (None, {}):
+        return
+    if not isinstance(rule, dict):
+        errors.append(f"{label} low HP cooldown is not an object")
+        return
+    ratio = safe_float(rule.get("max_hp_ratio"), -1.0)
+    reduction = safe_int(rule.get("reduction"), -1)
+    if not 0 < ratio <= 1:
+        errors.append(f"{label} low HP cooldown ratio must be between 0 and 1")
+    if reduction < 1:
+        errors.append(f"{label} low HP cooldown reduction must be at least 1")
+    blocker_id = str(rule.get("disabled_at_stack_effect_id", "") or "")
+    blocker_stacks = safe_int(rule.get("disabled_at_stacks"), -1)
+    if blocker_id:
+        if blocker_id not in stack_effect_ids:
+            errors.append(f"{label} low HP cooldown blocker not found: {blocker_id}")
+        if blocker_stacks < 1 or blocker_stacks > stack_effect_max.get(blocker_id, 0):
+            errors.append(f"{label} low HP cooldown blocker stacks out of range")
+
+
+def validate_skill_hp_variants(
+    skill: dict[str, Any],
+    stat_ids: set[str],
+    stack_effect_ids: set[str],
+    errors: list[str],
+) -> None:
+    rows = skill.get("hp_variants", [])
+    if rows in (None, []):
+        return
+    label = f"skill {skill.get('id')} HP variants"
+    if not isinstance(rows, list):
+        errors.append(f"{label} is not an array")
+        return
+    thresholds: set[float] = set()
+    for index, variant in enumerate(rows, start=1):
+        if not isinstance(variant, dict):
+            errors.append(f"{label} {index} is not an object")
+            continue
+        threshold = safe_float(variant.get("max_hp_ratio"), -1.0)
+        if not 0 < threshold <= 1:
+            errors.append(f"{label} {index} ratio must be between 0 and 1")
+        if threshold in thresholds:
+            errors.append(f"{label} duplicate ratio: {threshold}")
+        thresholds.add(threshold)
+        if "damage_multiplier" in variant and safe_float(variant.get("damage_multiplier"), -1.0) < 0:
+            errors.append(f"{label} {index} damage multiplier must be non-negative")
+        if "hits" in variant and safe_int(variant.get("hits"), -1) < 0:
+            errors.append(f"{label} {index} hits must be non-negative")
+        validate_stat_effects(
+            variant.get("player_stat_effects"),
+            stat_ids,
+            f"{label} {index} player stat effects",
+            errors,
+        )
+        validate_stat_effects(
+            variant.get("enemy_stat_effects"),
+            stat_ids,
+            f"{label} {index} enemy stat effects",
+            errors,
+        )
+        validate_combat_effects(variant.get("player_effects"), f"{label} {index} player effects", errors)
+        validate_combat_effects(variant.get("enemy_effects"), f"{label} {index} enemy effects", errors)
+        validate_effect_actions(
+            variant.get("effect_actions"),
+            f"{label} {index} effect actions",
+            errors,
+            stack_effect_ids,
+        )
 
 
 def validate_stack_effect(
@@ -1736,6 +1933,11 @@ def validate_stack_effect(
             errors.append(f"{label} condition {index} required must be at least 1")
         if objective == "hits" and safe_int(condition.get("min_damage"), 0) < 0:
             errors.append(f"{label} condition {index} min damage must be non-negative")
+        if objective == "turn_end":
+            minimum = safe_float(condition.get("min_hp_ratio"), 0.0)
+            maximum = safe_float(condition.get("max_hp_ratio"), 1.0)
+            if not 0 <= minimum <= maximum <= 1:
+                errors.append(f"{label} condition {index} HP ratio range is invalid")
     reactions = effect.get("reactions", [])
     if reactions not in (None, []) and not isinstance(reactions, list):
         errors.append(f"{label} reactions is not an array")
@@ -2614,6 +2816,8 @@ def validate_gacha(
     gacha: Any,
     items: set[str],
     materials: set[str],
+    item_rows: dict[str, dict[str, Any]],
+    material_rows: dict[str, dict[str, Any]],
     rarities: set[str],
     errors: list[str],
 ) -> None:
@@ -2650,7 +2854,16 @@ def validate_gacha(
         if not entries:
             errors.append(f"gacha pool {pool.get('id')} has no entries")
         for index, entry in enumerate(entries, start=1):
-            validate_gacha_entry(entry, items, materials, rarities, f"gacha pool {pool.get('id')} entry {index}", errors)
+            validate_gacha_entry(
+                entry,
+                items,
+                materials,
+                item_rows,
+                material_rows,
+                rarities,
+                f"gacha pool {pool.get('id')} entry {index}",
+                errors,
+            )
     for festival in festivals:
         if not isinstance(festival, dict):
             continue
@@ -2681,12 +2894,22 @@ def validate_gacha(
                 f"gacha festival {festival.get('id')} override {index}",
                 errors,
             )
+        validate_gacha_festival_contracts(
+            festival,
+            pools,
+            item_rows,
+            material_rows,
+            f"gacha festival {festival.get('id')}",
+            errors,
+        )
 
 
 def validate_gacha_entry(
     entry: Any,
     items: set[str],
     materials: set[str],
+    item_rows: dict[str, dict[str, Any]],
+    material_rows: dict[str, dict[str, Any]],
     rarities: set[str],
     label: str,
     errors: list[str],
@@ -2697,8 +2920,11 @@ def validate_gacha_entry(
     entry_type = str(entry.get("type", ""))
     if entry_type not in {"item", "item_rarity", "material", "material_rarity"}:
         errors.append(f"{label} type not found: {entry_type}")
-    if safe_float(entry.get("chance"), None) is None:
+    chance = safe_float(entry.get("chance"), None)
+    if chance is None:
         errors.append(f"{label} chance is not a number")
+    elif not isfinite(chance) or chance <= 0:
+        errors.append(f"{label} chance must be finite and greater than 0")
     if entry_type == "item":
         item_ids = entry.get("item_ids", entry.get("items", []))
         validate_gacha_targets(item_ids, items, "item", f"{label} item_ids", errors)
@@ -2709,6 +2935,9 @@ def validate_gacha_entry(
         validate_gacha_targets(material_ids, materials, "material", f"{label} material_ids", errors)
     if entry_type == "material_rarity" and str(entry.get("rarity", "")) not in rarities:
         errors.append(f"{label} rarity not found: {entry.get('rarity')}")
+    if entry_type in {"item", "item_rarity", "material", "material_rarity"}:
+        if not gacha_admin_entry_candidates(entry, item_rows, material_rows):
+            errors.append(f"{label} has no eligible candidates")
 
 
 def validate_gacha_festival_override(
@@ -2732,8 +2961,11 @@ def validate_gacha_festival_override(
     )
     if override_type not in {"item", "item_rarity", "material", "material_rarity"}:
         errors.append(f"{label} type not found: {override_type}")
-    if safe_float(override.get("chance"), None) is None:
+    chance = safe_float(override.get("chance"), None)
+    if chance is None:
         errors.append(f"{label} chance is not a number")
+    elif not isfinite(chance) or chance < 0 or chance > 100:
+        errors.append(f"{label} chance must be finite and between 0 and 100")
     key = (override_type, target_id)
     if key in seen_overrides:
         errors.append(f"{label} duplicate override: {override_type} {target_id}")
@@ -2744,6 +2976,160 @@ def validate_gacha_festival_override(
         errors.append(f"{label} material not found: {target_id}")
     if override_type in {"item_rarity", "material_rarity"} and target_id not in rarities:
         errors.append(f"{label} rarity not found: {target_id}")
+
+
+def gacha_admin_entry_candidates(
+    entry: dict[str, Any],
+    item_rows: dict[str, dict[str, Any]],
+    material_rows: dict[str, dict[str, Any]],
+) -> list[str]:
+    entry_type = str(entry.get("type", ""))
+    if entry_type in {"item", "material"}:
+        kind = entry_type
+        raw_targets = entry.get(f"{kind}_ids", entry.get(f"{kind}s", []))
+        valid_rows = item_rows if kind == "item" else material_rows
+        candidates = []
+        for raw_target in raw_targets if isinstance(raw_targets, list) else []:
+            if isinstance(raw_target, dict):
+                candidate_id = str(raw_target.get("id", raw_target.get(f"{kind}_id", "")))
+            else:
+                candidate_id = str(raw_target)
+            row = valid_rows.get(candidate_id)
+            if row is None or (kind == "item" and bool(row.get("excluded_from_gacha", False))):
+                continue
+            candidates.append(candidate_id)
+        return list(dict.fromkeys(candidates))
+    if entry_type in {"item_rarity", "material_rarity"}:
+        kind = entry_type.removesuffix("_rarity")
+        valid_rows = item_rows if kind == "item" else material_rows
+        rarity = str(entry.get("rarity", ""))
+        return [
+            candidate_id
+            for candidate_id, row in valid_rows.items()
+            if str(row.get("rarity", "")) == rarity
+            and not (kind == "item" and bool(row.get("excluded_from_gacha", False)))
+        ]
+    return []
+
+
+def validate_gacha_festival_contracts(
+    festival: dict[str, Any],
+    pools: list[Any],
+    item_rows: dict[str, dict[str, Any]],
+    material_rows: dict[str, dict[str, Any]],
+    label: str,
+    errors: list[str],
+) -> None:
+    override_rows: list[tuple[str, str, float]] = []
+    for override in festival.get("overrides", []):
+        if not isinstance(override, dict):
+            continue
+        override_type = str(override.get("type", ""))
+        target_id = str(
+            override.get(
+                "target_id",
+                override.get("id", override.get("rarity", override.get("item_id", override.get("material_id", "")))),
+            )
+        )
+        chance = safe_float(override.get("chance"), None)
+        if chance is None or not isfinite(chance) or chance < 0 or chance > 100:
+            continue
+        override_rows.append((override_type, target_id, chance))
+
+    exact_rows = {
+        (override_type, target_id): chance
+        for override_type, target_id, chance in override_rows
+        if override_type in {"item", "material"}
+    }
+    rarity_rows = {
+        (override_type.removesuffix("_rarity"), target_id): chance
+        for override_type, target_id, chance in override_rows
+        if override_type in {"item_rarity", "material_rarity"}
+    }
+    matched_overrides: set[tuple[str, str]] = set()
+
+    for pool in pools:
+        if not isinstance(pool, dict):
+            continue
+        atoms: list[tuple[str, str, str]] = []
+        for entry in pool.get("entries", []):
+            if not isinstance(entry, dict):
+                continue
+            chance = safe_float(entry.get("chance"), None)
+            if chance is None or not isfinite(chance) or chance <= 0:
+                continue
+            entry_type = str(entry.get("type", ""))
+            kind = "item" if entry_type in {"item", "item_rarity"} else "material"
+            rows = item_rows if kind == "item" else material_rows
+            for candidate_id in gacha_admin_entry_candidates(entry, item_rows, material_rows):
+                atoms.append((kind, candidate_id, str(rows.get(candidate_id, {}).get("rarity", ""))))
+        if not atoms:
+            continue
+
+        applicable_exact = {
+            key: chance
+            for key, chance in exact_rows.items()
+            if any((kind, candidate_id) == key for kind, candidate_id, _ in atoms)
+        }
+        applicable_rarity = {
+            key: chance
+            for key, chance in rarity_rows.items()
+            if any((kind, rarity) == key for kind, _, rarity in atoms)
+        }
+        matched_overrides.update(applicable_exact)
+        matched_overrides.update(
+            (f"{kind}_rarity", rarity)
+            for kind, rarity in applicable_rarity
+        )
+        if not applicable_exact and not applicable_rarity:
+            continue
+
+        exact_rarity = {
+            exact_key: next(
+                (kind, rarity)
+                for kind, candidate_id, rarity in atoms
+                if (kind, candidate_id) == exact_key
+            )
+            for exact_key in applicable_exact
+        }
+        for rarity_key, rarity_chance in applicable_rarity.items():
+            exact_total = sum(
+                chance
+                for exact_key, chance in applicable_exact.items()
+                if exact_rarity[exact_key] == rarity_key
+            )
+            if exact_total > rarity_chance + 1e-9:
+                errors.append(
+                    f"{label} pool {pool.get('id')} exact chances exceed "
+                    f"{rarity_key[0]} rarity {rarity_key[1]} chance"
+                )
+            has_remainder_recipient = any(
+                (kind, rarity) == rarity_key and (kind, candidate_id) not in applicable_exact
+                for kind, candidate_id, rarity in atoms
+            )
+            if rarity_chance > exact_total + 1e-9 and not has_remainder_recipient:
+                errors.append(
+                    f"{label} pool {pool.get('id')} rarity {rarity_key[0]} "
+                    f"{rarity_key[1]} has no remaining candidate"
+                )
+
+        fixed_percent = sum(applicable_rarity.values()) + sum(
+            chance
+            for exact_key, chance in applicable_exact.items()
+            if exact_rarity[exact_key] not in applicable_rarity
+        )
+        if fixed_percent > 100 + 1e-9:
+            errors.append(f"{label} pool {pool.get('id')} non-overlapping fixed chances exceed 100")
+        all_atoms_fixed = all(
+            (kind, candidate_id) in applicable_exact or (kind, rarity) in applicable_rarity
+            for kind, candidate_id, rarity in atoms
+        )
+        if all_atoms_fixed and fixed_percent < 100 - 1e-9:
+            errors.append(f"{label} pool {pool.get('id')} fixes every candidate but totals less than 100")
+
+    for override_type, target_id, _ in override_rows:
+        if (override_type, target_id) not in matched_overrides:
+            errors.append(f"{label} override {override_type} {target_id} applies to no pool candidate")
 
 
 def validate_gacha_targets(

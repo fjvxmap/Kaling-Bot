@@ -29,6 +29,7 @@ from bot.services.rpg.data import (
     RARITIES,
     RARITY_LABELS,
     SKILL_BY_ID,
+    gacha_chance_percent,
     scaled_item_stats,
 )
 from bot.services.rpg.manager import PotentialCandidate, RewardReport
@@ -136,6 +137,7 @@ def _profile_payload(runtime: WebRPGRuntime, profile: PlayerProfile) -> dict[str
         "job_id": current_job.id,
         "job_name": current_job.name,
         "job_tier": current_job.tier,
+        "job_description": current_job.description,
         "stats": {**asdict(stats), "final_hp": stats.final_hp},
         "stats_text": service.format_stats(stats),
         "daily_remaining": service.daily_remaining(profile),
@@ -198,6 +200,15 @@ def _profile_payload(runtime: WebRPGRuntime, profile: PlayerProfile) -> dict[str
                     "name": next_stage.name,
                     "stars": next_stage.stars,
                     "materials": dict(next_stage.materials),
+                    "material_rows": [
+                        {
+                            "id": material_id,
+                            "name": service.material_name(material_id),
+                            "amount": amount,
+                            "owned": int(profile.materials.get(material_id, 0)),
+                        }
+                        for material_id, amount in next_stage.materials.items()
+                    ],
                 }
                 if next_stage is not None
                 else None
@@ -375,6 +386,12 @@ def _content_payload(runtime: WebRPGRuntime, profile: PlayerProfile) -> dict[str
                     {
                         "name": runtime.engine._gacha_festival_target_label(override.type, override.target_id),
                         "chance": override.chance,
+                        "chance_percent": gacha_chance_percent(override.chance),
+                        "pool_ids": [
+                            pool.id
+                            for pool in GACHA_POOLS
+                            if runtime.engine._gacha_festival_override_applies(override, pool)
+                        ],
                     }
                     for override in festival.overrides
                 ],
@@ -427,6 +444,7 @@ def _boss_session_payload(runtime: WebRPGRuntime, session, user_id: int) -> dict
                 "id": skill.id,
                 "name": skill.name,
                 "summary": engine.service.skill_summary(skill),
+                "note": skill.note,
                 "state": engine._ability_state_text(participant, skill, cooldown_prefix=True),
                 "ready": cooldown <= 0 and not engine._ability_used_out(participant, skill) and participant.alive,
             })

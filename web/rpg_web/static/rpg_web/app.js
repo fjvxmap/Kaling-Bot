@@ -45,6 +45,11 @@
   const number = (value) => Number(value || 0).toLocaleString("ko-KR");
   const percent = (value, digits = 1) => `${(Number(value || 0) * 100).toFixed(digits)}%`;
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+  const percentPoints = (value, digits = 2) => {
+    const numeric = Number(value);
+    const bounded = Number.isFinite(numeric) ? clamp(numeric, 0, 100) : 0;
+    return `${bounded.toFixed(digits)}%`;
+  };
   const normalize = (value) => String(value || "")
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -405,6 +410,7 @@
         <div class="profile-identity">
           <h1>${esc(p.display_name)}</h1>
           <p>Lv.${p.level} · ${esc(p.job_name)} · T${p.job_tier}</p>
+          ${p.job_description ? `<p class="profile-job-description">${esc(p.job_description)}</p>` : ""}
           <div class="progress-track" title="${number(p.exp_progress)} / ${number(p.exp_required)} EXP"><span style="width:${expRatio * 100}%"></span></div>
         </div>
         <div class="profile-metric"><span>전투 HP</span><strong>${number(p.stats.final_hp)}</strong></div>
@@ -542,7 +548,7 @@
             <div class="player-state-block"><span>내 상태</span><p>${esc(playerState)}</p></div>
           </div>
           <section class="combat-action-section"><div class="combat-primary-actions"><button class="button button-primary combat-command" data-action="boss_attack" data-focus-key="boss.attack" ${player.alive ? "" : "disabled"}>공격</button><button class="button combat-command" data-action="boss_guard" data-focus-key="boss.guard" ${player.alive ? "" : "disabled"}>가드</button></div><button class="button button-quiet combat-leave" data-confirm-action="boss_leave" data-confirm-title="보스전 포기" data-confirm-message="현재 보스전에서 나갑니다. 보상은 받을 수 없습니다.">전투 포기</button></section>
-          <section class="combat-abilities hud-abilities"><div class="section-head"><h2>어빌리티</h2><span class="status-pill">${number(session.skills.length)}개</span></div><div class="ability-grid">${session.skills.map((skill) => `<button class="ability-button ${skill.ready ? "is-ready" : "is-cooling"}" data-action="boss_ability" data-skill-id="${esc(skill.id)}" data-focus-key="boss.ability:${esc(skill.id)}" ${skill.ready ? "" : "disabled"}><span class="ability-button-head"><strong>${esc(skill.name)}</strong><span class="ability-state">${esc(skill.state)}</span></span><span class="ability-summary">${esc(skill.summary || "효과 정보 없음")}</span></button>`).join("") || `<p class="combat-copy">장착 어빌리티 없음</p>`}</div></section>
+          <section class="combat-abilities hud-abilities"><div class="section-head"><h2>어빌리티</h2><span class="status-pill">${number(session.skills.length)}개</span></div><div class="ability-grid">${session.skills.map((skill) => `<button class="ability-button ${skill.ready ? "is-ready" : "is-cooling"}" data-action="boss_ability" data-skill-id="${esc(skill.id)}" data-focus-key="boss.ability:${esc(skill.id)}" ${skill.ready ? "" : "disabled"}><span class="ability-button-head"><strong>${esc(skill.name)}</strong><span class="ability-state">${esc(skill.state)}</span></span><span class="ability-summary">${esc(skill.summary || "효과 정보 없음")}</span>${skill.note ? `<span class="ability-summary">${esc(skill.note)}</span>` : ""}</button>`).join("") || `<p class="combat-copy">장착 어빌리티 없음</p>`}</div></section>
         </div>
         ${renderCombatDetails(session)}
       </div>` : ""}
@@ -737,11 +743,16 @@
   function renderGacha() {
     const selectedPool = state.content.gacha_pools.find((pool) => pool.id === state.selected.gachaPool) || state.content.gacha_pools[0];
     const festival = state.content.festival;
+    const festivalOverrides = (festival?.overrides || []).flatMap((row) => {
+      if (selectedPool && Array.isArray(row.pool_ids) && !row.pool_ids.includes(selectedPool.id)) return [];
+      const chance = row.chance_percent ?? row.chance;
+      return [`${row.name} ${percentPoints(chance)}`];
+    });
     const owned = state.profile.material_amounts[selectedPool?.cost_material_id] || 0;
     const result = state.result;
     return `<div class="page">
       ${pageHeader("가챠", selectedPool ? `${esc(selectedPool.cost_material_name)} ${number(owned)}개` : "")}
-      ${festival ? `<section class="section"><div class="detail-header"><div><h2>${esc(festival.name)}</h2><p>${esc(festival.description)}</p></div><span class="status-pill warning">FES</span></div><p class="combat-copy">${esc([festival.period, ...festival.overrides.map((row) => `${row.name} ${(row.chance * 100).toFixed(2)}%`)].filter(Boolean).join("\n"))}</p></section>` : ""}
+      ${festival ? `<section class="section"><div class="detail-header"><div><h2>${esc(festival.name)}</h2><p>${esc(festival.description)}</p></div><span class="status-pill warning">FES</span></div><p class="combat-copy">${esc([festival.period, ...festivalOverrides].filter(Boolean).join("\n"))}</p></section>` : ""}
       <div class="gacha-console"><div class="gacha-pool-head"><div><span class="eyebrow">가챠 풀</span><h2>${esc(selectedPool?.name || "가챠 없음")}</h2><p>${esc(selectedPool?.description || "")}</p></div><div class="segmented">${state.content.gacha_pools.map((pool) => `<button data-gacha-pool="${esc(pool.id)}" class="${pool.id === selectedPool?.id ? "is-active" : ""}">${esc(pool.name)}</button>`).join("")}</div></div>${selectedPool ? `<div class="gacha-wallet"><span>보유 ${esc(selectedPool.cost_material_name)}</span><strong>${number(owned)}</strong></div><div class="draw-grid">${selectedPool.draw_options.map((draws) => { const cost = Math.ceil(selectedPool.base_cost * draws / Math.max(1, selectedPool.base_draws)); return `<button class="draw-option${draws === selectedPool.base_draws ? " is-primary" : ""}" data-action="gacha" data-pool-id="${esc(selectedPool.id)}" data-draws="${draws}" ${owned < cost ? "disabled" : ""}><strong>${draws}회</strong><span>${number(cost)} ${esc(selectedPool.cost_material_name)}</span></button>`; }).join("")}</div>` : ""}${result && (result.items || result.materials) ? `<div class="gacha-result"><h3>가챠 결과</h3><pre>${esc([...(result.items || []), ...(result.materials || []).map((row) => `${row.name} x${row.amount}`), result.auto_sold_count ? `자동판매 ${result.auto_sold_count}개 · ${number(result.auto_sold_gold)}G` : ""].filter(Boolean).join("\n") || "획득 없음")}</pre></div>` : ""}</div>
     </div>`;
   }
@@ -778,10 +789,51 @@
     return `<div class="page">${pageHeader("전직", `${esc(state.profile.job_name)} · T${state.profile.job_tier}`, `<div class="segmented"><button class="${mode === "advance" ? "is-active" : ""}" data-job-mode="advance">전직</button><button class="${mode === "free" ? "is-active" : ""}" data-job-mode="free">자유전직</button></div>`)}<section class="section"><div class="entity-list">${jobs.map((job) => `<div class="entity-card"><div><h3>${esc(job.name)} · T${job.tier}</h3><p>Lv.${job.level} · ${esc(job.stats_text)}${job.description ? `\n${esc(job.description)}` : ""}</p></div><button class="button button-primary" data-confirm-action="${mode === "free" ? "job_free_advance" : "job_advance"}" data-job-id="${esc(job.id)}" data-confirm-title="${mode === "free" ? "자유전직" : "전직"}" data-confirm-message="${esc(job.name)}(으)로 전직합니다.">선택</button></div>`).join("") || `<div class="empty-state">현재 선택할 수 있는 직업이 없습니다.</div>`}</div></section></div>`;
   }
 
+  function liberationRequirementData(nextStage, profile) {
+    const suppliedRows = Array.isArray(nextStage?.material_rows) ? nextStage.material_rows : [];
+    const legacyEntries = Object.entries(nextStage?.materials || {});
+    const suppliedById = new Map(
+      suppliedRows
+        .filter((row) => row && typeof row === "object")
+        .map((row) => [String(row.id || ""), row]),
+    );
+    const knownNames = new Map(
+      (Array.isArray(profile?.materials) ? profile.materials : [])
+        .filter((row) => row && typeof row === "object")
+        .map((row) => [String(row.id || ""), String(row.name || "").trim()]),
+    );
+    const sourceRows = legacyEntries.length
+      ? legacyEntries.map(([id, amount]) => ({ ...(suppliedById.get(id) || {}), id, amount }))
+      : suppliedRows;
+    let incomplete = sourceRows.length === 0;
+    const rows = sourceRows.map((source) => {
+      const id = String(source?.id || "");
+      const suppliedName = String(source?.name || "").trim();
+      const knownName = String(knownNames.get(id) || "").trim();
+      const safeName = suppliedName && suppliedName !== id
+        ? suppliedName
+        : knownName && knownName !== id
+          ? knownName
+          : "해방 재료";
+      const amountValue = Number(source?.amount);
+      const ownedValue = Number(source?.owned ?? profile?.material_amounts?.[id] ?? 0);
+      if (safeName === "해방 재료" || !Number.isFinite(amountValue) || amountValue <= 0) incomplete = true;
+      return {
+        name: safeName,
+        amount: Number.isFinite(amountValue) && amountValue > 0 ? amountValue : 0,
+        owned: Number.isFinite(ownedValue) ? Math.max(0, ownedValue) : 0,
+      };
+    });
+    return { rows, incomplete };
+  }
+
   function renderLiberation() {
     const liberation = state.profile.liberation;
     const stageName = ["미수령", "미해방", "1차 해방", "2차 해방"][liberation.stage + 1] || "미수령";
-    return `<div class="page">${pageHeader("제네시스 해방", liberation.item_name ? `${esc(liberation.item_name)} · ${stageName}` : esc(liberation.target_item_name || ""))}<section class="section">${liberation.item_uid ? `<div class="stat-grid"><div class="stat-cell"><span>현재 단계</span><strong>${esc(stageName)}</strong></div><div class="stat-cell"><span>무기</span><strong>${esc(liberation.item_name)}</strong></div></div>${liberation.next_stage ? `<section class="section"><div class="section-head"><h2>${esc(liberation.next_stage.name)} · +${liberation.next_stage.stars}</h2></div><div class="entity-list">${Object.entries(liberation.next_stage.materials).map(([id, amount]) => { const owned = state.profile.material_amounts[id] || 0; const name = state.profile.materials.find((row) => row.id === id)?.name || id; return `<div class="entity-card"><h3>${esc(name)}</h3><span class="status-pill ${owned >= amount ? "success" : "danger"}">${number(owned)} / ${number(amount)}</span></div>`; }).join("")}</div><div class="button-row" style="margin-top:14px"><button class="button button-primary" data-confirm-action="liberation_advance" data-confirm-title="제네시스 해방" data-confirm-message="재료를 소모해 다음 해방 단계를 진행합니다.">해방 진행</button></div></section>` : `<div class="result-panel"><h3>해방 완료</h3><pre>제네시스 무기의 모든 해방을 마쳤습니다.${state.profile.genesis_weapon_skill ? `\n${esc(state.profile.genesis_weapon_skill.name)} · 제네시스 무기 장착 시 전용 슬롯에서 사용` : ""}</pre></div>`}` : `<div class="empty-state"><div><strong>${liberation.claimable ? "제네시스 무기 수령 가능" : "검은 마법사 처치 기록 필요"}</strong>${liberation.claimable ? `<div style="margin-top:14px"><button class="button button-primary" data-action="liberation_claim">${esc(liberation.target_item_name)} 수령</button></div>` : ""}</div></div>`}</section></div>`;
+    const requirementData = liberation.next_stage
+      ? liberationRequirementData(liberation.next_stage, state.profile)
+      : { rows: [], incomplete: false };
+    return `<div class="page">${pageHeader("제네시스 해방", liberation.item_name ? `${esc(liberation.item_name)} · ${stageName}` : esc(liberation.target_item_name || ""))}<section class="section">${liberation.item_uid ? `<div class="stat-grid"><div class="stat-cell"><span>현재 단계</span><strong>${esc(stageName)}</strong></div><div class="stat-cell"><span>무기</span><strong>${esc(liberation.item_name)}</strong></div></div>${liberation.next_stage ? `<section class="section"><div class="section-head"><h2>${esc(liberation.next_stage.name)} · +${liberation.next_stage.stars}</h2></div><div class="entity-list">${requirementData.rows.map((row) => `<div class="entity-card"><h3>${esc(row.name)}</h3><span class="status-pill ${row.owned >= row.amount ? "success" : "danger"}">${number(row.owned)} / ${number(row.amount)}</span></div>`).join("")}</div>${requirementData.incomplete ? `<div class="warning-box" role="status"><strong>해방 재료 정보를 확인할 수 없습니다.</strong>\n화면을 새로고침한 뒤 다시 시도해 주세요.</div>` : ""}<div class="button-row" style="margin-top:14px"><button class="button button-primary" data-confirm-action="liberation_advance" data-confirm-title="제네시스 해방" data-confirm-message="재료를 소모해 다음 해방 단계를 진행합니다." ${requirementData.incomplete ? "disabled" : ""}>해방 진행</button></div></section>` : `<div class="result-panel"><h3>해방 완료</h3><pre>제네시스 무기의 모든 해방을 마쳤습니다.${state.profile.genesis_weapon_skill ? `\n${esc(state.profile.genesis_weapon_skill.name)} · 제네시스 무기 장착 시 전용 슬롯에서 사용` : ""}</pre></div>`}` : `<div class="empty-state"><div><strong>${liberation.claimable ? "제네시스 무기 수령 가능" : "검은 마법사 처치 기록 필요"}</strong>${liberation.claimable ? `<div style="margin-top:14px"><button class="button button-primary" data-action="liberation_claim">${esc(liberation.target_item_name)} 수령</button></div>` : ""}</div></div>`}</section></div>`;
   }
 
   function queueEnhancementPreview() {

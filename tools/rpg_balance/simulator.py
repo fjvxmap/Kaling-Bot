@@ -472,7 +472,7 @@ class BalanceSimulator:
         enemy_base = enemy_stats or self._enemy_stats()
         player_effects = self.service._permanent_effects(profile)
         enemy_effects = []
-        player_stack_effects = []
+        player_stack_effects = self.service.initial_player_stack_effects(profile)
         enemy_stack_effects = []
         player_hp = self.service._stats_with_effects(
             base_stats,
@@ -494,6 +494,14 @@ class BalanceSimulator:
             player_stats = self.service._stats_with_effects(base_stats, player_effects, player_stack_effects)
             enemy_stats = self.service._stats_with_effects(enemy_base, enemy_effects, enemy_stack_effects)
             before_skill_hp = player_hp
+            expected_damage = self.service._estimated_skill_damage(
+                skill,
+                player_stats,
+                before_skill_hp,
+                enemy_stats,
+                enemy_stats.final_hp,
+                self.service._effects_with_stacks(player_effects, player_stack_effects),
+            )
             result = self.service._use_player_skill(
                 skill,
                 player_stats,
@@ -508,16 +516,7 @@ class BalanceSimulator:
                 opponent_stack_effects=[enemy_stack_effects],
             )
             player_stats = self.service._stats_with_effects(base_stats, player_effects, player_stack_effects)
-            enemy_stats = self.service._stats_with_effects(enemy_base, enemy_effects, enemy_stack_effects)
-            expected_damage = self.service._estimated_skill_damage(
-                skill,
-                player_stats,
-                before_skill_hp,
-                enemy_stats,
-                enemy_stats.final_hp,
-                self.service._effects_with_stacks(player_effects, player_stack_effects),
-            ) * max(1, result.activations)
-            skill_total += expected_damage
+            skill_total += expected_damage * max(1, result.activations)
             player_hp = max(0, player_hp - result.self_hp_loss)
             player_hp = min(
                 player_stats.final_hp,
@@ -527,6 +526,21 @@ class BalanceSimulator:
                     result.hit_damages,
                     player_stats.final_hp,
                 ),
+            )
+            before_event_max_hp = player_stats.final_hp
+            self.service.apply_player_stack_event(
+                player_stack_effects,
+                enemy_stack_effects,
+                objective="ability",
+                amount=1,
+                current_hp=player_hp,
+                max_hp=before_event_max_hp,
+            )
+            player_stats = self.service._stats_with_effects(base_stats, player_effects, player_stack_effects)
+            player_hp = self.service._rescale_current_hp_for_max_change(
+                player_hp,
+                before_event_max_hp,
+                player_stats.final_hp,
             )
             if skill.uses > 0:
                 uses_left[skill.id] = max(0, uses_left.get(skill.id, 0) - 1)
@@ -576,11 +590,44 @@ class BalanceSimulator:
                     player_stats.final_hp,
                 ),
             )
+            before_event_max_hp = player_stats.final_hp
+            self.service.apply_player_stack_event(
+                player_stack_effects,
+                enemy_stack_effects,
+                objective="triple_attack",
+                amount=basic_outcome.triple_attacks,
+                current_hp=player_hp,
+                max_hp=before_event_max_hp,
+            )
+            player_stats = self.service._stats_with_effects(base_stats, player_effects, player_stack_effects)
+            player_hp = self.service._rescale_current_hp_for_max_change(
+                player_hp,
+                before_event_max_hp,
+                player_stats.final_hp,
+            )
+            turn_end_before_max_hp = player_stats.final_hp
+            extra_cooldown_reduction = self.service.apply_player_turn_end(
+                profile,
+                player_stack_effects,
+                enemy_stack_effects,
+                current_hp=player_hp,
+                max_hp=turn_end_before_max_hp,
+            )
+            player_stats = self.service._stats_with_effects(base_stats, player_effects, player_stack_effects)
+            player_hp = self.service._rescale_current_hp_for_max_change(
+                player_hp,
+                turn_end_before_max_hp,
+                player_stats.final_hp,
+            )
             player_effects = self.service._tick_effects(player_effects)
             enemy_effects = self.service._tick_effects(enemy_effects)
             player_stack_effects = self.service.tick_stack_effects(player_stack_effects)
             enemy_stack_effects = self.service.tick_stack_effects(enemy_stack_effects)
-            self.service._tick_cooldowns(cooldowns)
+            self.service._tick_player_cooldowns(
+                profile,
+                cooldowns,
+                extra_job_reduction=extra_cooldown_reduction,
+            )
 
         turns = max(1, self.config.turns)
         total = basic_total + skill_total

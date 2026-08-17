@@ -265,17 +265,17 @@ class HardBossTests(unittest.TestCase):
         hard_hp = [boss.stats["max_hp"] for boss in hard_bosses]
         self.assertGreaterEqual(max(hard_hp) / min(hard_hp), 5.0)
         expected_stats = {
-            "guardian_angel_slime_hard": (2_400_000, 25, 0.25, 0),
-            "lotus_hard": (15_000_000, 12, 0.45, 0),
-            "demian_hard": (5_500_000, 15, 0.70, 0),
-            "lucid_hard": (6_500_000, 10, 0.45, 0),
-            "dusk_hard": (3_800_000, 1, 50, 30),
-            "verus_hilla_hard": (6_600_000, 36, 0.60, 15),
-            "dunkel_hard": (8_000_000, 40, 1.0, 0),
-            "black_mage_hard": (10_500_000, 42, 0.85, 8),
-            "beelzebub_hard": (9_000_000, 60, 0.75, 0),
-            "lucilius_hard": (14_000_000, 45, 0.65, 0),
-            "first_adversary_hard": (40_000_000, 75, 0.3, 0),
+            "guardian_angel_slime_hard": (24_000, 25, 0.25, 0),
+            "lotus_hard": (150_000, 12, 0.45, 0),
+            "demian_hard": (55_000, 15, 0.70, 0),
+            "lucid_hard": (65_000, 10, 0.45, 0),
+            "dusk_hard": (38_000, 1, 50, 30),
+            "verus_hilla_hard": (66_000, 36, 0.60, 15),
+            "dunkel_hard": (80_000, 40, 1.0, 0),
+            "black_mage_hard": (105_000, 42, 0.85, 8),
+            "beelzebub_hard": (90_000, 60, 0.75, 0),
+            "lucilius_hard": (140_000, 45, 0.65, 0),
+            "first_adversary_hard": (400_000, 75, 0.3, 0),
         }
         for boss_id, expected in expected_stats.items():
             stats = BOSS_BY_ID[boss_id].stats

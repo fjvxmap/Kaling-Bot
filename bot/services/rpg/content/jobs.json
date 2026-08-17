@@ -455,8 +455,20 @@
       "life_steal": 0.01,
       "life_steal_cap": 0.01
     },
+    "initial_stack_effects": [
+      {
+        "stack_effect_id": "sarasa_fury",
+        "stacks": 0
+      }
+    ],
+    "low_hp_cooldown": {
+      "max_hp_ratio": 0.35,
+      "reduction": 1,
+      "disabled_at_stack_effect_id": "sarasa_fury",
+      "disabled_at_stacks": 5
+    },
     "undispellable": true,
-    "description": "거대한 도끼를 휘두르며, 상처가 깊어질수록 더 거세게 몰아붙인다."
+    "description": "거대한 도끼를 휘두르며 괴력난신의 분노를 쌓는다. 빈사에서는 어빌리티가 빠르게 돌아오지만, 분노가 격앙에 이르면 가속이 멎고 방어가 크게 무너진다."
   },
   {
     "id": "sarasa_2",
@@ -511,7 +523,13 @@
       "life_steal": 0.025,
       "life_steal_cap": 0.025
     },
+    "initial_stack_effects": [
+      {
+        "stack_effect_id": "sarasa_astral_form",
+        "stacks": 1
+      }
+    ],
     "undispellable": true,
-    "description": "하늘의 모든 위협을 꺾는 십천중의 삼인. 단 하나의 생명마저 공격에 내걸고, 빼앗은 숨으로 다시 선다."
+    "description": "하늘의 모든 위협을 꺾는 십천중의 삼인. 어빌리티와 트리플 어택, 빈사에서 버틴 턴마다 괴력난신의 분노가 차오른다. 단 하나의 생명마저 공격에 내걸고, 빼앗은 숨으로 다시 선다."
   }
 ]

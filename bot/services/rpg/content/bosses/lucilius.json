@@ -388,7 +388,7 @@
     "level_req": 54,
     "stats": {
       "base_atk": 45,
-      "max_hp": 14000000,
+      "max_hp": 140000,
       "defense": 0.65,
       "triple_attack_rate": 0.55,
       "double_attack_rate": 0.0

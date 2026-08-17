@@ -136,10 +136,62 @@ class RPGWebTests(unittest.TestCase):
         payload = response.json()
 
         self.assertTrue(payload["ok"])
-        self.assertEqual(
-            payload["boss_session"]["participant"]["boss_stacks"],
-            "대적의 의지 (하드) lv.3",
+        stack_text = payload["boss_session"]["participant"]["boss_stacks"]
+        self.assertIn("대적의 의지 (하드) lv.3/5", stack_text)
+        self.assertIn("피격 데미지 감소 +5.0%", stack_text)
+
+    def test_sarasa_special_and_passive_are_exposed_and_switch_on_web(self) -> None:
+        service = self.runtime.engine.service
+        profile = service.get_profile(9001, "웹 테스터")
+        profile.level = 50
+        profile.job_id = "sarasa_4"
+        profile.equipped_skill_ids = ["sarasa_ground_zero"]
+        result = service.set_equipped_special_skill(
+            profile.user_id,
+            profile.display_name,
+            "sarasa_astro_divergence",
         )
+        self.assertTrue(result.ok)
+
+        bootstrap = self.client.get("/api/bootstrap/").json()
+        self.assertIn("괴력난신", bootstrap["profile"]["job_description"])
+        self.assertIn(
+            "sarasa_astro_divergence",
+            bootstrap["profile"]["unlocked_special_skill_ids"],
+        )
+        astro = next(
+            skill
+            for skill in bootstrap["content"]["skills"]
+            if skill["id"] == "sarasa_astro_divergence"
+        )
+        self.assertIn("현재 HP의 15%", astro["note"])
+        self.assertIn("이전 형상", astro["note"])
+
+        self.assertTrue(self.post_action(
+            "boss_create",
+            boss_id="guardian_angel_slime_hard",
+            practice=True,
+        ).json()["ok"])
+        started = self.post_action("boss_start").json()
+        self.assertTrue(started["ok"])
+        self.assertIn("분노 lv.0/5", started["boss_session"]["participant"]["player_stacks"])
+        self.assertIn("실제 트리플 어택", started["boss_session"]["participant"]["player_stacks"])
+        special = next(
+            skill
+            for skill in started["boss_session"]["skills"]
+            if skill["id"] == "sarasa_astro_divergence"
+        )
+        self.assertIn("HP 15% 소모", special["summary"])
+        self.assertIn("도끼 보정", special["note"])
+
+        switched = self.post_action(
+            "boss_ability",
+            skill_id="sarasa_astro_divergence",
+        ).json()
+        self.assertTrue(switched["ok"])
+        player_stacks = switched["boss_session"]["participant"]["player_stacks"]
+        self.assertIn("분노 lv.1/5", player_stacks)
+        self.assertIn("검 형태 · 메테오 스러스트", player_stacks)
 
     def test_genesis_weapon_skill_uses_its_own_web_slot_and_blocks_a_turn(self) -> None:
         service = self.runtime.engine.service
@@ -177,6 +229,24 @@ class RPGWebTests(unittest.TestCase):
         advanced = self.post_action("boss_attack").json()
         self.assertTrue(advanced["ok"])
         self.assertEqual(advanced["boss_session"]["participant"]["hp"], before_hp)
+
+    def test_liberation_requirements_use_material_names_even_when_none_are_owned(self) -> None:
+        service = self.runtime.engine.service
+        profile = service.get_profile(9001, "웹 테스터")
+        profile.job_id = "hero"
+        profile.cleared_boss_ids.append(LIBERATION.boss_id)
+        claim = service.claim_genesis_weapon(9001, "웹 테스터")
+        self.assertTrue(claim.ok)
+
+        payload = self.client.get("/api/bootstrap/").json()
+        next_stage = payload["profile"]["liberation"]["next_stage"]
+        rows = next_stage["material_rows"]
+
+        self.assertTrue(rows)
+        self.assertTrue(all(row["owned"] == 0 for row in rows))
+        self.assertTrue(all(row["name"] == service.material_name(row["id"]) for row in rows))
+        self.assertTrue(all(row["name"] != row["id"] for row in rows))
+        self.assertTrue(all("흔적" in row["name"] for row in rows))
 
     def test_waiting_boss_cancel_returns_to_selection(self) -> None:
         boss = next(

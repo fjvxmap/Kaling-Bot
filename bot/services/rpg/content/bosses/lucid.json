@@ -449,7 +449,7 @@
     "level_req": 47,
     "stats": {
       "base_atk": 10,
-      "max_hp": 6500000,
+      "max_hp": 65000,
       "defense": 0.45,
       "dmg_supplement": 10
     },

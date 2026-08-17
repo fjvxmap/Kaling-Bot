@@ -201,7 +201,7 @@
     "level_req": 50,
     "stats": {
       "base_atk": 40,
-      "max_hp": 8000000,
+      "max_hp": 80000,
       "defense": 1.0
     },
     "stack_effects": [

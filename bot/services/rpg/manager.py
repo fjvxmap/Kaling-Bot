@@ -43,7 +43,6 @@ from .data import (
     LEVEL_DAMAGE_MULTIPLIERS,
     MATERIAL_BY_ID,
     MATERIALS,
-    MATERIALS_BY_RARITY,
     LIBERATION,
     MAX_ENHANCEMENT_STARS,
     MAX_EQUIPPED_ITEMS,
@@ -94,6 +93,10 @@ from .data import (
     enhancement_method_available,
     enhancement_method_gold_cost,
     enhancement_method_odds,
+    gacha_candidate_kind,
+    gacha_candidate_rarity,
+    gacha_entry_candidates,
+    gacha_percent_weight,
     next_level_exp,
     previous_level_exp,
     restore_cost,
@@ -772,6 +775,17 @@ class RPGService:
         if genesis_skill is not None:
             skills.append(genesis_skill)
         return skills
+
+    def initial_player_stack_effects(self, profile: PlayerProfile) -> list[ActiveStackEffect]:
+        initial_by_id: dict[str, int] = {}
+        for job in self.job_chain(profile):
+            for initial in job.initial_stack_effects:
+                initial_by_id[initial.stack_effect_id] = initial.stacks
+        return [
+            ActiveStackEffect(effect_id, min(stacks, STACK_EFFECT_BY_ID[effect_id].max_stacks), persistent=True)
+            for effect_id, stacks in initial_by_id.items()
+            if effect_id in STACK_EFFECT_BY_ID
+        ]
 
     def set_equipped_skills(self, user_id: int, display_name: str, skill_ids: list[str]) -> AbilityResult:
         profile = self.get_profile(user_id, display_name)
@@ -2164,11 +2178,73 @@ class RPGService:
         hp_cost_summary = self._self_hp_cost_summary(skill.self_hp_cost)
         if hp_cost_summary:
             parts.append(hp_cost_summary)
+        for variant in skill.hp_variants:
+            variant_summary = self._hp_variant_summary(variant)
+            if variant_summary:
+                threshold = variant.max_hp_ratio * 100
+                parts.append(f"HP {threshold:g}% 이하: {variant_summary}")
         if skill.cooldown > 0:
             parts.append(f"쿨 {skill.cooldown}턴")
         if skill.uses > 0:
             parts.append(f"전투당 {skill.uses}회")
         return " · ".join(parts) if parts else "기본 효과"
+
+    def _hp_variant_summary(self, variant) -> str:
+        parts: list[str] = []
+        if variant.damage_multiplier is not None or variant.hits is not None:
+            multiplier = variant.damage_multiplier if variant.damage_multiplier is not None else 0.0
+            hits = variant.hits if variant.hits is not None else 0
+            if multiplier > 0 and hits > 0:
+                parts.append(f"{multiplier * 100:.0f}% x {hits}")
+            elif hits > 0:
+                parts.append(f"{hits}타")
+        parts.extend(
+            self._stat_effect_summary_parts(
+                variant.player_stat_effects,
+                {},
+                self_label="자신",
+                allies_label="참전자 모두",
+            )
+        )
+        parts.extend(
+            self._stat_effect_summary_parts(
+                variant.enemy_stat_effects,
+                {},
+                self_label="적",
+                allies_label="적 전체",
+            )
+        )
+        parts.extend(self.special_effects_summary(variant.player_effects))
+        parts.extend(
+            self.special_effects_summary(
+                variant.enemy_effects,
+                self_label="적",
+                allies_label="적 전체",
+            )
+        )
+        action_summary = self.effect_actions_summary(variant.effect_actions)
+        if action_summary:
+            parts.append(action_summary)
+        if variant.note:
+            parts.append(variant.note)
+        return ", ".join(parts)
+
+    def stack_effect_tier_summary(self, template_id: str, stacks: int) -> str:
+        template = STACK_EFFECT_BY_ID.get(template_id)
+        if template is None:
+            return ""
+        tier = self._stack_effect_tier_for_stacks(template, stacks)
+        if tier is None:
+            return (template.zero_note or "대기") if template.show_at_zero else ""
+        mods = self._stat_effect_mods(tier.stat_effects)
+        parts: list[str] = []
+        stat_text = self.format_stats(mods, signed=True)
+        if stat_text != "스탯 없음":
+            parts.append(stat_text)
+        parts.extend(self.special_effects_summary(tier.effects))
+        if tier.note and tier.note != template.name:
+            parts.append(tier.note)
+        return " · ".join(parts)
 
     def _self_hp_cost_summary(self, cost: SelfHpCost) -> str:
         if not cost.has_cost:
@@ -2270,6 +2346,7 @@ class RPGService:
             "stack_set": "스택 지정",
             "stack_remove": "스택 제거",
             "stack_max": "스택 최대",
+            "stack_cycle": "스택 순환",
         }
         targets = {
             "self": "자신",
@@ -2289,7 +2366,7 @@ class RPGService:
                 template = STACK_EFFECT_BY_ID.get(action.stack_effect_id)
                 effect_name = template.name if template is not None else action.stack_effect_id
                 value = ""
-                if action.action not in {"stack_remove", "stack_max"}:
+                if action.action not in {"stack_remove", "stack_max", "stack_cycle"}:
                     if action.value_from_stack_effect_id:
                         source = STACK_EFFECT_BY_ID.get(action.value_from_stack_effect_id)
                         source_name = source.name if source is not None else action.value_from_stack_effect_id
@@ -2326,7 +2403,7 @@ class RPGService:
         enemy_base = enemy_base_stats
         player_effects: list[ActiveEffect] = self._permanent_effects(profile)
         enemy_effects: list[ActiveEffect] = []
-        player_stack_effects: list[ActiveStackEffect] = []
+        player_stack_effects = self.initial_player_stack_effects(profile)
         enemy_stack_effects: list[ActiveStackEffect] = []
         player_hp = self._stats_with_effects(player_base, player_effects, player_stack_effects).final_hp
         enemy_hp = self._stats_with_effects(enemy_base, enemy_effects, enemy_stack_effects).final_hp
@@ -2423,6 +2500,21 @@ class RPGService:
                 total_heal = skill_result.heal + life_steal_heal
                 if total_heal > 0:
                     player_hp = min(player_stats.final_hp, player_hp + total_heal)
+                before_event_max_hp = player_stats.final_hp
+                self.apply_player_stack_event(
+                    player_stack_effects,
+                    enemy_stack_effects,
+                    objective="ability",
+                    amount=1,
+                    current_hp=player_hp,
+                    max_hp=before_event_max_hp,
+                )
+                player_stats = self._stats_with_effects(player_base, player_effects, player_stack_effects)
+                player_hp = self._rescale_current_hp_for_max_change(
+                    player_hp,
+                    before_event_max_hp,
+                    player_stats.final_hp,
+                )
                 action_bits = []
                 if skill_result.damage > 0:
                     action_bits.append(f"{skill_result.damage} 피해")
@@ -2469,6 +2561,21 @@ class RPGService:
             )
             if attack.heal > 0:
                 player_hp = min(player_stats.final_hp, player_hp + attack.heal)
+            before_event_max_hp = player_stats.final_hp
+            self.apply_player_stack_event(
+                player_stack_effects,
+                enemy_stack_effects,
+                objective="triple_attack",
+                amount=attack.triple_attacks,
+                current_hp=player_hp,
+                max_hp=before_event_max_hp,
+            )
+            player_stats = self._stats_with_effects(player_base, player_effects, player_stack_effects)
+            player_hp = self._rescale_current_hp_for_max_change(
+                player_hp,
+                before_event_max_hp,
+                player_stats.final_hp,
+            )
             log_text = self._attack_log_text(attack)
             log.append(f"{turn}T 기본 공격: {enemy_name}에게 {log_text}")
 
@@ -2535,6 +2642,20 @@ class RPGService:
 
             player_stats = self._stats_with_effects(player_base, player_effects, player_stack_effects)
             enemy_stats = self._stats_with_effects(enemy_base, enemy_effects, enemy_stack_effects)
+            turn_end_before_max_hp = player_stats.final_hp
+            extra_cooldown_reduction = self.apply_player_turn_end(
+                profile,
+                player_stack_effects,
+                enemy_stack_effects,
+                current_hp=player_hp,
+                max_hp=player_stats.final_hp,
+            )
+            player_stats = self._stats_with_effects(player_base, player_effects, player_stack_effects)
+            player_hp = self._rescale_current_hp_for_max_change(
+                player_hp,
+                turn_end_before_max_hp,
+                player_stats.final_hp,
+            )
             before_player_max_hp = player_stats.final_hp
             before_enemy_max_hp = enemy_stats.final_hp
             player_effects = self._tick_effects(player_effects)
@@ -2545,7 +2666,11 @@ class RPGService:
             enemy_stats = self._stats_with_effects(enemy_base, enemy_effects, enemy_stack_effects)
             player_hp = self._rescale_current_hp_for_max_change(player_hp, before_player_max_hp, player_stats.final_hp)
             enemy_hp = self._rescale_current_hp_for_max_change(enemy_hp, before_enemy_max_hp, enemy_stats.final_hp)
-            self._tick_cooldowns(cooldowns)
+            self._tick_player_cooldowns(
+                profile,
+                cooldowns,
+                extra_job_reduction=extra_cooldown_reduction,
+            )
 
         return battle_report(False, 24, player_hp, enemy_hp)
 
@@ -2628,6 +2753,75 @@ class RPGService:
             return False
         return True
 
+    def resolve_skill_variant(
+        self,
+        skill: SkillTemplate,
+        post_cost_hp: int,
+        max_hp: int,
+    ) -> SkillTemplate:
+        """Resolve one HP variant from the post-cost HP snapshot.
+
+        The returned template is stable for the whole input, including every
+        ability-recast activation. Variant buffs/actions extend the base skill;
+        damage multiplier and hit count replace their base values when authored.
+        """
+        hp_ratio = self._hp_ratio(post_cost_hp, max_hp)
+        variant = next(
+            (
+                candidate
+                for candidate in skill.hp_variants
+                if hp_ratio <= candidate.max_hp_ratio
+            ),
+            None,
+        )
+        if variant is None:
+            return skill
+        player_stat_effects = [*skill.player_stat_effects, *variant.player_stat_effects]
+        enemy_stat_effects = [*skill.enemy_stat_effects, *variant.enemy_stat_effects]
+        return replace(
+            skill,
+            damage_multiplier=(
+                variant.damage_multiplier
+                if variant.damage_multiplier is not None
+                else skill.damage_multiplier
+            ),
+            hits=variant.hits if variant.hits is not None else skill.hits,
+            hp_scaled_damage=(
+                variant.hp_scaled_damage
+                if variant.hp_scaled_damage is not None
+                else skill.hp_scaled_damage
+            ),
+            player_mods=self._stat_effect_mods(player_stat_effects),
+            enemy_mods=self._stat_effect_mods(enemy_stat_effects),
+            player_stat_effects=player_stat_effects,
+            enemy_stat_effects=enemy_stat_effects,
+            player_effects=self._merge_special_effects(skill.player_effects, variant.player_effects),
+            enemy_effects=self._merge_special_effects(skill.enemy_effects, variant.enemy_effects),
+            effect_actions=[*skill.effect_actions, *variant.effect_actions],
+            hp_variants=(),
+        )
+
+    def _stat_effect_mods(self, effects: list[StatEffect]) -> dict[str, float]:
+        totals: dict[str, float] = {}
+        for effect in effects:
+            totals[effect.stat] = totals.get(effect.stat, 0.0) + effect.value
+        return totals
+
+    def _merge_special_effects(
+        self,
+        base: CombatSpecialEffects,
+        extra: CombatSpecialEffects,
+    ) -> CombatSpecialEffects:
+        values: dict[str, object] = {}
+        for effect_field in dataclass_fields(CombatSpecialEffects):
+            base_value = getattr(base, effect_field.name)
+            extra_value = getattr(extra, effect_field.name)
+            if isinstance(base_value, list):
+                values[effect_field.name] = [*base_value, *extra_value]
+            else:
+                values[effect_field.name] = extra_value if extra_value is not None else base_value
+        return CombatSpecialEffects(**values)
+
     def _mark_skill_used(
         self,
         skill: SkillTemplate,
@@ -2650,13 +2844,14 @@ class RPGService:
         *,
         skill_damage_multiplier: float = 1.0,
     ) -> float:
-        if skill.damage_multiplier <= 0 or skill.hits <= 0:
-            return 0.0
         effective_player_hp = self._self_hp_after_cost(
             skill.self_hp_cost,
             player_hp,
             player_stats.final_hp,
         )
+        skill = self.resolve_skill_variant(skill, effective_player_hp, player_stats.final_hp)
+        if skill.damage_multiplier <= 0 or skill.hits <= 0:
+            return 0.0
         return sum(
             self._estimated_skill_damage_hit(
                 player_stats,
@@ -2703,6 +2898,12 @@ class RPGService:
         opponent_stack_effects: list[list[ActiveStackEffect]] | None = None,
         skill_damage_multiplier: float = 1.0,
     ) -> SkillUseResult:
+        effective_player_hp = self._self_hp_after_cost(
+            skill.self_hp_cost,
+            player_hp,
+            player_stats.final_hp,
+        )
+        skill = self.resolve_skill_variant(skill, effective_player_hp, player_stats.final_hp)
         self._remove_effects_by_source(
             [
                 player_effects,
@@ -2739,11 +2940,6 @@ class RPGService:
             all_targets=opponent_effects,
         )
 
-        effective_player_hp = self._self_hp_after_cost(
-            skill.self_hp_cost,
-            player_hp,
-            player_stats.final_hp,
-        )
         result = SkillUseResult(self_hp_loss=max(0, int(player_hp) - effective_player_hp))
         active_player_effects = self._effects_with_stacks(player_effects, player_stack_effects)
         deals_damage = skill.damage_multiplier > 0 and skill.hits > 0
@@ -2788,8 +2984,13 @@ class RPGService:
                     heal_cap_bonus=player_stats.heal_cap_bonus,
                 )
 
+            activation_actions = [
+                action
+                for action in skill.effect_actions
+                if activation_index == 1 or action.repeat_on_recast
+            ]
             dispels, clear_alls = self._apply_effect_actions(
-                skill.effect_actions,
+                activation_actions,
                 self_effects=player_effects,
                 enemy_effects=enemy_effects,
                 ally_effects=ally_effects,
@@ -3151,10 +3352,35 @@ class RPGService:
                 )
         return next_effects
 
-    def _tick_cooldowns(self, cooldowns: dict[str, int]) -> None:
+    def _tick_cooldowns(self, cooldowns: dict[str, int], ticks: int = 1) -> None:
+        ticks = max(0, int(ticks))
         for skill_id, turns in list(cooldowns.items()):
             if turns > 0:
-                cooldowns[skill_id] = turns - 1
+                cooldowns[skill_id] = max(0, turns - ticks)
+
+    def _tick_player_cooldowns(
+        self,
+        profile: PlayerProfile,
+        cooldowns: dict[str, int],
+        *,
+        extra_job_reduction: int = 0,
+    ) -> None:
+        chain_ids = {job.id for job in self.job_chain(profile)}
+        extra_job_reduction = max(0, int(extra_job_reduction))
+        for skill_id, turns in list(cooldowns.items()):
+            if turns <= 0:
+                continue
+            skill = SKILL_BY_ID.get(skill_id)
+            gets_job_reduction = bool(
+                extra_job_reduction
+                and skill is not None
+                and skill.job_ids
+                and chain_ids.intersection(skill.job_ids)
+            )
+            cooldowns[skill_id] = max(
+                0,
+                turns - 1 - (extra_job_reduction if gets_job_reduction else 0),
+            )
 
     def _has_active_effect(self, effects: list[ActiveEffect], source_id: str) -> bool:
         return any(effect.source_id == source_id and self._effect_active(effect) for effect in effects)
@@ -3662,6 +3888,8 @@ class RPGService:
             next_stacks = value
         elif operation == "max":
             next_stacks = template.max_stacks
+        elif operation == "cycle":
+            next_stacks = 1 if current_stacks <= 0 or current_stacks >= template.max_stacks else current_stacks + 1
         elif operation == "remove":
             next_stacks = 0
         else:
@@ -3678,7 +3906,7 @@ class RPGService:
             stacks[:] = [effect for effect in stacks if effect.template_id != template.id]
             return
         current.stacks = next_stacks
-        if operation in {"increase", "set", "max"}:
+        if operation in {"increase", "set", "max", "cycle"}:
             current.turns = action.duration
 
     def tick_stack_effects(self, stacks: list[ActiveStackEffect]) -> list[ActiveStackEffect]:
@@ -3704,6 +3932,76 @@ class RPGService:
                 return max(0, int(effect.stacks))
         return 0
 
+    def apply_player_stack_event(
+        self,
+        player_stacks: list[ActiveStackEffect],
+        opponent_stacks: list[ActiveStackEffect] | None = None,
+        *,
+        objective: str,
+        amount: int = 0,
+        hit_damages: list[int] | None = None,
+        current_hp: int | None = None,
+        max_hp: int | None = None,
+    ) -> None:
+        self._apply_stack_conditions(
+            player_stacks,
+            objective=objective,
+            amount=amount,
+            actor_is_holder=True,
+            hit_damages=hit_damages,
+            current_hp=current_hp,
+            max_hp=max_hp,
+        )
+        if opponent_stacks is not None:
+            self._apply_stack_conditions(
+                opponent_stacks,
+                objective=objective,
+                amount=amount,
+                actor_is_holder=False,
+                hit_damages=hit_damages,
+                current_hp=current_hp,
+                max_hp=max_hp,
+            )
+
+    def apply_player_turn_end(
+        self,
+        profile: PlayerProfile,
+        player_stacks: list[ActiveStackEffect],
+        opponent_stacks: list[ActiveStackEffect] | None,
+        *,
+        current_hp: int,
+        max_hp: int,
+    ) -> int:
+        """Apply post-enemy turn rules and return the extra job cooldown ticks."""
+        if current_hp <= 0:
+            return 0
+        self.apply_player_stack_event(
+            player_stacks,
+            opponent_stacks,
+            objective="turn_end",
+            amount=1,
+            current_hp=current_hp,
+            max_hp=max_hp,
+        )
+        rule = next(
+            (
+                job.low_hp_cooldown
+                for job in reversed(self.job_chain(profile))
+                if job.low_hp_cooldown.reduction > 0
+            ),
+            None,
+        )
+        if rule is None or self._hp_ratio(current_hp, max_hp) > rule.max_hp_ratio:
+            return 0
+        if (
+            rule.disabled_at_stack_effect_id
+            and rule.disabled_at_stacks > 0
+            and self._active_stack_count(player_stacks, rule.disabled_at_stack_effect_id)
+            >= rule.disabled_at_stacks
+        ):
+            return 0
+        return rule.reduction
+
     def _apply_stack_conditions(
         self,
         stacks: list[ActiveStackEffect],
@@ -3712,6 +4010,8 @@ class RPGService:
         amount: int = 0,
         actor_is_holder: bool = True,
         hit_damages: list[int] | None = None,
+        current_hp: int | None = None,
+        max_hp: int | None = None,
     ) -> None:
         if not stacks:
             return
@@ -3725,6 +4025,12 @@ class RPGService:
                 if objective not in WARNING_STACK_EVENTS:
                     wants_holder = condition.target in {"self", "me", "holder"}
                     if wants_holder != actor_is_holder:
+                        continue
+                if objective == "turn_end":
+                    if current_hp is None or max_hp is None or max_hp <= 0:
+                        continue
+                    hp_ratio = self._hp_ratio(current_hp, max_hp)
+                    if hp_ratio < condition.min_hp_ratio or hp_ratio > condition.max_hp_ratio:
                         continue
                 progress = max(1, amount) if objective in WARNING_STACK_EVENTS else max(0, amount)
                 if objective == "hits":
@@ -3765,6 +4071,8 @@ class RPGService:
                 condition.operation,
                 str(max(1, condition.required)),
                 str(max(0, condition.min_damage)),
+                f"{condition.min_hp_ratio:g}",
+                f"{condition.max_hp_ratio:g}",
             )
         )
 
@@ -4544,62 +4852,79 @@ class RPGService:
                 for entry, candidates in base_options
             ]
 
+        base_total = sum(max(0.0, entry.chance) for entry, _ in base_options)
+        atoms = [
+            GachaOption(
+                entry,
+                max(0.0, entry.chance) / len(candidates),
+                (candidate_id,),
+            )
+            for entry, candidates in base_options
+            for candidate_id in candidates
+        ]
+        atom_kinds = [gacha_candidate_kind(atom.entry) for atom in atoms]
+        atom_rarities = [
+            gacha_candidate_rarity(atom.entry, atom.candidate_ids[0])
+            for atom in atoms
+        ]
+
         rarity_overrides: dict[tuple[str, str], float] = {}
         target_overrides: dict[tuple[str, str], float] = {}
         for override in festival.overrides:
-            key = (override.type, override.target_id)
+            chance_weight = gacha_percent_weight(override.chance, base_total)
             if override.type in {"item_rarity", "material_rarity"}:
-                rarity_overrides[key] = max(0.0, override.chance)
+                rarity_overrides[(override.type.removesuffix("_rarity"), override.target_id)] = chance_weight
             else:
-                target_overrides[key] = max(0.0, override.chance)
+                target_overrides[(override.type, override.target_id)] = chance_weight
 
-        fixed_options: list[GachaOption] = []
-        flexible_options: list[GachaOption] = []
-        base_total = sum(max(0.0, entry.chance) for entry, _ in base_options)
+        allocated: list[float | None] = [None] * len(atoms)
+        fixed_indices: set[int] = set()
+        for target_key, target_weight in target_overrides.items():
+            indices = [
+                index
+                for index, atom in enumerate(atoms)
+                if (atom_kinds[index], atom.candidate_ids[0]) == target_key
+            ]
+            occurrence_total = sum(atoms[index].chance for index in indices)
+            if occurrence_total <= 0:
+                continue
+            for index in indices:
+                allocated[index] = target_weight * atoms[index].chance / occurrence_total
+            fixed_indices.update(indices)
 
-        for entry, candidates in base_options:
-            candidate_kind = "item" if entry.type in {"item", "item_rarity"} else "material"
-            exact_chances = {
-                candidate_id: target_overrides[(candidate_kind, candidate_id)]
-                for candidate_id in candidates
-                if (candidate_kind, candidate_id) in target_overrides
-            }
-            for candidate_id, chance in exact_chances.items():
-                fixed_options.append(GachaOption(entry, chance, (candidate_id,)))
-
-            remaining_candidates = tuple(
-                candidate_id for candidate_id in candidates
-                if candidate_id not in exact_chances
+        for rarity_key, rarity_weight in rarity_overrides.items():
+            indices = [
+                index
+                for index in range(len(atoms))
+                if (atom_kinds[index], atom_rarities[index]) == rarity_key
+            ]
+            if not indices:
+                continue
+            exact_weight = sum(
+                allocated[index] or 0.0
+                for index in indices
+                if index in fixed_indices
             )
-            if not remaining_candidates:
-                continue
+            recipients = [index for index in indices if index not in fixed_indices]
+            recipient_total = sum(atoms[index].chance for index in recipients)
+            remainder = max(0.0, rarity_weight - exact_weight)
+            if recipient_total > 0:
+                for index in recipients:
+                    allocated[index] = remainder * atoms[index].chance / recipient_total
+            fixed_indices.update(indices)
 
-            rarity_key = (entry.type, entry.rarity) if entry.type in {"item_rarity", "material_rarity"} else None
-            if rarity_key is not None and rarity_key in rarity_overrides:
-                remaining_chance = max(0.0, rarity_overrides[rarity_key] - sum(exact_chances.values()))
-                fixed_options.append(GachaOption(entry, remaining_chance, remaining_candidates))
-                continue
-
-            base_chance = max(0.0, entry.chance)
-            if exact_chances:
-                base_chance *= len(remaining_candidates) / max(1, len(candidates))
-            flexible_options.append(GachaOption(entry, base_chance, remaining_candidates))
-
-        fixed_total = sum(option.chance for option in fixed_options)
-        flexible_total = sum(option.chance for option in flexible_options)
+        fixed_total = sum(allocated[index] or 0.0 for index in fixed_indices)
+        flexible_indices = [index for index in range(len(atoms)) if index not in fixed_indices]
+        flexible_total = sum(atoms[index].chance for index in flexible_indices)
         remaining_total = max(0.0, base_total - fixed_total)
         scale = remaining_total / flexible_total if flexible_total > 0 else 0.0
-        options = [
-            option
-            for option in fixed_options
-            if option.chance > 0 and option.candidate_ids
+        for index in flexible_indices:
+            allocated[index] = atoms[index].chance * scale
+        return [
+            replace(atom, chance=allocated[index] or 0.0)
+            for index, atom in enumerate(atoms)
+            if (allocated[index] or 0.0) > 0
         ]
-        options.extend(
-            replace(option, chance=option.chance * scale)
-            for option in flexible_options
-            if option.chance > 0 and option.candidate_ids and scale > 0
-        )
-        return options
 
     def _choose_gacha_option(self, options: list[GachaOption]) -> GachaOption:
         total = sum(max(0.0, option.chance) for option in options)
@@ -4614,23 +4939,7 @@ class RPGService:
         return options[-1]
 
     def _gacha_candidates(self, entry: GachaEntry) -> list[str]:
-        if entry.type == "item":
-            return [
-                item_id
-                for item_id in entry.item_ids
-                if item_id in ITEM_BY_ID and not ITEM_BY_ID[item_id].excluded_from_gacha
-            ]
-        if entry.type == "item_rarity":
-            return [
-                item.id
-                for item in ITEMS_BY_RARITY.get(entry.rarity, [])
-                if not item.excluded_from_gacha
-            ]
-        if entry.type == "material":
-            return [material_id for material_id in entry.material_ids if material_id in MATERIAL_BY_ID]
-        if entry.type == "material_rarity":
-            return [material.id for material in MATERIALS_BY_RARITY.get(entry.rarity, [])]
-        return []
+        return gacha_entry_candidates(entry)
 
     def _grant_gacha_option(self, profile: PlayerProfile, option: GachaOption) -> GachaGrant | None:
         entry = option.entry

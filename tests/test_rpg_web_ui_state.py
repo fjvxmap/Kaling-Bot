@@ -86,6 +86,22 @@ class RPGWebUIStateTests(unittest.TestCase):
             self.app_js,
         )
 
+    def test_liberation_requirements_render_names_and_fail_safe_for_legacy_payloads(self) -> None:
+        render_start = self.app_js.index("  function liberationRequirementData(")
+        render_end = self.app_js.index("  function queueEnhancementPreview()", render_start)
+        render_body = self.app_js[render_start:render_end]
+
+        self.assertIn("Array.isArray(nextStage?.material_rows)", render_body)
+        self.assertIn("Object.entries(nextStage?.materials || {})", render_body)
+        self.assertIn("Array.isArray(profile?.materials)", render_body)
+        self.assertIn('safeName === "해방 재료"', render_body)
+        self.assertIn("${esc(row.name)}", render_body)
+        self.assertIn("requirementData.incomplete", render_body)
+        self.assertIn("화면을 새로고침한 뒤 다시 시도해 주세요.", render_body)
+        self.assertIn('? "disabled" : ""', render_body)
+        self.assertNotIn("|| id", render_body)
+        self.assertNotIn("${esc(id)}", render_body)
+
 
 if __name__ == "__main__":
     unittest.main()
